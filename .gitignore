@@ -1,0 +1,20 @@
+# Dependencias y datos locales
+node_modules/
+.data/
+
+# Claves (nunca a GitHub)
+.env
+.env.*
+!.env.example
+
+# Vercel / herramientas locales
+.vercel/
+.claude/
+*.log
+
+# Archivos iniciales del cliente (PDF, logo, fondo): solo se usan una vez con `npm run setup`
+# desde este computador; después viven en Supabase Storage.
+clients/*/seed/
+
+# Notas internas del proyecto
+CONTEXTO.md

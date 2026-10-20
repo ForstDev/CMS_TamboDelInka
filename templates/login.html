@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1d4b49">
+<title>Ingresar · {{cms_nombre}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="/assets/cms/cms.css?v={{asset_v}}">
+</head>
+<body class="login-body">
+
+<main class="login">
+  <section class="login-brand" aria-hidden="true">
+    {{#if logo_url}}<img src="{{logo_url}}" alt="">{{/if}}
+    <p class="login-brand-text">Administra tu página, tus cartas y mira qué es lo que más busca tu gente.</p>
+  </section>
+
+  <section class="login-card">
+    <div class="login-head">
+      <span class="login-badge"><i class="fa-solid fa-lock"></i> Panel de administración</span>
+      <h1>Hola de nuevo</h1>
+      <p>Ingresa para editar <strong>{{cms_nombre}}</strong>.</p>
+    </div>
+
+    <form id="login-form" novalidate>
+      <div class="alert alert-error" id="login-error" role="alert" hidden></div>
+
+      <label class="field">
+        <span class="field-label">Usuario</span>
+        <span class="input-icon">
+          <i class="fa-regular fa-user"></i>
+          <input type="text" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" required autofocus>
+        </span>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Contraseña</span>
+        <span class="input-icon">
+          <i class="fa-solid fa-key"></i>
+          <input type="password" name="password" autocomplete="current-password" required>
+          <button type="button" class="input-action" id="toggle-password" aria-label="Mostrar contraseña"><i class="fa-regular fa-eye"></i></button>
+        </span>
+      </label>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="login-submit">
+        <span>Ingresar</span> <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </form>
+
+    <p class="login-foot"><i class="fa-solid fa-shield-halved"></i> Acceso solo para administradores autorizados.</p>
+  </section>
+</main>
+
+<script>
+  const form = document.getElementById('login-form');
+  const errorBox = document.getElementById('login-error');
+  const submit = document.getElementById('login-submit');
+  const pwd = form.elements.password;
+
+  document.getElementById('toggle-password').addEventListener('click', (e) => {
+    const show = pwd.type === 'password';
+    pwd.type = show ? 'text' : 'password';
+    e.currentTarget.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+    e.currentTarget.innerHTML = show ? '<i class="fa-regular fa-eye-slash"></i>' : '<i class="fa-regular fa-eye"></i>';
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorBox.hidden = true;
+    const username = form.elements.username.value.trim();
+    const password = pwd.value;
+    if (!username || !password) {
+      errorBox.textContent = 'Completa tu usuario y contraseña.';
+      errorBox.hidden = false;
+      return;
+    }
+    submit.disabled = true;
+    submit.classList.add('is-loading');
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'No se pudo ingresar.');
+      location.href = '/cms';
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.hidden = false;
+      form.classList.remove('shake');
+      void form.offsetWidth;
+      form.classList.add('shake');
+      submit.disabled = false;
+      submit.classList.remove('is-loading');
+    }
+  });
+</script>
+</body>
+</html>

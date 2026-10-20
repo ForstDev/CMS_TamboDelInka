@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#ffffff">
+<title>Panel · {{cms_nombre}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="/assets/cms/cms.css?v={{asset_v}}">
+</head>
+<body class="cms-body">
+
+<div class="app" id="app">
+
+  <!-- Barra lateral (tablet y escritorio) -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark"><i class="fa-solid fa-layer-group"></i></span>
+      <span class="brand-text">
+        <strong data-bind="cms_nombre">{{cms_nombre}}</strong>
+        <small>Panel de contenido</small>
+      </span>
+    </div>
+    <nav class="side-nav" aria-label="Secciones">
+      <a href="#botones" data-tab="botones"><i class="fa-solid fa-list-ul"></i><span>Botones</span></a>
+      <a href="#diseno" data-tab="diseno"><i class="fa-solid fa-palette"></i><span>Diseño</span></a>
+      <a href="#textos" data-tab="textos"><i class="fa-solid fa-font"></i><span>Textos</span></a>
+      <a href="#redes" data-tab="redes"><i class="fa-solid fa-share-nodes"></i><span>Redes</span></a>
+      <a href="#estadisticas" data-tab="estadisticas"><i class="fa-solid fa-chart-simple"></i><span>Estadísticas</span></a>
+    </nav>
+    <div class="side-foot">
+      <a class="btn btn-ghost btn-block" href="/" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Ver página publicada</a>
+    </div>
+  </aside>
+
+  <!-- Barra superior -->
+  <header class="topbar">
+    <div class="topbar-title">
+      <span class="brand-mark sm"><i class="fa-solid fa-layer-group"></i></span>
+      <h1 id="panel-title">Botones</h1>
+    </div>
+    <div class="topbar-actions">
+      <span class="save-pill" id="save-pill" data-state="idle" role="status" aria-live="polite">
+        <i class="fa-solid fa-circle-check"></i><span>Todo guardado</span>
+      </span>
+      <a class="icon-btn hide-desktop" href="/" target="_blank" rel="noopener" aria-label="Ver página publicada"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+      <div class="menu-wrap">
+        <button class="avatar" id="account-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Mi cuenta"><span id="avatar-initial">A</span></button>
+        <div class="dropdown" id="account-menu" role="menu" hidden>
+          <div class="dropdown-head"><small>Sesión iniciada como</small><strong id="account-name"></strong></div>
+          <button role="menuitem" data-action="guide"><i class="fa-regular fa-circle-question"></i> Ver guía rápida</button>
+          <button role="menuitem" data-action="password"><i class="fa-solid fa-key"></i> Cambiar contraseña</button>
+          <button role="menuitem" data-action="logout" class="danger"><i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenido -->
+  <main class="content" id="content">
+    <div class="loading-screen" id="loading"><span class="spinner"></span> Cargando tu panel…</div>
+
+    <!-- BOTONES -->
+    <section class="panel" data-panel="botones" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>Botones de la página</h2>
+          <p>Lo que tu público toca para abrir cada carta. Arrastra <i class="fa-solid fa-grip-vertical"></i> para cambiar el orden.</p>
+        </div>
+        <button class="btn btn-primary" id="add-button"><i class="fa-solid fa-plus"></i> <span>Nuevo botón</span></button>
+      </div>
+      <div class="tip" id="welcome-tip" hidden>
+        <span class="tip-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+        <div class="tip-body">
+          <strong>Así funciona tu panel</strong>
+          <ol>
+            <li><b>Edita</b> lo que necesites: nombres, cartas en PDF, colores, textos o redes.</li>
+            <li><b>Se guarda y se publica solo</b> en segundos. No hay botón "Guardar": arriba verás <span class="tip-pill"><i class="fa-solid fa-circle-check"></i> Publicado</span>.</li>
+            <li><b>Revisa</b> el resultado en la vista previa<span class="only-mobile"> (botón <i class="fa-regular fa-eye"></i> abajo)</span><span class="only-wide"> de la derecha</span>.</li>
+          </ol>
+        </div>
+        <button class="icon-btn plain" id="welcome-close" aria-label="Cerrar guía"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="summary-strip" id="buttons-summary"></div>
+      <ul class="card-list" id="buttons-list"></ul>
+      <div class="empty" id="buttons-empty" hidden>
+        <i class="fa-regular fa-square-plus"></i>
+        <p>Aún no hay botones. Crea el primero.</p>
+      </div>
+    </section>
+
+    <!-- DISEÑO -->
+    <section class="panel" data-panel="diseno" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>Diseño</h2>
+          <p>Logo, fondo y colores. Los cambios se publican solos al instante.</p>
+        </div>
+      </div>
+
+      <article class="card">
+        <header class="card-head"><h3><i class="fa-regular fa-image"></i> Logo</h3></header>
+        <div class="logo-editor">
+          <div class="logo-stage" id="logo-stage"><img id="logo-img" alt=""><span class="muted" id="logo-empty">Sin logo</span></div>
+          <div class="logo-actions">
+            <label class="btn btn-secondary file-btn"><i class="fa-solid fa-upload"></i> Cambiar logo
+              <input type="file" accept="image/png,image/jpeg,image/webp" id="logo-file" hidden>
+            </label>
+            <button class="btn btn-ghost" id="logo-remove"><i class="fa-regular fa-trash-can"></i> Quitar</button>
+            <div class="progress" id="logo-progress" hidden><span></span></div>
+            <p class="hint">PNG con fondo transparente se ve mejor. Máx. 5 MB.</p>
+          </div>
+        </div>
+        <label class="field">
+          <span class="field-label">Descripción del logo <small>(para lectores de pantalla y Google)</small></span>
+          <input type="text" data-setting="logo_alt" maxlength="160">
+        </label>
+      </article>
+
+      <article class="card">
+        <header class="card-head"><h3><i class="fa-solid fa-fill-drip"></i> Fondo</h3></header>
+        <div class="segmented" role="radiogroup" aria-label="Tipo de fondo" id="bg-type">
+          <button role="radio" data-value="imagen"><i class="fa-regular fa-image"></i> Imagen</button>
+          <button role="radio" data-value="color"><i class="fa-solid fa-droplet"></i> Color sólido</button>
+        </div>
+        <div class="bg-image" id="bg-image-block">
+          <div class="bg-thumb" id="bg-thumb"></div>
+          <div class="bg-image-actions">
+            <label class="btn btn-secondary file-btn"><i class="fa-solid fa-upload"></i> Cambiar imagen
+              <input type="file" accept="image/png,image/jpeg,image/webp" id="bg-file" hidden>
+            </label>
+            <div class="progress" id="bg-progress" hidden><span></span></div>
+            <p class="hint">Ideal: foto horizontal de 1920 px, JPG. Máx. 8 MB.</p>
+          </div>
+        </div>
+        <div class="color-row" data-color="color_fondo">
+          <div><strong>Color de fondo</strong><small>Se ve mientras carga la imagen o si eliges color sólido.</small></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <h3><i class="fa-solid fa-swatchbook"></i> Colores</h3>
+          <button class="btn btn-ghost btn-sm" id="reset-colors"><i class="fa-solid fa-rotate-left"></i> Restablecer</button>
+        </header>
+        <div class="color-row" data-color="color_texto"><div><strong>Textos de la página</strong><small>Novedades, "Síguenos" e íconos.</small></div></div>
+        <div class="color-row" data-color="color_boton"><div><strong>Fondo del botón</strong></div></div>
+        <div class="color-row" data-color="color_boton_texto"><div><strong>Texto del botón</strong></div></div>
+        <div class="color-row" data-color="color_boton_hover"><div><strong>Botón al pasar el mouse</strong><small>Fondo al tocar o pasar el cursor.</small></div></div>
+        <div class="color-row" data-color="color_texto_boton_hover"><div><strong>Texto al pasar el mouse</strong></div></div>
+
+        <div class="btn-sample" id="btn-sample">
+          <span class="sample-label">Así se ven tus botones</span>
+          <div class="sample-row">
+            <span class="sample-btn" data-state="normal">Normal</span>
+            <span class="sample-btn" data-state="hover">Al tocar</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- TEXTOS -->
+    <section class="panel" data-panel="textos" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>Textos</h2>
+          <p>Todo lo que se lee en la página, además de los botones.</p>
+        </div>
+      </div>
+
+      <article class="card">
+        <header class="card-head">
+          <h3><i class="fa-regular fa-envelope-open"></i> Novedades y promociones</h3>
+          <label class="switch" title="Mostrar este bloque"><input type="checkbox" role="switch" data-setting-flag="novedades_activo" aria-label="Mostrar bloque de novedades"><span></span></label>
+        </header>
+        <p class="hint card-hint">Aparece debajo de los botones. El interruptor lo muestra u oculta.</p>
+        <label class="field"><span class="field-label">Texto</span><input type="text" data-setting="novedades_texto" maxlength="200"></label>
+        <div class="field-grid">
+          <label class="field"><span class="field-label">Texto del enlace</span><input type="text" data-setting="novedades_link_texto" maxlength="60"></label>
+          <label class="field"><span class="field-label">¿A dónde lleva?</span><input type="url" data-setting="novedades_url" inputmode="url" placeholder="https://"></label>
+        </div>
+        <div class="mini-preview" id="novedades-preview"></div>
+      </article>
+
+      <article class="card">
+        <header class="card-head"><h3><i class="fa-solid fa-share-nodes"></i> Sección de redes</h3></header>
+        <p class="hint card-hint">El título que va sobre los íconos, al final de la página.</p>
+        <label class="field"><span class="field-label">Título</span><input type="text" data-setting="redes_titulo" maxlength="60"></label>
+        <p class="hint" style="margin-top:10px">Los enlaces de cada red se editan en la pestaña <a href="#redes">Redes</a>.</p>
+      </article>
+
+      <article class="card">
+        <header class="card-head"><h3><i class="fa-brands fa-google"></i> Pestaña del navegador y Google</h3></header>
+        <p class="hint card-hint">No se ve dentro de la página: es el nombre de la pestaña y lo que muestra Google en sus resultados.</p>
+        <label class="field"><span class="field-label">Título de la página</span><input type="text" data-setting="titulo_pagina" maxlength="120"></label>
+        <label class="field">
+          <span class="field-label">Descripción <small class="counter" data-counter-for="meta_descripcion"></small></span>
+          <textarea data-setting="meta_descripcion" maxlength="300" rows="3"></textarea>
+        </label>
+        <div class="serp" id="serp">
+          <span class="serp-url"></span>
+          <span class="serp-title"></span>
+          <span class="serp-desc"></span>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head"><h3><i class="fa-solid fa-id-badge"></i> Nombre en este panel</h3></header>
+        <p class="hint card-hint">Solo se ve aquí dentro del panel, no en la página pública.</p>
+        <label class="field"><span class="field-label">Nombre</span><input type="text" data-setting="cms_nombre" maxlength="80"></label>
+      </article>
+    </section>
+
+    <!-- REDES -->
+    <section class="panel" data-panel="redes" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>Redes sociales</h2>
+          <p>Íconos de la sección "<span data-bind="redes_titulo"></span>". Una red sin enlace no se muestra.</p>
+        </div>
+        <button class="btn btn-primary" id="add-social"><i class="fa-solid fa-plus"></i> <span>Agregar red</span></button>
+      </div>
+      <div class="network-picker" id="network-picker" hidden></div>
+      <ul class="card-list" id="socials-list"></ul>
+      <div class="empty" id="socials-empty" hidden>
+        <i class="fa-regular fa-heart"></i>
+        <p>No hay redes. Agrega la primera.</p>
+      </div>
+    </section>
+
+    <!-- ESTADÍSTICAS -->
+    <section class="panel" data-panel="estadisticas" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>Estadísticas <span class="live" id="live-pill"><span class="dot"></span> En vivo</span></h2>
+          <p>Qué es lo que más busca tu gente. Se actualiza solo cada pocos segundos.</p>
+        </div>
+        <div class="segmented compact" role="radiogroup" aria-label="Periodo" id="period">
+          <button role="radio" data-value="7">7 días</button>
+          <button role="radio" data-value="30">30 días</button>
+          <button role="radio" data-value="90">90 días</button>
+        </div>
+      </div>
+
+      <div class="insight" id="insight"></div>
+
+      <div class="kpis">
+        <div class="kpi"><span class="kpi-label">Clics totales</span><strong class="kpi-value" id="kpi-total">–</strong><span class="kpi-sub" id="kpi-total-sub"></span></div>
+        <div class="kpi accent"><span class="kpi-label">Lo más buscado</span><strong class="kpi-value small" id="kpi-top">–</strong><span class="kpi-sub" id="kpi-top-sub"></span></div>
+        <div class="kpi"><span class="kpi-label">Hoy</span><strong class="kpi-value" id="kpi-today">–</strong><span class="kpi-sub">clics</span></div>
+        <div class="kpi"><span class="kpi-label">Desde celular</span><strong class="kpi-value" id="kpi-mobile">–</strong><span class="kpi-sub" id="kpi-mobile-sub"></span></div>
+      </div>
+
+      <article class="card">
+        <header class="card-head"><h3><i class="fa-solid fa-chart-line"></i> Clics por día</h3></header>
+        <div class="chart-box"><canvas id="chart-daily" aria-label="Clics por día"></canvas></div>
+      </article>
+
+      <div class="stats-grid">
+        <article class="card">
+          <header class="card-head"><h3><i class="fa-solid fa-ranking-star"></i> Ranking de botones</h3></header>
+          <ol class="ranking" id="ranking"></ol>
+        </article>
+
+        <div class="stack">
+          <article class="card">
+            <header class="card-head"><h3><i class="fa-solid fa-mobile-screen"></i> Dispositivos</h3></header>
+            <div class="device-bar" id="device-bar"></div>
+            <ul class="device-legend" id="device-legend"></ul>
+          </article>
+          <article class="card">
+            <header class="card-head"><h3><i class="fa-regular fa-clock"></i> Horas con más clics</h3></header>
+            <div class="chart-box short"><canvas id="chart-hours" aria-label="Clics por hora del día"></canvas></div>
+          </article>
+        </div>
+      </div>
+
+      <div class="stats-foot">
+        <p class="hint"><i class="fa-solid fa-user-shield"></i> Sin datos personales: solo se guarda qué botón, cuándo y el tipo de dispositivo (Ley 29733). No se guarda la IP. Los clics de bots no se cuentan.</p>
+        <div class="stats-actions">
+          <a class="btn btn-secondary" id="export-csv" href="#"><i class="fa-solid fa-file-csv"></i> Exportar CSV</a>
+          <button class="btn btn-danger-ghost" id="reset-stats"><i class="fa-regular fa-trash-can"></i> Borrar estadísticas</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Vista previa (escritorio) -->
+  <aside class="preview-pane" aria-label="Vista previa">
+    <div class="preview-toolbar">
+      <span><span class="dot live-dot"></span> Así se ve tu página ahora</span>
+      <a class="icon-btn" href="/" target="_blank" rel="noopener" aria-label="Abrir página"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+    </div>
+    <div class="phone"><div class="phone-notch"></div><iframe id="preview-frame" title="Vista previa de la página" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe></div>
+    <p class="hint center">En la vista previa los clics no se cuentan en las estadísticas.</p>
+  </aside>
+
+  <!-- Navegación inferior (celular) -->
+  <nav class="tabbar" aria-label="Secciones">
+    <a href="#botones" data-tab="botones"><i class="fa-solid fa-list-ul"></i><span>Botones</span></a>
+    <a href="#diseno" data-tab="diseno"><i class="fa-solid fa-palette"></i><span>Diseño</span></a>
+    <a href="#textos" data-tab="textos"><i class="fa-solid fa-font"></i><span>Textos</span></a>
+    <a href="#redes" data-tab="redes"><i class="fa-solid fa-share-nodes"></i><span>Redes</span></a>
+    <a href="#estadisticas" data-tab="estadisticas"><i class="fa-solid fa-chart-simple"></i><span>Datos</span></a>
+  </nav>
+</div>
+
+<!-- Botón flotante y hoja de vista previa (celular/tablet) -->
+<button class="preview-fab" id="open-preview" aria-label="Ver vista previa"><i class="fa-regular fa-eye"></i><span>Vista previa</span></button>
+<div class="sheet" id="preview-sheet" hidden>
+  <div class="sheet-bar">
+    <strong><span class="dot live-dot"></span> Vista previa en vivo</strong>
+    <button class="icon-btn" id="close-preview" aria-label="Cerrar vista previa"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <iframe id="preview-frame-mobile" title="Vista previa de la página" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<dialog class="dialog" id="dlg-password">
+  <form method="dialog" id="password-form">
+    <h3>Cambiar contraseña</h3>
+    <div class="alert alert-error" id="password-error" hidden></div>
+    <label class="field"><span class="field-label">Contraseña actual</span><input type="password" name="current" autocomplete="current-password" required></label>
+    <label class="field"><span class="field-label">Nueva contraseña <small>(mín. 8 caracteres)</small></span><input type="password" name="next" autocomplete="new-password" minlength="8" required></label>
+    <label class="field"><span class="field-label">Repite la nueva contraseña</span><input type="password" name="repeat" autocomplete="new-password" minlength="8" required></label>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dialog" id="dlg-reset">
+  <form method="dialog" id="reset-form">
+    <h3><i class="fa-solid fa-triangle-exclamation"></i> Borrar estadísticas</h3>
+    <p>Se eliminarán <strong>todos</strong> los clics registrados. Útil para limpiar las pruebas antes de publicar. No se puede deshacer.</p>
+    <label class="field"><span class="field-label">Escribe <strong>BORRAR</strong> para confirmar</span><input type="text" name="confirm" autocomplete="off" autocapitalize="characters"></label>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-danger" id="reset-confirm" disabled>Borrar todo</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script type="module" src="/assets/cms/cms.js?v={{asset_v}}"></script>
+</body>
+</html>

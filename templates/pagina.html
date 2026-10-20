@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{titulo_pagina}}</title>
+{{#if meta_descripcion}}<meta name="description" content="{{meta_descripcion}}">{{/if}}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@100;200&family=Poppins:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+<style>
+  :root {
+    --fondo: {{color_fondo}};
+    --boton: #26615F;
+    --texto: {{color_texto}};
+    --texto-boton: {{color_texto_boton_hover}};
+    --acento: #b3262b;
+    --boton-bg: {{color_boton}};
+    --boton-texto: {{color_boton_texto}};
+    --boton-hover: {{color_boton_hover}};
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: var(--fondo) {{{fondo_imagen_css}}} center / cover no-repeat fixed;
+    color: var(--texto);
+    font-family: "Poppins", Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 48px 16px 40px;
+  }
+
+  .pagina {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ---------- Encabezado / logo ---------- */
+  .logo {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  /* Si tienes el logo como imagen, usa esta clase en un <img> */
+  .logo img {
+    max-width: 260px;
+    width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+  }
+
+  .logo .nombre {
+    font-family: "Antonio", "Arial Narrow", sans-serif;
+    font-weight: 100;
+    font-size: 40px;
+    letter-spacing: 0.75em;
+    margin-right: -0.75em; /* compensa el espaciado de la última letra */
+    line-height: 1.1;
+  }
+
+  .logo .subtitulo {
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.32em;
+    margin-top: 8px;
+    opacity: 0.9;
+  }
+
+  .logo .separador {
+    width: 150px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.45);
+    margin: 10px auto 12px;
+  }
+
+  .logo .coleccion {
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    line-height: 1.3;
+  }
+  .logo .coleccion small {
+    display: block;
+    font-size: 5px;
+    letter-spacing: 0.3em;
+  }
+
+  /* ---------- Botones ---------- */
+  .menu {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .boton {
+    display: block;
+    width: 100%;
+    padding: 13px 20px;
+    border: 1.5px solid #cccccc;
+    border-radius: 999px;
+    background: var(--boton-bg);
+    color: var(--boton-texto);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: background 0.2s, color 0.2s, transform 0.15s;
+  }
+
+  .boton:hover,
+  .boton:focus-visible {
+    background: var(--boton-hover);
+    border-color: var(--boton-hover);
+    color: var(--texto-boton);
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  /* ---------- Novedades ---------- */
+  .novedades {
+    margin-top: 32px;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .novedades a {
+    color: var(--texto);
+    font-weight: 700;
+    text-decoration: underline;
+  }
+  .novedades a:hover { opacity: 0.7; }
+
+  .linea {
+    width: 100%;
+    max-width: 400px;
+    border: none;
+    border-top: 1px solid var(--texto);
+    margin-top: 20px;
+  }
+
+  /* ---------- Redes ---------- */
+  .redes {
+    margin-top: 42px;
+    text-align: center;
+  }
+
+  .redes h2 {
+    display: inline-block;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .redes .iconos {
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .redes a {
+    color: var(--texto);
+    font-size: 28px;
+    line-height: 1;
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+  .redes a:hover { opacity: 0.7; }
+
+  @media (max-width: 380px) {
+    .logo .nombre { font-size: 32px; }
+  }
+
+  /* ---------- Escritorio: botones en dos columnas ---------- */
+  @media (min-width: 768px) {
+    .pagina { max-width: 720px; }
+
+    .menu {
+      max-width: 680px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 16px;
+    }
+
+    .linea { max-width: 680px; }
+  }
+</style>
+</head>
+<body>
+
+<main class="pagina">
+
+  <header class="logo">
+    {{#if logo_url}}<img src="{{logo_url}}" alt="{{logo_alt}}">{{/if}}
+  </header>
+
+  <nav class="menu" aria-label="Cartas">
+    {{{botones_html}}}
+  </nav>
+
+  {{#if novedades_url}}
+  <p class="novedades">{{novedades_texto}} <a href="{{novedades_url}}">{{novedades_link_texto}}</a></p>
+  {{/if}}
+  <hr class="linea">
+
+  {{#if redes_html}}
+  <footer class="redes">
+    <h2>{{redes_titulo}}</h2>
+    <div class="iconos">
+      {{{redes_html}}}
+    </div>
+  </footer>
+  {{/if}}
+
+</main>
+
+</body>
+</html>

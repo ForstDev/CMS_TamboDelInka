@@ -1,0 +1,43 @@
+{
+  "id": "intursa",
+  "name": "Tambo del Inka – Outlets",
+  "admin": {
+    "username": "TambodelInka",
+    "password": "TambodelInka2026"
+  },
+  "settings": {
+    "titulo_pagina": "Tambo del Inka – Outlets",
+    "meta_descripcion": "Cartas de Tambo del Inka Resort & Spa – Valle Sagrado: desayuno, restaurante Hawa, Kiri Bar, room service, vinos, spa y más.",
+    "logo_alt": "Tambo del Inka Resort & Spa – Valle Sagrado",
+    "color_fondo": "#ffffff",
+    "color_texto": "#ffffff",
+    "color_boton": "#ffffff",
+    "color_boton_texto": "#333333",
+    "color_boton_hover": "#333333",
+    "color_texto_boton_hover": "#ffffff",
+    "novedades_activo": "1",
+    "novedades_texto": "¿Deseas recibir novedades y promociones?",
+    "novedades_link_texto": "Click aquí",
+    "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
+    "redes_titulo": "Síguenos"
+  },
+  "assets": {
+    "logo": "logo-tdi-blanco.png",
+    "fondo": "fondo_intursa.jpg"
+  },
+  "buttons": [
+    { "label": "Desayuno Breakfast",        "pdf": "TAMBO_Desayuno-2026-1.pdf" },
+    { "label": "Hawa",                      "pdf": "TAMBO_Restaurante-Hawa-2026-Julio.pdf" },
+    { "label": "Kiri Bar",                  "pdf": "TAMBO_Bar-Kiri-2026-1.pdf" },
+    { "label": "Room Service",              "pdf": "TAMBO_Room-Service-2026.pdf" },
+    { "label": "La Cervecería",             "pdf": "Carta-LA-CERVECERIA-2026-2.pdf" },
+    { "label": "Vinos | Wines",             "pdf": "TAMBO_Vinos-2026.ait_.pdf" },
+    { "label": "Menú de niños | Kids Menu", "pdf": "MENU-KIDS-TAMBO.pdf" },
+    { "label": "Kallpa Spa",                "pdf": "Carta-AB-KALLPA-SPA-2026.pdf" },
+    { "label": "De nuestro huerto",         "pdf": "TAMBO_De-nuestro-Huerto-2026-Julio.pdf" }
+  ],
+  "socials": [
+    { "network": "facebook",  "url": "" },
+    { "network": "instagram", "url": "" }
+  ]
+}
