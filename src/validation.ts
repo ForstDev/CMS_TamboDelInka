@@ -14,7 +14,7 @@ export const linkUrl = z
     message: 'El enlace debe empezar con https://',
   });
 
-const socialUrl = z
+export const socialUrl = z
   .string()
   .trim()
   .max(2000)

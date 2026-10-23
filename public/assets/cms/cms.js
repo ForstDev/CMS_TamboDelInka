@@ -882,8 +882,19 @@ function socialItem(s) {
   field.append(input);
   const li = h('li', { class: 'item social-item', dataset: { id: s.id } });
   const status = h('span', { class: 'social-status' });
+  const badge = h('span', { class: 'clicks-badge social-clicks', hidden: true });
+
+  const refreshBadge = () => {
+    const sc = state.stats?.socials;
+    badge.hidden = !sc;
+    if (!sc) return;
+    const n = (Array.isArray(sc.ranking) ? sc.ranking : []).find((r) => r.id === s.id)?.clicks ?? 0;
+    badge.title = `Clics en los últimos ${state.days} días`;
+    badge.replaceChildren(icon('fa-solid fa-arrow-pointer'), String(n), h('span', { class: 'badge-word', text: ` clic${n === 1 ? '' : 's'}` }));
+  };
 
   const refresh = () => {
+    refreshBadge();
     li.classList.toggle('is-off', !s.active || !s.url);
     iconWrap.replaceChildren(icon(nets[s.network]?.icon || 'fa-solid fa-link'));
     input.placeholder = PLACEHOLDERS[s.network] || 'https://';
@@ -939,10 +950,11 @@ function socialItem(s) {
       'div',
       { class: 'item-row' },
       h('span', { class: 'handle', 'aria-hidden': 'true', title: 'Arrastra para ordenar' }, icon('fa-solid fa-grip-vertical')),
-      h('div', { class: 'social-fields' }, h('div', { style: 'display:flex;gap:10px;align-items:center' }, iconWrap, select), field, status),
+      h('div', { class: 'social-fields' }, h('div', { style: 'display:flex;gap:10px;align-items:center' }, iconWrap, select), field, status, badge),
       h('div', { class: 'social-actions' }, toggle, del),
     ),
   );
+  li._refresh = refresh;
   refresh();
   return li;
 }
@@ -997,6 +1009,7 @@ async function loadStats() {
   state.stats = stats;
   renderStats();
   $$('#buttons-list > li').forEach((li) => li._refresh?.());
+  $$('#socials-list > li').forEach((li) => li._refresh?.());
 }
 
 function startLive() {
@@ -1093,8 +1106,67 @@ function renderStats() {
     }),
   );
 
+  renderSocialStats(s);
+
   $('#export-csv').href = `/api/cms/stats.csv?days=${s.days}`;
   renderCharts(s);
+}
+
+/** Filas de "Clics en redes sociales" (sin DOM). Respeta el orden que manda el servidor. */
+function socialStatsRows(socials, networks) {
+  const total = Number(socials?.total) || 0;
+  const ranking = Array.isArray(socials?.ranking) ? socials.ranking : [];
+  const nets = Object.fromEntries((networks || []).map((n) => [n.key, n]));
+  const max = Math.max(1, ...ranking.map((r) => Number(r.clicks) || 0));
+  return ranking.map((r) => {
+    const clicks = Number(r.clicks) || 0;
+    return {
+      id: r.id,
+      icon: nets[r.network]?.icon || 'fa-solid fa-link',
+      label: r.label || nets[r.network]?.label || r.network || 'Red',
+      suffix: r.deleted ? ' (eliminada)' : !r.active ? ' (oculta)' : '',
+      clicks,
+      pct: total ? Math.round((clicks / total) * 100) : 0,
+      width: (clicks / max) * 100,
+    };
+  });
+}
+
+function renderSocialStats(s) {
+  const has = Boolean(s.socials);
+  // Si la API aún no trae datos de redes, no se muestra la tarjeta (un "sin redes" sería falso).
+  $('#social-card').hidden = !has;
+  if (!has) return;
+  const total = Number(s.socials?.total) || 0;
+  const rows = socialStatsRows(s.socials, state.networks);
+
+  const totalEl = $('#social-total');
+  totalEl.hidden = !has;
+  fill(totalEl, h('b', { text: total.toLocaleString('es-PE') }), total === 1 ? ' clic' : ' clics');
+
+  const empty = $('#social-empty');
+  if (!rows.length) {
+    empty.hidden = false;
+    fill(empty, icon('fa-regular fa-hand-pointer'), h('p', {}, 'Todavía no hay redes configuradas. Agrégalas en la pestaña ', h('a', { href: '#redes', text: 'Redes' }), '.'));
+  } else if (!total) {
+    empty.hidden = false;
+    fill(empty, icon('fa-regular fa-hand-pointer'), h('p', { text: 'Aún nadie tocó tus redes sociales en este periodo. Aquí verás cuántas personas pasan de tu página a tu Facebook, Instagram, etc.' }));
+  } else empty.hidden = true;
+
+  const list = $('#social-ranking');
+  list.hidden = !rows.length;
+  list.replaceChildren(
+    ...rows.map((r) =>
+      h(
+        'li',
+        {},
+        h('span', { class: 'net-icon sm' }, icon(r.icon)),
+        h('span', { class: 'rank-label', title: r.label + r.suffix }, r.label, r.suffix ? h('small', { text: r.suffix }) : null),
+        h('span', { class: 'rank-count' }, r.clicks.toLocaleString('es-PE'), h('small', { text: `${r.pct}%` })),
+        h('span', { class: 'rank-bar' }, h('span', { style: `width:${r.width}%` })),
+      ),
+    ),
+  );
 }
 
 function renderCharts(s) {

@@ -64,6 +64,36 @@ describe('conector postgres.js', () => {
     expect(stats.hours.reduce((a, h) => a + h.clicks, 0)).toBe(2);
   });
 
+  it('registra clics de redes aparte de las cartas (consultas nuevas)', async () => {
+    const app = createApp();
+    const [fb, ig] = await repo.listSocials();
+    const r = await request(app).get(`/go/social/${fb!.id}`).set('User-Agent', 'Mozilla/5.0 (iPhone) Mobile');
+    expect(r.headers.location).toBe(fb!.url);
+    await request(app).get(`/go/social/${fb!.id}`).set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0) Chrome/126');
+    await request(app).get(`/go/social/${ig!.id}`).set('User-Agent', 'Googlebot/2.1');
+    const tmp = await repo.createSocial('youtube', 'https://youtube.com/@x');
+    await repo.recordSocialClick(tmp, 'tablet');
+    await repo.deleteSocial(tmp.id);
+
+    const stats = await repo.getStats(30);
+    expect([stats.total, stats.today, stats.allTime]).toEqual([2, 2, 2]); // solo las 2 cartas del test anterior
+    expect(stats.devices.reduce((a, d) => a + d.clicks, 0)).toBe(2);
+    expect(stats.hours.reduce((a, h) => a + h.clicks, 0)).toBe(2);
+    expect(stats.ranking.some((r) => r.deleted)).toBe(false);
+    expect(stats.socials).toEqual({
+      total: 3,
+      ranking: [
+        { id: fb!.id, network: 'facebook', label: 'Facebook', clicks: 2, active: true, deleted: false },
+        { id: null, network: 'youtube', label: 'YouTube', clicks: 1, active: false, deleted: true },
+        { id: ig!.id, network: 'instagram', label: 'Instagram', clicks: 0, active: true, deleted: false },
+      ],
+    });
+    const csv = await repo.clicksForCsv(30);
+    expect(csv.filter((c) => c.source === 'social').reduce((a, c) => a + c.clicks, 0)).toBe(3);
+    expect(csv.filter((c) => c.source === 'button').reduce((a, c) => a + c.clicks, 0)).toBe(2);
+    expect(typeof csv[0]!.clicks).toBe('number');
+  });
+
   it('reordena y guarda ajustes en lote', async () => {
     const ids = (await repo.listButtons()).map((b) => b.id).reverse();
     await repo.reorderButtons(ids);

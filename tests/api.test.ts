@@ -192,7 +192,7 @@ describe('tracking de clics', () => {
     const { getDb } = await import('../src/db.js');
     const db = await getDb();
     const cols = await db.query(`select column_name from information_schema.columns where table_name = 'clicks' order by ordinal_position`);
-    expect(cols.map((c) => c.column_name)).toEqual(['id', 'client_id', 'button_id', 'button_label', 'device', 'clicked_at']);
+    expect(cols.map((c) => c.column_name)).toEqual(['id', 'client_id', 'button_id', 'button_label', 'device', 'clicked_at', 'source', 'social_id']);
   });
 });
 
@@ -321,7 +321,8 @@ describe('apariencia, textos y redes', () => {
 
     let page = await request(app).get('/');
     expect(page.text).toContain('<h2>Síguenos ya</h2>');
-    expect(page.text).toContain('href="https://facebook.com/tambodelinka" aria-label="Facebook"');
+    expect(page.text).toContain(`href="/go/social/${fb.id}" aria-label="Facebook" target="_blank" rel="noopener"`);
+    expect(page.text).toContain('href="mailto:reservas@ejemplo.com" aria-label="Correo"'); // correo: enlace directo
     expect(page.text).toContain('fa-solid fa-envelope');
     expect(page.text).not.toContain('aria-label="Instagram"'); // sin enlace no se muestra
 
@@ -342,12 +343,159 @@ describe('apariencia, textos y redes', () => {
   });
 });
 
+describe('tracking de redes', () => {
+  // Estadísticas de cartas antes de cualquier clic en redes: no deben cambiar en todo este bloque.
+  const cardsBefore: Record<number, any> = {};
+  const cardsOnly = ({ socials: _s, ...rest }: any) => rest;
+  let fb: any;
+  let ig: any;
+  let tiktok: any;
+
+  const socialRows = async () => {
+    const { getDb } = await import('../src/db.js');
+    return (await getDb()).query(`select device, button_id, social_id, button_label from clicks where source = 'social' order by id`);
+  };
+
+  it('cuenta clics de redes por dispositivo; ignora bots, vistas previas, precargas y HEAD', async () => {
+    for (const d of [7, 30, 90]) cardsBefore[d] = cardsOnly(await stats(d));
+    const socials = (await agent.get('/api/cms/state')).body.socials;
+    fb = socials.find((s: any) => s.network === 'facebook');
+    ig = socials.find((s: any) => s.network === 'instagram');
+    ig = (await agent.patch(`/api/cms/socials/${ig.id}`).send({ url: 'https://instagram.com/tambodelinka' })).body.social;
+    tiktok = (await agent.post('/api/cms/socials').send({ network: 'tiktok' })).body.social; // sin enlace
+
+    for (const ua of [IPHONE, ANDROID, IPAD, DESKTOP]) {
+      const r = await request(app).get(`/go/social/${fb.id}`).set('User-Agent', ua);
+      expect(r.status).toBe(302);
+      expect(r.headers.location).toBe('https://facebook.com/tambodelinka');
+      expect(r.headers['cache-control']).toBe('no-store');
+    }
+    await request(app).get(`/go/social/${ig.id}`).set('User-Agent', DESKTOP);
+    // No deben contarse (pero sí redirigen):
+    for (const ua of [GOOGLEBOT, WHATSAPP, '']) {
+      expect((await request(app).get(`/go/social/${fb.id}`).set('User-Agent', ua)).headers.location).toBe('https://facebook.com/tambodelinka');
+    }
+    await request(app).get(`/go/social/${fb.id}`).set('User-Agent', DESKTOP).set('Sec-Purpose', 'prefetch');
+    await request(app).head(`/go/social/${fb.id}`).set('User-Agent', DESKTOP);
+
+    const s = await stats();
+    expect(s.socials.total).toBe(5);
+    expect(s.socials.ranking).toEqual([
+      { id: fb.id, network: 'facebook', label: 'Facebook', clicks: 4, active: true, deleted: false },
+      { id: ig.id, network: 'instagram', label: 'Instagram', clicks: 1, active: true, deleted: false },
+      { id: tiktok.id, network: 'tiktok', label: 'TikTok', clicks: 0, active: true, deleted: false },
+    ]);
+    const rows = await socialRows();
+    expect(rows.map((r) => r.device)).toEqual(['mobile', 'mobile', 'tablet', 'desktop', 'desktop']);
+    expect(rows.every((r) => r.button_id === null && r.social_id)).toBe(true);
+    expect(rows.map((r) => r.button_label)).toEqual(['Facebook', 'Facebook', 'Facebook', 'Facebook', 'Instagram']);
+  });
+
+  it('los clics de redes no alteran las estadísticas de cartas', async () => {
+    for (const d of [7, 30, 90]) expect(cardsOnly(await stats(d)), `${d} días`).toEqual(cardsBefore[d]);
+    const s = await stats();
+    expect(s.total).toBe(7); // 6 del bloque de tracking + 1 de "Postres"
+    expect(s.ranking.filter((r: any) => r.deleted)).toEqual([{ id: null, label: 'Postres', active: false, deleted: true, clicks: 1 }]);
+  });
+
+  it('red oculta, sin enlace, id inválido o inexistente vuelve al inicio sin contar', async () => {
+    await agent.patch(`/api/cms/socials/${ig.id}`).send({ active: false });
+    const urls = [
+      `/go/social/${ig.id}`, // oculta
+      `/go/social/${tiktok.id}`, // sin enlace
+      '/go/social/123',
+      '/go/social/00000000-0000-0000-0000-000000000000',
+      `/go/social/${buttonIds[1]}`, // id de un botón: no es una red
+    ];
+    for (const url of urls) {
+      const r = await request(app).get(url).set('User-Agent', DESKTOP);
+      expect(r.status, url).toBe(302);
+      expect(r.headers.location, url).toBe('/');
+    }
+    // Y al revés: el id de una red no sirve en la ruta de los botones.
+    expect((await request(app).get(`/go/${fb.id}`).set('User-Agent', DESKTOP)).headers.location).toBe('/');
+    const s = await stats();
+    expect(s.socials.total).toBe(5);
+    expect(s.socials.ranking.find((r: any) => r.id === ig.id)).toMatchObject({ clicks: 1, active: false, deleted: false });
+    expect(s.total).toBe(7);
+    await agent.patch(`/api/cms/socials/${ig.id}`).send({ active: true });
+  });
+
+  it('la página usa /go/social/<id>; el correo y la vista previa enlazan directo', async () => {
+    const mail = (await agent.post('/api/cms/socials').send({ network: 'email', url: 'mailto:hola@ejemplo.com' })).body.social;
+    const page = await request(app).get('/');
+    expect(page.text).toContain(`href="/go/social/${fb.id}" aria-label="Facebook" target="_blank" rel="noopener"`);
+    expect(page.text).toContain(`href="/go/social/${ig.id}" aria-label="Instagram" target="_blank" rel="noopener"`);
+    expect(page.text).toContain('href="mailto:hola@ejemplo.com" aria-label="Correo" target="_blank" rel="noopener"');
+    expect(page.text).not.toContain(`/go/social/${mail.id}`);
+    expect(page.text).not.toContain(`/go/social/${tiktok.id}`); // sin enlace no se muestra
+
+    const preview = await agent.get('/api/cms/preview');
+    expect(preview.text).toContain('href="https://facebook.com/tambodelinka" aria-label="Facebook"');
+    expect(preview.text).not.toContain('/go/');
+
+    // Si alguien abre /go/social con el correo, redirige pero no cuenta.
+    const r = await request(app).get(`/go/social/${mail.id}`).set('User-Agent', DESKTOP);
+    expect(r.headers.location).toBe('mailto:hola@ejemplo.com');
+    expect((await stats()).socials.total).toBe(5);
+    expect((await agent.delete(`/api/cms/socials/${mail.id}`)).status).toBe(200);
+  });
+
+  it('una red eliminada conserva sus clics con su nombre', async () => {
+    const yt = (await agent.post('/api/cms/socials').send({ network: 'youtube', url: 'https://youtube.com/@tambo' })).body.social;
+    await request(app).get(`/go/social/${yt.id}`).set('User-Agent', IPHONE);
+    await request(app).get(`/go/social/${yt.id}`).set('User-Agent', DESKTOP);
+    expect((await agent.delete(`/api/cms/socials/${yt.id}`)).status).toBe(200);
+    // Nombre que ya no corresponde a ninguna red conocida → clave 'web'.
+    const { getDb } = await import('../src/db.js');
+    await (await getDb()).query(`insert into clicks (client_id, source, button_label, device) values ('intursa', 'social', 'Myspace', 'desktop')`);
+
+    const s = await stats();
+    expect(s.socials.total).toBe(8);
+    expect(s.socials.ranking).toEqual([
+      { id: fb.id, network: 'facebook', label: 'Facebook', clicks: 4, active: true, deleted: false },
+      { id: null, network: 'youtube', label: 'YouTube', clicks: 2, active: false, deleted: true },
+      { id: ig.id, network: 'instagram', label: 'Instagram', clicks: 1, active: true, deleted: false },
+      { id: null, network: 'web', label: 'Myspace', clicks: 1, active: false, deleted: true },
+      { id: tiktok.id, network: 'tiktok', label: 'TikTok', clicks: 0, active: true, deleted: false },
+    ]);
+    // Las redes eliminadas no aparecen como "botones eliminados".
+    for (const d of [7, 30, 90]) expect(cardsOnly(await stats(d)), `${d} días`).toEqual(cardsBefore[d]);
+  });
+
+  it('el CSV incluye cartas y redes con su tipo', async () => {
+    const csv = await agent.get('/api/cms/stats.csv?days=30');
+    expect(csv.text.startsWith('﻿Fecha,Botón,Dispositivo,Clics,Tipo\r\n')).toBe(true);
+    expect(csv.text).toContain('"Hawa",Celular,2,Carta');
+    expect(csv.text).toContain('"Facebook",Celular,2,Red');
+    expect(csv.text).toContain('"YouTube",Computadora,1,Red');
+    expect(csv.text).toContain('"Postres",Celular,1,Carta');
+    const lines = csv.text.split('\r\n').slice(1);
+    expect(lines.every((l) => /,(Carta|Red)$/.test(l))).toBe(true);
+    expect(lines.filter((l) => l.endsWith(',Red')).reduce((a, l) => a + Number(l.split(',').at(-2)), 0)).toBe(8);
+    expect(lines.filter((l) => l.endsWith(',Carta')).reduce((a, l) => a + Number(l.split(',').at(-2)), 0)).toBe(7);
+  });
+});
+
 describe('estadísticas y cuenta', () => {
   it('borrar estadísticas exige confirmación', async () => {
     expect((await agent.delete('/api/cms/clicks').send({})).status).toBe(400);
     const res = await agent.delete('/api/cms/clicks').send({ confirm: 'BORRAR' });
     expect(res.body.deleted).toBeGreaterThan(0);
     expect((await stats()).total).toBe(0);
+  });
+
+  it('borrar estadísticas también borra los clics de redes', async () => {
+    const fb = (await agent.get('/api/cms/state')).body.socials.find((s: any) => s.network === 'facebook');
+    await request(app).get(`/go/social/${fb.id}`).set('User-Agent', IPHONE);
+    await request(app).get(`/go/${buttonIds[1]}`).set('User-Agent', IPHONE);
+    let s = await stats();
+    expect([s.total, s.socials.total]).toEqual([1, 1]);
+    const res = await agent.delete('/api/cms/clicks').send({ confirm: 'BORRAR' });
+    expect(res.body.deleted).toBe(2);
+    s = await stats();
+    expect([s.total, s.allTime, s.socials.total]).toEqual([0, 0, 0]);
+    expect(s.socials.ranking.every((r: any) => r.clicks === 0 && !r.deleted)).toBe(true);
   });
 
   it('cambia la contraseña', async () => {

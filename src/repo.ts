@@ -3,7 +3,7 @@
 import { getDb } from './db.js';
 import { env } from './env.js';
 import { DEFAULT_SETTINGS, type Settings } from './validation.js';
-import type { Network } from './networks.js';
+import { NETWORKS, type Network } from './networks.js';
 
 export interface Button {
   id: string;
@@ -129,6 +129,12 @@ export async function listSocials(onlyPublic = false): Promise<Social[]> {
   return db.query<Social>(`select ${SOCIAL_COLS} from socials where client_id = $1 ${where} order by position`, [cid()]);
 }
 
+export async function getSocial(id: string): Promise<Social | null> {
+  const db = await getDb();
+  const rows = await db.query<Social>(`select ${SOCIAL_COLS} from socials where client_id = $1 and id = $2`, [cid(), id]);
+  return rows[0] ?? null;
+}
+
 export async function createSocial(network: Network, url: string): Promise<Social> {
   const db = await getDb();
   const rows = await db.query<Social>(
@@ -170,8 +176,28 @@ export async function recordClick(button: Pick<Button, 'id' | 'label'>, device: 
   await db.query('insert into clicks (client_id, button_id, button_label, device) values ($1, $2, $3, $4)', [cid(), button.id, button.label, device]);
 }
 
+const networkLabel = (network: string) => NETWORKS[network as Network]?.label ?? network;
+
+/** Clic en el ícono de una red. button_label guarda el nombre de la red por si luego se borra. */
+export async function recordSocialClick(social: Pick<Social, 'id' | 'network'>, device: 'mobile' | 'tablet' | 'desktop'): Promise<void> {
+  const db = await getDb();
+  await db.query(
+    `insert into clicks (client_id, source, social_id, button_id, button_label, device) values ($1, 'social', $2, null, $3, $4)`,
+    [cid(), social.id, networkLabel(social.network), device],
+  );
+}
+
 /** Inicio del periodo: medianoche (hora local del cliente) de hace days-1 días. */
 const PERIOD_START = `(((now() at time zone $2)::date - ($3::int - 1))::timestamp at time zone $2)`;
+
+export interface SocialStat {
+  id: string | null;
+  network: string;
+  label: string;
+  clicks: number;
+  active: boolean;
+  deleted: boolean;
+}
 
 export interface Stats {
   days: number;
@@ -182,17 +208,20 @@ export interface Stats {
   daily: { day: string; clicks: number }[];
   devices: { device: string; clicks: number }[];
   hours: { hour: number; clicks: number }[];
+  socials: { total: number; ranking: SocialStat[] };
 }
 
+// Las estadísticas de cartas solo cuentan source = 'button'. Ojo: button_id null significa
+// "botón eliminado" solo junto con ese filtro (los clics de redes también tienen button_id null).
 export async function getStats(days: number): Promise<Stats> {
   const db = await getDb();
   const p = [cid(), env.statsTz, days];
 
-  const [ranking, deleted, daily, devices, hours, totals] = await Promise.all([
+  const [ranking, deleted, daily, devices, hours, totals, socials, deletedSocials] = await Promise.all([
     db.query(
       `select b.id, b.label, b.active, count(c.id)::int as clicks
        from buttons b
-       left join clicks c on c.button_id = b.id and c.clicked_at >= ${PERIOD_START}
+       left join clicks c on c.button_id = b.id and c.source = 'button' and c.clicked_at >= ${PERIOD_START}
        where b.client_id = $1
        group by b.id, b.label, b.active, b.position
        order by clicks desc, b.position`,
@@ -201,42 +230,62 @@ export async function getStats(days: number): Promise<Stats> {
     db.query(
       `select button_label as label, count(*)::int as clicks
        from clicks
-       where client_id = $1 and button_id is null and clicked_at >= ${PERIOD_START}
+       where client_id = $1 and source = 'button' and button_id is null and clicked_at >= ${PERIOD_START}
        group by button_label order by clicks desc`,
       p,
     ),
     db.query(
       `select to_char(d, 'YYYY-MM-DD') as day, count(c.id)::int as clicks
        from generate_series((now() at time zone $2)::date - ($3::int - 1), (now() at time zone $2)::date, interval '1 day') d
-       left join clicks c on c.client_id = $1 and (c.clicked_at at time zone $2)::date = d::date
+       left join clicks c on c.client_id = $1 and c.source = 'button' and (c.clicked_at at time zone $2)::date = d::date
        group by d order by d`,
       p,
     ),
     db.query(
       `select device, count(*)::int as clicks from clicks
-       where client_id = $1 and clicked_at >= ${PERIOD_START}
+       where client_id = $1 and source = 'button' and clicked_at >= ${PERIOD_START}
        group by device order by clicks desc`,
       p,
     ),
     db.query(
       `select h as hour, count(c.id)::int as clicks
        from generate_series(0, 23) h
-       left join clicks c on c.client_id = $1 and c.clicked_at >= ${PERIOD_START}
+       left join clicks c on c.client_id = $1 and c.source = 'button' and c.clicked_at >= ${PERIOD_START}
                           and extract(hour from c.clicked_at at time zone $2)::int = h
        group by h order by h`,
       p,
     ),
     db.query(
       `select
-         count(*) filter (where clicked_at >= ${PERIOD_START})::int as total,
-         count(*) filter (where (clicked_at at time zone $2)::date = (now() at time zone $2)::date)::int as today,
-         count(*)::int as all_time
+         count(*) filter (where source = 'button' and clicked_at >= ${PERIOD_START})::int as total,
+         count(*) filter (where source = 'button' and (clicked_at at time zone $2)::date = (now() at time zone $2)::date)::int as today,
+         count(*) filter (where source = 'button')::int as all_time,
+         count(*) filter (where source = 'social' and clicked_at >= ${PERIOD_START})::int as social_total
        from clicks where client_id = $1`,
+      p,
+    ),
+    db.query(
+      `select s.id, s.network, s.active, s.position, count(c.id)::int as clicks
+       from socials s
+       left join clicks c on c.social_id = s.id and c.source = 'social' and c.clicked_at >= ${PERIOD_START}
+       where s.client_id = $1
+       group by s.id, s.network, s.active, s.position
+       order by clicks desc, s.position`,
+      p,
+    ),
+    db.query(
+      `select button_label as label, count(*)::int as clicks
+       from clicks
+       where client_id = $1 and source = 'social' and social_id is null and clicked_at >= ${PERIOD_START}
+       group by button_label order by clicks desc`,
       p,
     ),
   ]);
 
-  const t = totals[0] ?? { total: 0, today: 0, all_time: 0 };
+  // Red eliminada: se recupera su clave a partir del nombre guardado.
+  const networkFromLabel = (label: string) => Object.entries(NETWORKS).find(([, n]) => n.label === label)?.[0] ?? 'web';
+
+  const t = totals[0] ?? { total: 0, today: 0, all_time: 0, social_total: 0 };
   return {
     days,
     total: Number(t.total),
@@ -249,15 +298,30 @@ export async function getStats(days: number): Promise<Stats> {
     daily: daily.map((r) => ({ day: r.day, clicks: Number(r.clicks) })),
     devices: devices.map((r) => ({ device: r.device, clicks: Number(r.clicks) })),
     hours: hours.map((r) => ({ hour: Number(r.hour), clicks: Number(r.clicks) })),
+    socials: {
+      total: Number(t.social_total),
+      ranking: [
+        ...socials.map((r) => ({
+          stat: { id: r.id, network: r.network, label: networkLabel(r.network), clicks: Number(r.clicks), active: r.active, deleted: false },
+          position: Number(r.position),
+        })),
+        ...deletedSocials.map((r) => ({
+          stat: { id: null, network: networkFromLabel(r.label), label: r.label, clicks: Number(r.clicks), active: false, deleted: true },
+          position: Number.MAX_SAFE_INTEGER, // sin posición: tras las redes actuales con los mismos clics
+        })),
+      ]
+        .sort((a, b) => b.stat.clicks - a.stat.clicks || a.position - b.position)
+        .map((x) => x.stat),
+    },
   };
 }
 
 export async function clicksForCsv(days: number) {
   const db = await getDb();
-  return db.query<{ day: string; label: string; device: string; clicks: number }>(
-    `select to_char((clicked_at at time zone $2)::date, 'YYYY-MM-DD') as day, button_label as label, device, count(*)::int as clicks
+  return db.query<{ day: string; label: string; device: string; clicks: number; source: 'button' | 'social' }>(
+    `select to_char((clicked_at at time zone $2)::date, 'YYYY-MM-DD') as day, button_label as label, device, count(*)::int as clicks, source
      from clicks where client_id = $1 and clicked_at >= ${PERIOD_START}
-     group by 1, 2, 3 order by 1 desc, 4 desc`,
+     group by 1, 2, 3, 5 order by 1 desc, 4 desc`,
     [cid(), env.statsTz, days],
   );
 }

@@ -1,4 +1,4 @@
-// Aplicación Express: página pública, tracking (/go/:id), login (/cms_login), CMS (/cms) y su API.
+// Aplicación Express: página pública, tracking (/go/:id y /go/social/:id), login (/cms_login), CMS (/cms) y su API.
 
 import express, { type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
@@ -22,6 +22,7 @@ import {
   settingsPatch,
   socialCreate,
   socialPatch,
+  socialUrl,
   uploadRequest,
 } from './validation.js';
 import type { z } from 'zod';
@@ -81,7 +82,21 @@ export function createApp() {
   });
 
   // ---------- Tracking ----------
-  // El botón apunta aquí; se registra el clic y se redirige al destino real.
+  // El botón (o el ícono de la red) apunta aquí; se registra el clic y se redirige al destino real.
+
+  app.get('/go/social/:id', async (req, res) => {
+    const id = req.params.id;
+    const social = UUID.test(id) ? await repo.getSocial(id) : null;
+    res.setHeader('Cache-Control', 'no-store');
+    if (!social || !social.active || !social.url || !socialUrl.safeParse(social.url).success) return res.redirect(302, '/');
+
+    // El correo no se cuenta (la página lo enlaza directo, ver render.ts).
+    if (!/^mailto:/i.test(social.url) && shouldCount(req)) {
+      const device = deviceType(String(req.headers['user-agent'] ?? ''), String(req.headers['sec-ch-ua-mobile'] ?? ''));
+      await afterResponse(repo.recordSocialClick(social, device));
+    }
+    res.redirect(302, social.url);
+  });
 
   app.get('/go/:id', async (req, res) => {
     const id = req.params.id;
@@ -261,7 +276,10 @@ export function createApp() {
     const rows = await repo.clicksForCsv(days);
     const deviceLabel: Record<string, string> = { mobile: 'Celular', tablet: 'Tablet', desktop: 'Computadora' };
     const q = (v: unknown) => `"${String(v).replace(/"/g, '""')}"`;
-    const csv = ['Fecha,Botón,Dispositivo,Clics', ...rows.map((r) => [r.day, q(r.label), deviceLabel[r.device] ?? r.device, r.clicks].join(','))].join('\r\n');
+    const csv = [
+      'Fecha,Botón,Dispositivo,Clics,Tipo',
+      ...rows.map((r) => [r.day, q(r.label), deviceLabel[r.device] ?? r.device, r.clicks, r.source === 'social' ? 'Red' : 'Carta'].join(',')),
+    ].join('\r\n');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="clics-${env.clientId}-${days}dias.csv"`);
     res.send('﻿' + csv);

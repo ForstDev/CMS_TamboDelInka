@@ -49,6 +49,13 @@ create table if not exists clicks (
 create index if not exists clicks_client_time on clicks (client_id, clicked_at desc);
 create index if not exists clicks_button on clicks (button_id);
 
+-- Clics en íconos de redes (misma tabla, mismos datos mínimos). Migración idempotente:
+-- en bases nuevas y antiguas las columnas se añaden aquí; las filas existentes quedan como 'button'.
+-- En los clics de redes, button_label guarda el nombre de la red (p. ej. "Facebook").
+alter table clicks add column if not exists source text not null default 'button' check (source in ('button', 'social'));
+alter table clicks add column if not exists social_id uuid references socials(id) on delete set null;
+create index if not exists clicks_social on clicks (social_id);
+
 create table if not exists admins (
   id              uuid primary key default gen_random_uuid(),
   client_id       text not null,

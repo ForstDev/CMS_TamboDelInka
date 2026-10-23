@@ -7,10 +7,11 @@ Un mismo código sirve a varios clientes: cada uno tiene su carpeta en `clients/
 |---|---|
 | `/` | Página pública (réplica exacta del diseño nuevo, con datos desde la base) |
 | `/go/<id>` | Cada botón pasa por aquí: se registra el clic y se abre el PDF o enlace |
+| `/go/social/<id>` | Cada ícono de red social ("Síguenos") pasa por aquí: se registra el clic y se abre la red |
 | `/cms_login` | Ingreso al panel |
 | `/cms` | Panel: Botones · Diseño · Textos · Redes · Estadísticas |
 
-**Credenciales de prueba:** usuario `TambodelInka` · contraseña `TambodelInka2026`
+**Credenciales de prueba:** el usuario y la contraseña de demo están en `clients/intursa/client.json` (campo `admin`)
 (se cambian desde el panel: menú de cuenta › Cambiar contraseña).
 
 ---
@@ -29,8 +30,26 @@ Abre http://localhost:3000 (página) y http://localhost:3000/cms_login (panel).
 La primera vez se crea sola una base local en `.data/` con los 9 botones y sus PDF.
 No hace falta Supabase para probar.
 
+> **Ojo: si tu `.env` tiene `DATABASE_URL`, `npm run dev` y `npm start` se conectan a la base de PRODUCCIÓN (Supabase).**
+> Todo lo que edites o cliquees en el servidor local cambia la página publicada y sus estadísticas. Al arrancar,
+> el servidor muestra una advertencia cuando está usando Supabase. Para probar solo en local, usa `FORCE_LOCAL=1`
+> (ignora las claves del `.env` y usa solo la base y los archivos de `.data/`):
+>
+> ```powershell
+> # PowerShell (Windows)
+> $env:FORCE_LOCAL=1; npm start
+> ```
+>
+> ```bash
+> # Git Bash / macOS / Linux
+> FORCE_LOCAL=1 npm start
+> ```
+>
+> En Windows una variable de entorno vacía se elimina (y el `.env` la vuelve a llenar), así que `DATABASE_URL=` **no**
+> sirve para desactivarla: usa `FORCE_LOCAL=1`. Antes de probar, revisa que no quede otro servidor ocupando el puerto 3000.
+
 ```bash
-npm test          # 49 pruebas automáticas (API, tracking, seguridad, conector de Supabase)
+npm test          # 59 pruebas automáticas (API, tracking de botones y redes, seguridad, migración, conector de Supabase)
 npm run typecheck # revisión de tipos
 ```
 
@@ -76,7 +95,7 @@ npm run setup -- --force --borrar-clics
    npm run verificar
    ```
 
-6. Prueba local contra Supabase: `npm run dev` (ahora dice `base: Supabase`).
+6. Prueba local contra Supabase: `npm run dev` (ahora dice `base: Supabase` y muestra una advertencia: es la base real).
 
 > No hace falta pegar SQL a mano: `npm run setup` aplica `db/schema.sql`. Si prefieres, también puedes pegarlo en el SQL Editor.
 
@@ -123,6 +142,21 @@ npm run setup -- --force --borrar-clics
 Cada `git push` a `main` vuelve a publicar solo. Los cambios hechos en el panel **no** necesitan despliegue:
 se guardan en Supabase y se ven al instante.
 
+### Actualizar producción cuando cambia la base (ORDEN OBLIGATORIO)
+
+> **IMPORTANTE — primero la base, después el código.** Si una versión cambia `db/schema.sql` (por ejemplo, el conteo
+> de clics en redes sociales, que agrega las columnas `source` y `social_id` a `clicks`), hay que migrar Supabase
+> **antes** de subir el código a GitHub/Vercel:
+>
+> 1. `npm run setup` desde un PC con el `.env` de producción. Aplica la migración: es aditiva e idempotente,
+>    **sin `--force`**, y no toca botones, redes, ajustes ni clics existentes (los clics antiguos quedan como `button`).
+> 2. `npm run verificar`.
+> 3. Recién entonces `git push`.
+>
+> Si se despliega el código antes de migrar: la pestaña Estadísticas del panel falla (sus consultas usan la columna
+> `source`) y los clics en redes no se guardan (queda un error `[tracking]` en el registro; el visitante igual llega a la red).
+> Los clics de las cartas siguen funcionando.
+
 ### Dominio propio (opcional)
 En Vercel › Settings › Domains agrega, por ejemplo, `cartas.intursa.com.pe` y pide al cliente crear el registro
 CNAME que Vercel indique.
@@ -132,7 +166,7 @@ CNAME que Vercel indique.
 ## 5. Antes de salir en vivo con el cliente
 
 - [ ] Cambiar la contraseña de demo (menú de cuenta › Cambiar contraseña).
-- [ ] Completar los enlaces de Facebook e Instagram (pestaña Redes). Mientras estén vacíos, la sección "Síguenos" no se muestra.
+- [ ] Confirmar con el cliente que los enlaces de Facebook e Instagram (pestaña Redes) son los oficiales y agregar las demás redes que usen. Una red sin enlace no se muestra.
 - [ ] Borrar las estadísticas de prueba (Estadísticas › Borrar estadísticas).
 - [ ] Poner `NOINDEX=0` en Vercel y volver a desplegar.
 - [ ] Plan de pago: el plan gratis de Supabase pausa el proyecto tras 7 días sin uso, y Vercel Hobby es solo para uso no comercial.
@@ -157,14 +191,23 @@ Si el nuevo cliente tiene otro diseño de página, reemplaza `templates/pagina.h
 
 ## Cómo funciona el tracking
 
-1. El botón apunta a `/go/<id>`. El servidor responde de inmediato con una redirección al PDF.
+Hay dos caminos, con la misma lógica:
+
+- **Cartas:** el botón apunta a `/go/<id>` y redirige al PDF o enlace.
+- **Redes sociales:** cada ícono de "Síguenos" apunta a `/go/social/<id>` y redirige a la red (Facebook, Instagram, etc.).
+
+1. El servidor responde de inmediato con una redirección (302) al destino real.
 2. El clic se guarda **después** de responder (en Vercel con `waitUntil`), así el visitante no espera.
-3. Se guarda solo: botón, fecha y hora, y tipo de dispositivo (celular / tablet / computadora).
+3. Se guarda solo: qué botón o red, fecha y hora, y tipo de dispositivo (celular / tablet / computadora).
    **No** se guarda IP, cookies, User-Agent ni ningún identificador (Ley 29733).
 4. No se cuentan bots (Google, WhatsApp, Facebook, etc.), precargas del navegador ni la vista previa del panel.
+5. Los clics en redes se guardan aparte (columna `source = 'social'`) y **no alteran** las estadísticas de las cartas;
+   el panel los muestra en la tarjeta "Clics en redes sociales" y en la pestaña Redes. El CSV incluye ambos con la columna `Tipo` (`Carta`/`Red`).
 
 Límites a explicar al cliente:
 - Cuenta **clics, no personas**: sin cookies ni IP no se distinguen visitantes únicos.
+- En redes se cuenta el **toque en el ícono**, no si la persona terminó entrando o siguiendo la cuenta.
+- La red de tipo **correo** (`mailto:`) enlaza directo y **no se cuenta** (redirigir a `mailto:` no es fiable en todos los navegadores).
 - Los iPad recientes se identifican como computadora (así se presentan al servidor).
 - Vercel y Supabase guardan sus propios registros técnicos de infraestructura (pueden incluir IP), fuera de esta base.
 

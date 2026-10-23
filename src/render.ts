@@ -61,11 +61,14 @@ export function renderPage({ settings: s, buttons, socials }: PageData, opts: { 
     })
     .join('\n    ');
 
+  // Las redes pasan por /go/social para contar el clic. Enlace directo (sin contar) en la vista
+  // previa y en mailto:, porque redirigir con 302 a mailto: no funciona igual en todos los navegadores.
   const redes_html = socials
     .filter((r) => r.active && r.url && r.network in NETWORKS)
     .map((r) => {
       const n = NETWORKS[r.network];
-      return `<a href="${escapeHtml(r.url)}" aria-label="${escapeHtml(n.label)}" target="_blank" rel="noopener"><i class="${n.icon}"></i></a>`;
+      const href = opts.preview || /^mailto:/i.test(r.url) ? r.url : `/go/social/${r.id}`;
+      return `<a href="${escapeHtml(href)}" aria-label="${escapeHtml(n.label)}" target="_blank" rel="noopener"><i class="${n.icon}"></i></a>`;
     })
     .join('\n      ');
 

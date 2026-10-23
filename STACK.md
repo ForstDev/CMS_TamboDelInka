@@ -14,10 +14,11 @@ Un solo servidor Express sirve la página pública, el tracking, el login, el pa
 | Panel | HTML + JS sin framework; SortableJS (arrastrar) y Chart.js (gráficos) por CDN |
 | Login | Tabla `admins` + bcryptjs; sesión en cookie httpOnly firmada con `jose` (12 h); bloqueo 15 min tras 5 intentos |
 | Validación | `zod` (URLs solo http/https, colores hex, redes de lista cerrada, tipos y tamaños de archivo) |
-| Tracking | `/go/:id` → 302; registro después de responder (`waitUntil` de Vercel); `isbot`; sin IP ni cookies |
-| Pruebas | Vitest + Supertest: 49 pruebas (API completa, seguridad, conector postgres.js contra un Postgres por red) |
+| Tracking | `/go/:id` (cartas) y `/go/social/:id` (íconos de redes, salvo correo) → 302; registro después de responder (`waitUntil` de Vercel); `isbot`; sin IP ni cookies. Tabla `clicks` con `source` (`button`/`social`) |
+| Pruebas | Vitest + Supertest: 59 pruebas en 4 archivos (API completa, tracking de botones y redes, seguridad, migración de `clicks`, conector postgres.js contra un Postgres por red) |
 
 Multi-cliente: un proyecto de Vercel y uno de Supabase por cliente, mismo repositorio.
 Variables: `CLIENT_ID`, `SESSION_SECRET`, `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `NOINDEX`, `STATS_TZ`.
+Solo local: `FORCE_LOCAL=1` hace que `npm run dev`/`npm start` ignoren las claves del `.env` y usen la base local `.data/` (sin tocar producción).
 
 Guía paso a paso: `README.md`.

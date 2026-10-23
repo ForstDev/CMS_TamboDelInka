@@ -279,8 +279,18 @@
         </div>
       </div>
 
+      <article class="card" id="social-card">
+        <header class="card-head">
+          <h3><i class="fa-solid fa-share-nodes"></i> Clics en redes sociales</h3>
+          <span class="social-total" id="social-total" hidden></span>
+        </header>
+        <p class="hint card-hint">Cuenta los toques en los íconos de tu página; no sabemos si la persona terminó entrando a la red.</p>
+        <div class="social-empty" id="social-empty" hidden></div>
+        <ol class="ranking social-ranking" id="social-ranking"></ol>
+      </article>
+
       <div class="stats-foot">
-        <p class="hint"><i class="fa-solid fa-user-shield"></i> Sin datos personales: solo se guarda qué botón, cuándo y el tipo de dispositivo (Ley 29733). No se guarda la IP. Los clics de bots no se cuentan.</p>
+        <p class="hint"><i class="fa-solid fa-user-shield"></i> Sin datos personales: solo se guarda qué botón o red social, cuándo y el tipo de dispositivo (Ley 29733). No se guarda la IP. Los clics de bots no se cuentan.</p>
         <div class="stats-actions">
           <a class="btn btn-secondary" id="export-csv" href="#"><i class="fa-solid fa-file-csv"></i> Exportar CSV</a>
           <button class="btn btn-danger-ghost" id="reset-stats"><i class="fa-regular fa-trash-can"></i> Borrar estadísticas</button>

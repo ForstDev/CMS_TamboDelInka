@@ -391,6 +391,16 @@ img { max-width: 100%; }
 .device-legend .sw { width: 12px; height: 12px; border-radius: 4px; flex: none; }
 .device-legend b { margin-left: auto; font-variant-numeric: tabular-nums; }
 
+/* Clics en redes sociales */
+.social-total { flex: none; font-size: 13.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.social-total b { color: var(--ink); font-weight: 800; }
+.social-empty { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2); font-size: 13.5px; }
+.social-empty i { color: var(--brand); font-size: 17px; margin-top: 1px; flex: none; }
+.social-ranking li { grid-template-columns: 34px minmax(0, 1fr) auto; }
+.net-icon.sm { width: 34px; height: 34px; border-radius: 10px; font-size: 16px; }
+.social-item .social-clicks { justify-self: start; }
+.social-item .social-clicks .badge-word { display: inline; }
+
 .stats-foot { display: grid; gap: 14px; margin-top: 4px; }
 .stats-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
