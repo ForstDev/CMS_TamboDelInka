@@ -7,6 +7,7 @@ import { openPglite, setDb } from '../src/db.js';
 import { setStorage, type Storage } from '../src/storage.js';
 import { applySchema, seed } from '../src/seed.js';
 import { createApp } from '../src/app.js';
+import * as repo from '../src/repo.js';
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Safari/604.1';
 const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36';
@@ -45,6 +46,8 @@ beforeAll(async () => {
   await applySchema();
   await applySchema(); // idempotente
   await seed({ log: () => {} });
+  // Las pruebas parten de redes sin enlace, aunque client.json ya traiga las redes oficiales.
+  for (const s of await repo.listSocials()) await repo.updateSocial(s.id, { url: '' });
   app = createApp();
   agent = request.agent(app);
 }, 60_000);
