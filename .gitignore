@@ -16,5 +16,8 @@ node_modules/
 # desde este computador; después viven en Supabase Storage.
 clients/*/seed/
 
-# Notas internas del proyecto
+# Notas internas y documentos de reunión (no van al repositorio)
 CONTEXTO.md
+GUIA-PARA-CLAUDE.md
+GUIA-REUNION-TI.md
+RESUMEN-PROYECTO.md
