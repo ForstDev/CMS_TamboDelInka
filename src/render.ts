@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Button, Social } from './repo.js';
-import type { Settings } from './validation.js';
+import { defaultSettingsFor, type Settings, type Template } from './validation.js';
 import { NETWORKS } from './networks.js';
 import { env } from './env.js';
 
@@ -45,13 +45,51 @@ export interface PageData {
   settings: Settings;
   buttons: Button[];
   socials: Social[];
+  /** Plantilla de la landing; sin ella, "cartas" (la página original). */
+  landing?: { template: Template };
+}
+
+const TEMPLATE_FILES: Record<Template, string> = {
+  cartas: 'pagina.html',
+  experiencias: 'experiencias.html',
+};
+
+/** Entero acotado a partir del ajuste (ya validado al guardar; se vuelve a acotar por seguridad). */
+function intSetting(value: unknown, min: number, max: number, fallback: number): number {
+  const n = /^\d{1,3}$/.test(String(value ?? '')) ? Number(value) : NaN;
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+}
+
+const LOGO_POSITIONS = {
+  left: { align: 'flex-start', text: 'left', margin: '0 auto 0 0' },
+  center: { align: 'center', text: 'center', margin: '0 auto' },
+  right: { align: 'flex-end', text: 'right', margin: '0 0 0 auto' },
+} as const;
+
+/** Valores calculados y seguros para el CSS de las plantillas. */
+export function layoutValues(s: Settings, template: Template) {
+  const d = defaultSettingsFor(template);
+  const pos = LOGO_POSITIONS[s.logo_posicion as keyof typeof LOGO_POSITIONS] ?? LOGO_POSITIONS.center;
+  const x = intSetting(s.fondo_foco_x, 0, 100, 50);
+  const y = intSetting(s.fondo_foco_y, 0, 100, 50);
+  return {
+    logo_ancho: String(intSetting(s.logo_ancho, 60, 400, Number(d.logo_ancho))),
+    logo_align: pos.align,
+    logo_text_align: pos.text,
+    logo_margin: pos.margin,
+    // 50% 50% se escribe "center", igual que la plantilla original.
+    fondo_foco_css: x === 50 && y === 50 ? 'center' : `${x}% ${y}%`,
+    fondo_oscurecer_css: (intSetting(s.fondo_oscurecer, 0, 100, Number(d.fondo_oscurecer)) / 100).toFixed(2),
+  };
 }
 
 /**
  * preview = true: vista previa dentro del CMS. Los botones apuntan directo a su destino
  * (no pasan por /go, así no cuentan clics) y todo se abre en otra pestaña.
  */
-export function renderPage({ settings: s, buttons, socials }: PageData, opts: { preview?: boolean; noindex?: boolean } = {}): string {
+export function renderPage({ settings, buttons, socials, landing }: PageData, opts: { preview?: boolean; noindex?: boolean } = {}): string {
+  const template: Template = landing?.template && landing.template in TEMPLATE_FILES ? landing.template : 'cartas';
+  const s: Settings = { ...defaultSettingsFor(template), ...settings };
   const visibleButtons = buttons.filter((b) => b.active && b.url);
   const botones_html = visibleButtons
     .map((b) => {
@@ -74,8 +112,9 @@ export function renderPage({ settings: s, buttons, socials }: PageData, opts: { 
 
   const useImage = s.fondo_tipo === 'imagen' && s.fondo_imagen_url;
 
-  let html = renderTemplate(loadTemplate('pagina.html'), {
+  let html = renderTemplate(loadTemplate(TEMPLATE_FILES[template]), {
     ...s,
+    ...layoutValues(s, template),
     fondo_imagen_css: useImage ? cssUrl(s.fondo_imagen_url) : '',
     novedades_url: s.novedades_activo === '1' ? s.novedades_url : '',
     botones_html,

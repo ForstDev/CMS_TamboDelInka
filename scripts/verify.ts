@@ -56,10 +56,23 @@ await check('Conexión', async () => {
 await check('Tablas', async () => {
   const db = await getDb();
   const rows = await db.query<{ t: string }>(
-    `select table_name as t from information_schema.tables where table_schema = 'public' and table_name in ('settings','buttons','socials','clicks','admins')`,
+    `select table_name as t from information_schema.tables where table_schema = 'public' and table_name in ('settings','buttons','socials','clicks','admins','landings','landing_settings')`,
   );
-  if (rows.length !== 5) throw new Error(`faltan tablas (hay ${rows.length} de 5). Ejecuta npm run setup`);
-  return '5 de 5';
+  if (rows.length !== 7) throw new Error(`faltan tablas (hay ${rows.length} de 7). Ejecuta npm run setup`);
+  return '7 de 7';
+});
+await check('Landings', async () => {
+  const landings = await repo.listLandings();
+  if (!landings.some((l) => l.is_default)) throw new Error('no hay landing por defecto. Ejecuta npm run setup');
+  const db = await getDb();
+  const counts = await db.query<{ landing_id: string; n: number }>(
+    'select landing_id, count(*)::int as n from buttons where client_id = $1 group by landing_id',
+    [env.clientId],
+  );
+  const n = (id: string) => Number(counts.find((c) => c.landing_id === id)?.n ?? 0);
+  return landings
+    .map((l) => `${l.is_default ? '/' : `/${l.slug}`} ${l.name} [${l.template}${l.active ? '' : ', inactiva'}]: ${n(l.id)} botones`)
+    .join(' · ');
 });
 await check('Datos del cliente', async () => {
   if (!(await repo.hasSettings())) throw new Error('vacío. Ejecuta npm run setup');

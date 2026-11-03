@@ -1,7 +1,12 @@
 // Prepara la base y los archivos de un cliente.
-//   npm run setup                 → crea tablas y bucket; carga datos iniciales si el cliente está vacío
-//   npm run setup -- --force      → vuelve a cargar botones, textos y redes desde clients/<id>/client.json
-//   npm run setup -- --borrar-clics → además borra las estadísticas (por ejemplo, antes de salir en vivo)
+//   npm run setup                 → crea/migra tablas y bucket; crea las landings de clients/<id>/client.json
+//                                   que aún no existan (las que ya tienen datos no se tocan)
+//   npm run setup -- --force      → vuelve a cargar botones, textos y redes de las landings de client.json
+//                                   (no borra landings ni clics)
+//   npm run setup -- --borrar-clics → además borra las estadísticas de todas las landings
+//   npm run setup -- --solo-esquema → solo crea/migra tablas y bucket, sin cargar landings. Se usa ANTES del
+//                                   `git push` cuando la versión nueva trae landings nuevas: así el código anterior
+//                                   (que no distingue landings) no muestra sus botones mientras Vercel despliega.
 // En modo local (sin DATABASE_URL) detén antes `npm run dev`: la base embebida no admite dos procesos.
 
 try {
@@ -16,6 +21,7 @@ const repo = await import('../src/repo.js');
 
 const force = process.argv.includes('--force');
 const resetClicks = process.argv.includes('--borrar-clics');
+const schemaOnly = process.argv.includes('--solo-esquema');
 
 console.log(`\nCliente: ${env.clientId}`);
 console.log(`Base de datos: ${env.databaseUrl ? 'Supabase (DATABASE_URL)' : 'local (.data/pgdata)'}`);
@@ -33,8 +39,12 @@ try {
     await getStorage().ensureBucket!();
     console.log('✓ Bucket "media" listo (público, solo PDF/PNG/JPG/WEBP)');
   }
-  await seed({ force });
-  if (resetClicks) console.log(`✓ Estadísticas borradas (${await repo.resetClicks()} clics)`);
+  if (schemaOnly) {
+    console.log('\nEsquema listo (no se cargaron landings). Ahora: git push, espera el despliegue y vuelve a correr npm run setup.');
+  } else {
+    await seed({ force });
+  }
+  if (resetClicks && !schemaOnly) console.log(`✓ Estadísticas borradas (${await repo.resetAllClicks()} clics)`);
   console.log('\nTodo listo.');
 } catch (err) {
   console.error('\n✗', err instanceof Error ? err.message : err);

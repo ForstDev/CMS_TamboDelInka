@@ -40,18 +40,50 @@ const state = {
   uploadRules: {},
   stats: null,
   days: 30,
+  landing: null, // { id, slug, name, hotel, template, is_default, url } de la landing en edición
+  landings: [],
 };
 const netByKey = () => Object.fromEntries(state.networks.map((n) => [n.key, n]));
+
+/** localStorage envuelto: puede no existir o fallar (modo privado, datos bloqueados). */
+const pref = {
+  get(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  set(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {}
+  },
+  remove(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch {}
+  },
+};
+const LANDING_KEY = 'cms-landing';
+const DEVICE_KEY = 'cms-preview-device';
+
+/** Id de la landing en edición; viaja en cada llamada a la API (cabecera X-Landing-Id). */
+let landingId = '';
+/** "?landing=<id>" / "&landing=<id>" para enlaces y peticiones sin cabecera. */
+const landingParam = (sep = '?') => (landingId ? `${sep}landing=${encodeURIComponent(landingId)}` : '');
 
 // ---------------------------------------------------------------------------
 // API y autoguardado
 // ---------------------------------------------------------------------------
 
 async function api(method, url, body, opts = {}) {
+  const headers = body !== undefined ? { 'Content-Type': 'application/json' } : {};
+  if (landingId) headers['X-Landing-Id'] = landingId;
   const res = await fetch(url, {
     method,
     credentials: 'same-origin',
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
+    headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
     keepalive: opts.keepalive,
   });
@@ -60,7 +92,11 @@ async function api(method, url, body, opts = {}) {
     throw new Error('Tu sesión expiró.');
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'No se pudo conectar con el servidor.');
+  if (!res.ok) {
+    const err = new Error(data.error || 'No se pudo conectar con el servidor.');
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -198,11 +234,21 @@ function switchEl(checked, label, onChange) {
 // Subida de archivos (directa al almacenamiento, con barra de progreso)
 // ---------------------------------------------------------------------------
 
+function isSameOrigin(url) {
+  try {
+    return new URL(url, location.href).origin === location.origin;
+  } catch {
+    return false;
+  }
+}
+
 function putFile(url, file, contentType, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', url);
     xhr.setRequestHeader('Content-Type', contentType);
+    // Solo a nuestro servidor: una URL firmada de otro dominio rechazaría la cabecera extra (CORS).
+    if (landingId && isSameOrigin(url)) xhr.setRequestHeader('X-Landing-Id', landingId);
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total);
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) return resolve();
@@ -273,7 +319,7 @@ async function refreshPreview() {
   const frames = [$('#preview-frame'), $('#preview-frame-mobile')].filter((f) => f && f.offsetParent !== null);
   if (!frames.length) return;
   try {
-    const res = await fetch('/api/cms/preview', { credentials: 'same-origin' });
+    const res = await fetch(`/api/cms/preview${landingParam('?')}`, { credentials: 'same-origin' });
     if (!res.ok) return;
     const html = await res.text();
     for (const f of frames) {
@@ -294,13 +340,78 @@ async function refreshPreview() {
 $('#open-preview').addEventListener('click', () => {
   $('#preview-sheet').hidden = false;
   document.body.style.overflow = 'hidden';
+  layoutDevices();
   refreshPreview();
 });
 $('#close-preview').addEventListener('click', () => {
   $('#preview-sheet').hidden = true;
   document.body.style.overflow = '';
 });
-window.matchMedia('(min-width: 1280px)').addEventListener('change', schedulePreview);
+window.matchMedia('(min-width: 1280px)').addEventListener('change', () => {
+  layoutDevices();
+  schedulePreview();
+});
+
+// ---------- Celular / PC ----------
+
+const PC_W = 1366;
+const PC_H = 768;
+const MONITOR_BORDER = 8;
+
+/** Escala del modo PC: la página de 1366×768 cabe en `available` px de ancho. */
+function pcScale(available, baseW = PC_W, baseH = PC_H) {
+  const width = Math.max(0, Math.floor(Number(available) || 0));
+  const k = width / baseW;
+  return { k, width, height: Math.round(baseH * k) };
+}
+
+let previewDevice = pref.get(DEVICE_KEY) === 'pc' ? 'pc' : 'mobile';
+const deviceSyncs = $$('.device-seg').map((seg) => wireSegmented(seg, previewDevice, (v) => setPreviewDevice(v)));
+
+function setPreviewDevice(value) {
+  previewDevice = value === 'pc' ? 'pc' : 'mobile';
+  pref.set(DEVICE_KEY, previewDevice);
+  deviceSyncs.forEach((sync) => sync(previewDevice));
+  applyPreviewDevice();
+}
+
+function applyPreviewDevice() {
+  document.body.dataset.device = previewDevice;
+  layoutDevices();
+}
+
+/** Ancho útil (sin padding) de un contenedor visible; 0 si está oculto. */
+function contentWidth(el) {
+  if (!el || !el.clientWidth) return 0;
+  const cs = getComputedStyle(el);
+  return el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+}
+
+/** Calcula el tamaño del "monitor" y la escala del iframe en el panel de escritorio y en la hoja de celular. */
+function layoutDevices() {
+  const targets = [
+    [$('.phone'), contentWidth($('.preview-pane'))],
+    [$('#sheet-screen'), contentWidth($('#sheet-body'))],
+  ];
+  for (const [el, avail] of targets) {
+    if (!el) continue;
+    if (previewDevice !== 'pc' || avail <= MONITOR_BORDER * 2) {
+      ['--k', '--mon-w', '--mon-h'].forEach((p) => el.style.removeProperty(p));
+      continue;
+    }
+    const { k, width, height } = pcScale(avail - MONITOR_BORDER * 2);
+    el.style.setProperty('--k', String(k));
+    el.style.setProperty('--mon-w', `${width}px`);
+    el.style.setProperty('--mon-h', `${height}px`);
+  }
+}
+
+let layoutFrame = 0;
+window.addEventListener('resize', () => {
+  cancelAnimationFrame(layoutFrame);
+  layoutFrame = requestAnimationFrame(layoutDevices);
+});
+applyPreviewDevice();
 
 // ---------------------------------------------------------------------------
 // Navegación
@@ -320,13 +431,14 @@ function showTab(name) {
     else a.removeAttribute('aria-current');
   });
   $('#panel-title').textContent = TITLES[name];
-  document.title = `${TITLES[name]} · ${state.settings.cms_nombre || 'Panel'}`;
+  document.title = `${TITLES[name]} · ${state.landing?.name || state.settings.cms_nombre || 'Panel'}`;
   window.scrollTo({ top: 0 });
   if (name === 'estadisticas') {
     loadStats().catch(() => {});
     startLive();
   } else {
     stopLive();
+    layoutDevices(); // el panel de vista previa pudo volver a mostrarse
     if (!$('#preview-frame').srcdoc) schedulePreview(); // la vista previa estaba oculta en Estadísticas
   }
 }
@@ -444,7 +556,21 @@ function renderDesign() {
       toast('Fondo actualizado');
     });
   });
-  acceptDrops($('#bg-thumb'), (file) => handleImage(file, 'fondo', $('#bg-progress'), (url) => saveSetting('fondo_imagen_url', url, { immediate: true })));
+  acceptDrops($('#focus-stage'), (file) => handleImage(file, 'fondo', $('#bg-progress'), (url) => saveSetting('fondo_imagen_url', url, { immediate: true })));
+
+  // Punto focal (encuadre en celular)
+  const frame = $('#focus-frame');
+  frame.addEventListener('click', (e) => {
+    const { x, y } = focusFromPoint(e.clientX, e.clientY, $('#focus-img').getBoundingClientRect());
+    saveFocus(x, y);
+  });
+  $('#focus-dot').addEventListener('keydown', (e) => {
+    const step = { ArrowLeft: [-5, 0], ArrowRight: [5, 0], ArrowUp: [0, -5], ArrowDown: [0, 5] }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    saveFocus(clampPct(clampPct(state.settings.fondo_foco_x) + step[0]), clampPct(clampPct(state.settings.fondo_foco_y) + step[1]));
+  });
+  $('#focus-center').addEventListener('click', () => saveFocus(50, 50));
 
   // Logo
   wireImageUpload($('#logo-file'), 'logo', $('#logo-progress'), (url) => {
@@ -459,7 +585,58 @@ function renderDesign() {
     toast('Logo quitado', 'ok', { action: 'Deshacer', onAction: () => saveSetting('logo_url', before, { immediate: true }), duration: 6000 });
   });
 
+  // Tamaño (deslizador con data-setting="logo_ancho", se guarda solo) y posición del logo
+  state._syncLogoPos = wireSegmented($('#logo-pos'), state.settings.logo_posicion || 'center', (v) => saveSetting('logo_posicion', v, { immediate: true }));
+  $('#logo-reset').addEventListener('click', () => {
+    const before = { logo_ancho: state.settings.logo_ancho, logo_posicion: state.settings.logo_posicion };
+    const defaults = { logo_ancho: state.defaults.logo_ancho || '260', logo_posicion: state.defaults.logo_posicion || 'center' };
+    applyLogoLayout(defaults);
+    toast('Tamaño y posición restablecidos', 'ok', { action: 'Deshacer', onAction: () => applyLogoLayout(before), duration: 6000 });
+  });
+
   renderDesignPreview();
+}
+
+/** Anula un autoguardado pendiente (si no, mandaría un valor viejo después). */
+function cancelDebounced(key) {
+  clearTimeout(timers.get(key));
+  timers.delete(key);
+}
+
+function applyLogoLayout(values) {
+  cancelDebounced('setting:logo_ancho');
+  cancelDebounced('setting:logo_posicion');
+  Object.assign(state.settings, values);
+  $('#logo-size').value = values.logo_ancho;
+  state._syncLogoPos?.(values.logo_posicion);
+  applyBindings();
+  save(() => api('PATCH', '/api/cms/settings', values)).catch(() => {});
+}
+
+/** Entero 0–100 (los valores del encuadre). */
+function clampPct(n) {
+  if (n === '' || n == null) return 50;
+  const v = Math.round(Number(n));
+  return Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 50;
+}
+
+/** Convierte un clic (coordenadas de pantalla) en el % de la foto, acotado a 0–100. */
+function focusFromPoint(clientX, clientY, rect) {
+  if (!rect || !rect.width || !rect.height) return { x: 50, y: 50 };
+  return {
+    x: clampPct(((clientX - rect.left) / rect.width) * 100),
+    y: clampPct(((clientY - rect.top) / rect.height) * 100),
+  };
+}
+
+/** Guarda el encuadre (los dos valores en una sola escritura, con espera). */
+function saveFocus(x, y) {
+  state.settings.fondo_foco_x = String(clampPct(x));
+  state.settings.fondo_foco_y = String(clampPct(y));
+  applyBindings();
+  debounced('setting:fondo_foco', () =>
+    save(() => api('PATCH', '/api/cms/settings', { fondo_foco_x: state.settings.fondo_foco_x, fondo_foco_y: state.settings.fondo_foco_y })).catch(() => {}),
+  );
 }
 
 function applyColors(values) {
@@ -506,12 +683,31 @@ function renderDesignPreview() {
     $('#logo-remove').disabled = !s.logo_url;
     $('#logo-stage').style.backgroundColor = s.color_fondo;
     $('#logo-stage').style.backgroundImage = bgImage;
+    // Tamaño proporcional (400 px = todo el ancho de la muestra) y posición.
+    const ancho = Math.min(400, Math.max(60, Number(s.logo_ancho) || Number(state.defaults.logo_ancho) || 260));
+    logo.style.width = `${(ancho / 400) * 100}%`;
+    $('#logo-stage').style.justifyItems = { left: 'start', right: 'end' }[s.logo_posicion] || 'center';
+    $('#logo-size-value').textContent = `${ancho} px`;
   }
-  const thumb = $('#bg-thumb');
-  if (thumb) {
+  const focusStage = $('#focus-stage');
+  if (focusStage) {
     $('#bg-image-block').hidden = s.fondo_tipo !== 'imagen';
-    thumb.style.backgroundImage = s.fondo_imagen_url ? `url("${s.fondo_imagen_url}")` : 'none';
+    const img = $('#focus-img');
+    const hasImg = Boolean(s.fondo_imagen_url);
+    $('#focus-frame').hidden = !hasImg;
+    $('#focus-empty').hidden = hasImg;
+    $('#focus-center').disabled = !hasImg;
+    if (hasImg && img.getAttribute('src') !== s.fondo_imagen_url) img.src = s.fondo_imagen_url;
+    const x = clampPct(s.fondo_foco_x);
+    const y = clampPct(s.fondo_foco_y);
+    const dot = $('#focus-dot');
+    dot.style.left = `${x}%`;
+    dot.style.top = `${y}%`;
+    dot.setAttribute('aria-valuenow', String(x));
+    dot.setAttribute('aria-valuetext', `${x}% desde la izquierda, ${y}% desde arriba. Usa las flechas para moverlo.`);
   }
+  const dark = $('#bg-dark-value');
+  if (dark) dark.textContent = `${clampPct(s.fondo_oscurecer)}%`;
   const sample = $('#btn-sample');
   if (sample) {
     sample.style.backgroundColor = s.color_fondo;
@@ -1108,7 +1304,7 @@ function renderStats() {
 
   renderSocialStats(s);
 
-  $('#export-csv').href = `/api/cms/stats.csv?days=${s.days}`;
+  $('#export-csv').href = `/api/cms/stats.csv?days=${s.days}${landingParam('&')}`;
   renderCharts(s);
 }
 
@@ -1335,17 +1531,137 @@ $('#welcome-close').addEventListener('click', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Landings (qué página se está editando)
+// ---------------------------------------------------------------------------
+
+/** Agrupa las landings por hotel, respetando el orden en que llegan (el servidor ya ordena). */
+function landingGroups(landings) {
+  const groups = [];
+  const byHotel = new Map();
+  for (const l of landings || []) {
+    const hotel = String(l.hotel || '').trim() || 'Otras';
+    let g = byHotel.get(hotel);
+    if (!g) {
+      g = { hotel, items: [] };
+      byHotel.set(hotel, g);
+      groups.push(g);
+    }
+    g.items.push({ id: l.id, label: l.is_default ? `${l.name} · principal` : String(l.name || '') });
+  }
+  return groups;
+}
+
+/** Landing a editar: la guardada si sigue existiendo; si no, la por defecto (o la primera). */
+function pickLanding(landings, savedId) {
+  const list = landings || [];
+  return list.find((l) => l.id === savedId) || list.find((l) => l.is_default) || list[0] || null;
+}
+
+function renderLandingSelect() {
+  const select = $('#landing-select');
+  fill(
+    select,
+    landingGroups(state.landings).map((g) =>
+      h('optgroup', { label: g.hotel }, ...g.items.map((it) => h('option', { value: it.id, selected: it.id === landingId }, it.label))),
+    ),
+  );
+  select.value = landingId;
+}
+
+/** En celular/tablet el selector va bajo la barra superior; desde 900 px, en la barra lateral. */
+const sideMq = window.matchMedia('(min-width: 900px)');
+function placeLandingBar() {
+  const bar = $('#landing-bar');
+  if (sideMq.matches) {
+    const slot = $('#landing-slot-side');
+    if (bar.parentElement !== slot) slot.append(bar);
+  } else if (bar.nextElementSibling !== $('#content')) {
+    $('#content').before(bar);
+  }
+}
+sideMq.addEventListener('change', placeLandingBar);
+
+let switchWait = null;
+let switchTarget = '';
+const hasPendingSaves = () => Boolean(timers.size || inFlight);
+
+function switchLanding(id) {
+  pref.set(LANDING_KEY, id);
+  $('#landing-select').disabled = true;
+  location.reload(); // el #hash se conserva: se vuelve a la misma pestaña
+}
+
+/** Cambia de landing; si hay guardados pendientes, espera a que terminen. */
+function requestLandingSwitch(id) {
+  switchTarget = id;
+  if (!hasPendingSaves()) return switchLanding(id);
+  if (switchWait) return;
+  toast('Espera a que termine de guardar', 'info');
+  const started = Date.now();
+  switchWait = setInterval(() => {
+    if (!hasPendingSaves()) {
+      clearInterval(switchWait);
+      switchWait = null;
+      switchLanding(switchTarget);
+    } else if (Date.now() - started > 15000) {
+      clearInterval(switchWait);
+      switchWait = null;
+      toast('Todavía se está guardando. Vuelve a elegir la página en unos segundos.', 'info');
+    }
+  }, 250);
+}
+
+$('#landing-select').addEventListener('change', (e) => {
+  const next = e.target.value;
+  e.target.value = landingId; // se queda en la actual hasta que realmente se cambie
+  if (next && next !== landingId) requestLandingSwitch(next);
+});
+
+/** Muestra en el panel a qué landing corresponde lo que se edita. */
+function applyLanding() {
+  const l = state.landing;
+  if (!l) return;
+  $('#brand-name').textContent = l.name;
+  $('#stats-landing').textContent = ` · ${l.name}`;
+  $$('[data-landing-url]').forEach((a) => (a.href = l.url || '/'));
+  const tpl = /^[a-z0-9-]+$/.test(String(l.template || '')) ? l.template : 'cartas';
+  document.body.classList.add(`tpl-${tpl}`);
+  renderLandingSelect();
+  placeLandingBar();
+  $('#landing-bar').hidden = false;
+}
+
+// ---------------------------------------------------------------------------
 // Inicio
 // ---------------------------------------------------------------------------
 
 async function init() {
+  const fail = (err) => $('#loading').replaceChildren(icon('fa-solid fa-circle-exclamation'), ` ${err.message}`);
+  const saved = pref.get(LANDING_KEY) || '';
+  try {
+    const { landings } = await api('GET', '/api/cms/landings');
+    state.landings = Array.isArray(landings) ? landings : [];
+  } catch (err) {
+    return fail(err);
+  }
+  const chosen = pickLanding(state.landings, saved);
+  landingId = chosen?.id || '';
+  if (saved && saved !== landingId) pref.remove(LANDING_KEY); // la guardada ya no existe
   try {
     const data = await api('GET', '/api/cms/state');
     Object.assign(state, data);
   } catch (err) {
-    $('#loading').replaceChildren(icon('fa-solid fa-circle-exclamation'), ` ${err.message}`);
-    return;
+    // La landing se borró entre las dos llamadas: se olvida la preferencia y se vuelve a la por defecto.
+    if (err.status === 404 && saved) {
+      pref.remove(LANDING_KEY);
+      location.reload();
+      return;
+    }
+    return fail(err);
   }
+  if (state.landing?.id) landingId = state.landing.id;
+  if (!state.landings.some((l) => l.id === landingId) && state.landing) state.landings.push(state.landing);
+  applyLanding();
   $('#account-name').textContent = state.user.username;
   $('#avatar-initial').textContent = (state.user.username[0] || 'A').toUpperCase();
 

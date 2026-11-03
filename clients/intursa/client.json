@@ -5,39 +5,154 @@
     "username": "TambodelInka",
     "password": "TambodelInka2026"
   },
-  "settings": {
-    "titulo_pagina": "Tambo del Inka – Outlets",
-    "meta_descripcion": "Cartas de Tambo del Inka Resort & Spa – Valle Sagrado: desayuno, restaurante Hawa, Kiri Bar, room service, vinos, spa y más.",
-    "logo_alt": "Tambo del Inka Resort & Spa – Valle Sagrado",
-    "color_fondo": "#ffffff",
-    "color_texto": "#ffffff",
-    "color_boton": "#ffffff",
-    "color_boton_texto": "#333333",
-    "color_boton_hover": "#333333",
-    "color_texto_boton_hover": "#ffffff",
-    "novedades_activo": "1",
-    "novedades_texto": "¿Deseas recibir novedades y promociones?",
-    "novedades_link_texto": "Click aquí",
-    "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
-    "redes_titulo": "Síguenos"
-  },
-  "assets": {
-    "logo": "logo-tdi-blanco.png",
-    "fondo": "fondo_intursa.jpg"
-  },
-  "buttons": [
-    { "label": "Desayuno Breakfast",        "pdf": "TAMBO_Desayuno-2026-1.pdf" },
-    { "label": "Hawa",                      "pdf": "TAMBO_Restaurante-Hawa-2026-Julio.pdf" },
-    { "label": "Kiri Bar",                  "pdf": "TAMBO_Bar-Kiri-2026-1.pdf" },
-    { "label": "Room Service",              "pdf": "TAMBO_Room-Service-2026.pdf" },
-    { "label": "La Cervecería",             "pdf": "Carta-LA-CERVECERIA-2026-2.pdf" },
-    { "label": "Vinos | Wines",             "pdf": "TAMBO_Vinos-2026.ait_.pdf" },
-    { "label": "Menú de niños | Kids Menu", "pdf": "MENU-KIDS-TAMBO.pdf" },
-    { "label": "Kallpa Spa",                "pdf": "Carta-AB-KALLPA-SPA-2026.pdf" },
-    { "label": "De nuestro huerto",         "pdf": "TAMBO_De-nuestro-Huerto-2026-Julio.pdf" }
-  ],
-  "socials": [
-    { "network": "facebook",  "url": "https://www.facebook.com/TamboDelInka/" },
-    { "network": "instagram", "url": "https://www.instagram.com/hoteltambodelinka/" }
+  "landings": [
+    {
+      "slug": "tambo-outlets",
+      "name": "Tambo del Inka – Outlets",
+      "hotel": "Tambo del Inka",
+      "template": "cartas",
+      "is_default": true,
+      "position": 0,
+      "settings": {
+        "titulo_pagina": "Tambo del Inka – Outlets",
+        "meta_descripcion": "Cartas de Tambo del Inka Resort & Spa – Valle Sagrado: desayuno, restaurante Hawa, Kiri Bar, room service, vinos, spa y más.",
+        "logo_alt": "Tambo del Inka Resort & Spa – Valle Sagrado",
+        "color_fondo": "#ffffff",
+        "color_texto": "#ffffff",
+        "color_boton": "#ffffff",
+        "color_boton_texto": "#333333",
+        "color_boton_hover": "#333333",
+        "color_texto_boton_hover": "#ffffff",
+        "novedades_activo": "1",
+        "novedades_texto": "¿Deseas recibir novedades y promociones?",
+        "novedades_link_texto": "Click aquí",
+        "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
+        "redes_titulo": "Síguenos"
+      },
+      "assets": {
+        "logo": "logo-tdi-blanco.png",
+        "fondo": "fondo_intursa.jpg"
+      },
+      "buttons": [
+        { "label": "Desayuno Breakfast",        "pdf": "TAMBO_Desayuno-2026-1.pdf" },
+        { "label": "Hawa",                      "pdf": "TAMBO_Restaurante-Hawa-2026-Julio.pdf" },
+        { "label": "Kiri Bar",                  "pdf": "TAMBO_Bar-Kiri-2026-1.pdf" },
+        { "label": "Room Service",              "pdf": "TAMBO_Room-Service-2026.pdf" },
+        { "label": "La Cervecería",             "pdf": "Carta-LA-CERVECERIA-2026-2.pdf" },
+        { "label": "Vinos | Wines",             "pdf": "TAMBO_Vinos-2026.ait_.pdf" },
+        { "label": "Menú de niños | Kids Menu", "pdf": "MENU-KIDS-TAMBO.pdf" },
+        { "label": "Kallpa Spa",                "pdf": "Carta-AB-KALLPA-SPA-2026.pdf" },
+        { "label": "De nuestro huerto",         "pdf": "TAMBO_De-nuestro-Huerto-2026-Julio.pdf" }
+      ],
+      "socials": [
+        { "network": "facebook",  "url": "https://www.facebook.com/TamboDelInka/" },
+        { "network": "instagram", "url": "https://www.instagram.com/hoteltambodelinka/" }
+      ]
+    },
+    {
+      "slug": "experiencias-palacio-del-inka",
+      "name": "Palacio del Inka – Experiencias",
+      "hotel": "Palacio del Inka",
+      "template": "experiencias",
+      "position": 1,
+      "settings": {
+        "titulo_pagina": "Palacio del Inka – Experiencias",
+        "meta_descripcion": "Experiencias de Palacio del Inka, a Luxury Collection Hotel, Cusco: Be Epicurean, Destination Discovery y Andes Spirit Spa.",
+        "logo_alt": "Palacio del Inka, a Luxury Collection Hotel – Cusco",
+        "titulo_linea1": "Experiences",
+        "titulo_linea2": "Experiencias",
+        "fondo_tipo": "imagen",
+        "fondo_foco_x": "50",
+        "fondo_foco_y": "62",
+        "fondo_oscurecer": "85",
+        "logo_ancho": "150",
+        "logo_posicion": "center",
+        "redes_titulo": "Síguenos en / Follow us on",
+        "novedades_activo": "0"
+      },
+      "assets": {
+        "logo": "logo-palacio-del-inka.png",
+        "fondo": "fondo-palacio-del-inka.jpg"
+      },
+      "buttons": [
+        { "label": "Be Epicurean",          "pdf": "Be-Epicurean_PALACIO_2026_BI-digital.pdf" },
+        { "label": "Destination Discovery", "pdf": "Destination-Discovery_PALACIO_2026_BI-digital.pdf" },
+        { "label": "Andes Spirit Spa",      "pdf": "Brochure-Andes-Spirit-Spa-2026.pdf" }
+      ],
+      "socials": [
+        { "network": "facebook",  "url": "https://www.facebook.com/palaciodelinka/" },
+        { "network": "instagram", "url": "https://www.instagram.com/hotelpalaciodelinka/" }
+      ]
+    },
+    {
+      "slug": "experiencias-hotel-paracas",
+      "name": "Hotel Paracas – Experiencias",
+      "hotel": "Hotel Paracas",
+      "template": "experiencias",
+      "position": 1,
+      "settings": {
+        "titulo_pagina": "Hotel Paracas – Experiencias",
+        "meta_descripcion": "Experiencias de Hotel Paracas, a Luxury Collection Resort: Be Epicurean, Destination Discovery y AQU Spa.",
+        "logo_alt": "Hotel Paracas, a Luxury Collection Resort – Paracas",
+        "titulo_linea1": "Experiencias",
+        "titulo_linea2": "Experiences",
+        "fondo_tipo": "imagen",
+        "fondo_foco_x": "50",
+        "fondo_foco_y": "55",
+        "fondo_oscurecer": "85",
+        "logo_ancho": "150",
+        "logo_posicion": "center",
+        "redes_titulo": "Síguenos en / Follow us on",
+        "novedades_activo": "0"
+      },
+      "assets": {
+        "logo": "logo-hotel-paracas.png",
+        "fondo": "fondo-hotel-paracas.jpg"
+      },
+      "buttons": [
+        { "label": "Be Epicurean",          "pdf": "Be-Epicurean_PARACAS_2026_BI-digital.pdf" },
+        { "label": "Destination Discovery", "pdf": "Destination-Discovery-_PARACAS_2026_BI-digital.pdf" },
+        { "label": "Aqu Spa",               "pdf": "AQU-SPA_brochure-2026-1-1.pdf" }
+      ],
+      "socials": [
+        { "network": "facebook",  "url": "https://www.facebook.com/HotelParacas/" },
+        { "network": "instagram", "url": "https://www.instagram.com/hotelparacas/" }
+      ]
+    },
+    {
+      "slug": "experiencias-tambo-del-inka",
+      "name": "Tambo del Inka – Experiencias",
+      "hotel": "Tambo del Inka",
+      "template": "experiencias",
+      "position": 1,
+      "settings": {
+        "titulo_pagina": "Tambo del Inka – Experiencias",
+        "meta_descripcion": "Experiencias de Tambo del Inka, a Luxury Collection Resort & Spa, Valle Sagrado: Be Epicurean, Destination Discovery y Kallpa Spa.",
+        "logo_alt": "Tambo del Inka, a Luxury Collection Resort & Spa – Valle Sagrado",
+        "titulo_linea1": "Experiences",
+        "titulo_linea2": "Experiencias",
+        "fondo_tipo": "imagen",
+        "fondo_foco_x": "62",
+        "fondo_foco_y": "55",
+        "fondo_oscurecer": "85",
+        "logo_ancho": "150",
+        "logo_posicion": "center",
+        "redes_titulo": "Síguenos en / Follow us on",
+        "novedades_activo": "0"
+      },
+      "assets": {
+        "logo": "logo-tambo-del-inka.png",
+        "fondo": "fondo-tambo-del-inka.jpg"
+      },
+      "buttons": [
+        { "label": "Be Epicurean",          "pdf": "Be-Epicurean_TAMBO_2026_BI-digital.pdf" },
+        { "label": "Destination Discovery", "pdf": "Destination-Discovery-_TAMBO_2026_BI-digital.pdf" },
+        { "label": "Kallpa Spa",            "pdf": "2026_BROCHURE-KALLPA-SPA.pdf" }
+      ],
+      "socials": [
+        { "network": "facebook",  "url": "https://www.facebook.com/TamboDelInka/" },
+        { "network": "instagram", "url": "https://www.instagram.com/hoteltambodelinka/" }
+      ]
+    }
   ]
 }

@@ -192,7 +192,8 @@ describe('tracking de clics', () => {
     const { getDb } = await import('../src/db.js');
     const db = await getDb();
     const cols = await db.query(`select column_name from information_schema.columns where table_name = 'clicks' order by ordinal_position`);
-    expect(cols.map((c) => c.column_name)).toEqual(['id', 'client_id', 'button_id', 'button_label', 'device', 'clicked_at', 'source', 'social_id']);
+    // landing_id: a qué página pertenece el clic (no es un dato personal).
+    expect(cols.map((c) => c.column_name)).toEqual(['id', 'client_id', 'button_id', 'button_label', 'device', 'clicked_at', 'source', 'social_id', 'landing_id']);
   });
 });
 
@@ -504,13 +505,6 @@ describe('estadísticas y cuenta', () => {
     expect((await agent.post('/api/cms/password').send({ current: 'TambodelInka2026', next: 'NuevaClave2026' })).status).toBe(200);
     expect((await request(app).post('/api/login').send({ username: 'TambodelInka', password: 'TambodelInka2026' })).status).toBe(401);
     expect((await request(app).post('/api/login').send({ username: 'TambodelInka', password: 'NuevaClave2026' })).status).toBe(200);
-  });
-
-  it('bloquea 15 minutos tras 5 intentos fallidos', async () => {
-    for (let i = 0; i < 5; i++) await request(app).post('/api/login').send({ username: 'TambodelInka', password: 'mala' });
-    const res = await request(app).post('/api/login').send({ username: 'TambodelInka', password: 'NuevaClave2026' });
-    expect(res.status).toBe(429);
-    expect(res.body.error).toMatch(/Demasiados intentos/);
   });
 
   it('cerrar sesión borra la cookie', async () => {

@@ -8,7 +8,7 @@
 <title>Panel · {{cms_nombre}}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sofia+Sans:wght@300&family=Cormorant+Garamond:ital,wght@1,500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="/assets/cms/cms.css?v={{asset_v}}">
 </head>
@@ -21,10 +21,11 @@
     <div class="brand">
       <span class="brand-mark"><i class="fa-solid fa-layer-group"></i></span>
       <span class="brand-text">
-        <strong data-bind="cms_nombre">{{cms_nombre}}</strong>
+        <strong id="brand-name">{{cms_nombre}}</strong>
         <small>Panel de contenido</small>
       </span>
     </div>
+    <div class="landing-slot" id="landing-slot-side"></div>
     <nav class="side-nav" aria-label="Secciones">
       <a href="#botones" data-tab="botones"><i class="fa-solid fa-list-ul"></i><span>Botones</span></a>
       <a href="#diseno" data-tab="diseno"><i class="fa-solid fa-palette"></i><span>Diseño</span></a>
@@ -33,7 +34,7 @@
       <a href="#estadisticas" data-tab="estadisticas"><i class="fa-solid fa-chart-simple"></i><span>Estadísticas</span></a>
     </nav>
     <div class="side-foot">
-      <a class="btn btn-ghost btn-block" href="/" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Ver página publicada</a>
+      <a class="btn btn-ghost btn-block" href="/" target="_blank" rel="noopener" data-landing-url><i class="fa-solid fa-arrow-up-right-from-square"></i> Ver página publicada</a>
     </div>
   </aside>
 
@@ -47,7 +48,7 @@
       <span class="save-pill" id="save-pill" data-state="idle" role="status" aria-live="polite">
         <i class="fa-solid fa-circle-check"></i><span>Todo guardado</span>
       </span>
-      <a class="icon-btn hide-desktop" href="/" target="_blank" rel="noopener" aria-label="Ver página publicada"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+      <a class="icon-btn hide-desktop" href="/" target="_blank" rel="noopener" aria-label="Ver página publicada" data-landing-url><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
       <div class="menu-wrap">
         <button class="avatar" id="account-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Mi cuenta"><span id="avatar-initial">A</span></button>
         <div class="dropdown" id="account-menu" role="menu" hidden>
@@ -59,6 +60,18 @@
       </div>
     </div>
   </header>
+
+  <!-- Landing que se está editando. En celular/tablet va aquí, bajo la barra superior;
+       desde 900 px el JS la mueve a la barra lateral (#landing-slot-side). -->
+  <div class="landing-bar" id="landing-bar" hidden>
+    <div class="landing-bar-inner">
+      <div class="landing-bar-head">
+        <label class="landing-label" for="landing-select">Estás editando</label>
+        <a class="landing-view" id="landing-view" href="/" target="_blank" rel="noopener" data-landing-url><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Ver página</a>
+      </div>
+      <select class="input landing-select" id="landing-select"></select>
+    </div>
+  </div>
 
   <!-- Contenido -->
   <main class="content" id="content">
@@ -115,6 +128,21 @@
             <p class="hint">PNG con fondo transparente se ve mejor. Máx. 5 MB.</p>
           </div>
         </div>
+        <div class="logo-layout">
+          <label class="field range-field">
+            <span class="field-label">Tamaño del logo <output class="range-value" id="logo-size-value" for="logo-size"></output></span>
+            <input type="range" id="logo-size" min="60" max="400" step="5" data-setting="logo_ancho" aria-describedby="logo-size-value">
+          </label>
+          <div class="field">
+            <span class="field-label" id="logo-pos-label">Posición</span>
+            <div class="segmented" role="radiogroup" aria-labelledby="logo-pos-label" id="logo-pos">
+              <button type="button" role="radio" data-value="left"><i class="fa-solid fa-align-left" aria-hidden="true"></i> Izquierda</button>
+              <button type="button" role="radio" data-value="center"><i class="fa-solid fa-align-center" aria-hidden="true"></i> Centro</button>
+              <button type="button" role="radio" data-value="right"><i class="fa-solid fa-align-right" aria-hidden="true"></i> Derecha</button>
+            </div>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm logo-reset" id="logo-reset"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Restablecer tamaño y posición</button>
+        </div>
         <label class="field">
           <span class="field-label">Descripción del logo <small>(para lectores de pantalla y Google)</small></span>
           <input type="text" data-setting="logo_alt" maxlength="160">
@@ -128,7 +156,20 @@
           <button role="radio" data-value="color"><i class="fa-solid fa-droplet"></i> Color sólido</button>
         </div>
         <div class="bg-image" id="bg-image-block">
-          <div class="bg-thumb" id="bg-thumb"></div>
+          <div class="focus-block">
+            <span class="field-label" id="focus-label">Encuadre en celular</span>
+            <div class="focus-stage" id="focus-stage">
+              <div class="focus-frame" id="focus-frame">
+                <img id="focus-img" alt="">
+                <span class="focus-dot" id="focus-dot" tabindex="0" role="slider" aria-labelledby="focus-label" aria-valuemin="0" aria-valuemax="100"></span>
+              </div>
+              <span class="focus-empty" id="focus-empty"><i class="fa-regular fa-image" aria-hidden="true"></i> Sube una foto para elegir el encuadre</span>
+            </div>
+            <div class="focus-foot">
+              <p class="hint">Toca la foto en el punto que siempre debe verse. En celular la foto se recorta alrededor de ese punto.</p>
+              <button type="button" class="btn btn-ghost btn-sm" id="focus-center"><i class="fa-solid fa-crosshairs" aria-hidden="true"></i> Centrar</button>
+            </div>
+          </div>
           <div class="bg-image-actions">
             <label class="btn btn-secondary file-btn"><i class="fa-solid fa-upload"></i> Cambiar imagen
               <input type="file" accept="image/png,image/jpeg,image/webp" id="bg-file" hidden>
@@ -137,6 +178,11 @@
             <p class="hint">Ideal: foto horizontal de 1920 px, JPG. Máx. 8 MB.</p>
           </div>
         </div>
+        <label class="field range-field" data-only="experiencias">
+          <span class="field-label">Oscurecer la parte de abajo <output class="range-value" id="bg-dark-value" for="bg-dark"></output></span>
+          <input type="range" id="bg-dark" min="0" max="100" step="1" data-setting="fondo_oscurecer" aria-describedby="bg-dark-value">
+          <span class="hint">Hace que los botones y textos se lean mejor sobre la foto.</span>
+        </label>
         <div class="color-row" data-color="color_fondo">
           <div><strong>Color de fondo</strong><small>Se ve mientras carga la imagen o si eliges color sólido.</small></div>
         </div>
@@ -172,7 +218,21 @@
         </div>
       </div>
 
-      <article class="card">
+      <article class="card" data-only="experiencias">
+        <header class="card-head"><h3><i class="fa-solid fa-heading"></i> Título</h3></header>
+        <p class="hint card-hint">El título grande que va debajo del logo.</p>
+        <div class="field-grid">
+          <label class="field"><span class="field-label">Línea 1</span><input type="text" data-setting="titulo_linea1" maxlength="60" placeholder="Experiences"></label>
+          <label class="field"><span class="field-label">Línea 2 · en cursiva</span><input type="text" data-setting="titulo_linea2" maxlength="60" placeholder="Experiencias"></label>
+        </div>
+        <div class="title-preview" id="titulo-preview" aria-hidden="true">
+          <span class="mini-label">Así se ve:</span>
+          <span class="tp-1" data-bind="titulo_linea1"></span>
+          <span class="tp-2" data-bind="titulo_linea2"></span>
+        </div>
+      </article>
+
+      <article class="card" data-only="cartas">
         <header class="card-head">
           <h3><i class="fa-regular fa-envelope-open"></i> Novedades y promociones</h3>
           <label class="switch" title="Mostrar este bloque"><input type="checkbox" role="switch" data-setting-flag="novedades_activo" aria-label="Mostrar bloque de novedades"><span></span></label>
@@ -187,9 +247,10 @@
       </article>
 
       <article class="card">
-        <header class="card-head"><h3><i class="fa-solid fa-share-nodes"></i> Sección de redes</h3></header>
-        <p class="hint card-hint">El título que va sobre los íconos, al final de la página.</p>
-        <label class="field"><span class="field-label">Título</span><input type="text" data-setting="redes_titulo" maxlength="60"></label>
+        <header class="card-head"><h3><i class="fa-solid fa-share-nodes"></i> <span data-only="cartas">Sección de redes</span><span data-only="experiencias">Texto junto a los íconos</span></h3></header>
+        <p class="hint card-hint" data-only="cartas">El título que va sobre los íconos, al final de la página.</p>
+        <p class="hint card-hint" data-only="experiencias">Aparece al lado de los íconos de redes, abajo de los botones.</p>
+        <label class="field"><span class="field-label"><span data-only="cartas">Título</span><span data-only="experiencias">Texto</span></span><input type="text" data-setting="redes_titulo" maxlength="60"></label>
         <p class="hint" style="margin-top:10px">Los enlaces de cada red se editan en la pestaña <a href="#redes">Redes</a>.</p>
       </article>
 
@@ -208,11 +269,6 @@
         </div>
       </article>
 
-      <article class="card">
-        <header class="card-head"><h3><i class="fa-solid fa-id-badge"></i> Nombre en este panel</h3></header>
-        <p class="hint card-hint">Solo se ve aquí dentro del panel, no en la página pública.</p>
-        <label class="field"><span class="field-label">Nombre</span><input type="text" data-setting="cms_nombre" maxlength="80"></label>
-      </article>
     </section>
 
     <!-- REDES -->
@@ -236,7 +292,7 @@
     <section class="panel" data-panel="estadisticas" hidden>
       <div class="panel-head">
         <div>
-          <h2>Estadísticas <span class="live" id="live-pill"><span class="dot"></span> En vivo</span></h2>
+          <h2><span>Estadísticas<span class="stats-landing" id="stats-landing"></span></span> <span class="live" id="live-pill"><span class="dot"></span> En vivo</span></h2>
           <p>Qué es lo que más busca tu gente. Se actualiza solo cada pocos segundos.</p>
         </div>
         <div class="segmented compact" role="radiogroup" aria-label="Periodo" id="period">
@@ -303,7 +359,13 @@
   <aside class="preview-pane" aria-label="Vista previa">
     <div class="preview-toolbar">
       <span><span class="dot live-dot"></span> Así se ve tu página ahora</span>
-      <a class="icon-btn" href="/" target="_blank" rel="noopener" aria-label="Abrir página"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+      <a class="icon-btn" href="/" target="_blank" rel="noopener" aria-label="Abrir página" data-landing-url><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+      <div class="device-seg-wrap">
+        <div class="segmented compact device-seg" role="radiogroup" aria-label="Ver la vista previa como">
+          <button type="button" role="radio" data-value="mobile"><i class="fa-solid fa-mobile-screen" aria-hidden="true"></i> Celular</button>
+          <button type="button" role="radio" data-value="pc"><i class="fa-solid fa-desktop" aria-hidden="true"></i> PC</button>
+        </div>
+      </div>
     </div>
     <div class="phone"><div class="phone-notch"></div><iframe id="preview-frame" title="Vista previa de la página" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe></div>
     <p class="hint center">En la vista previa los clics no se cuentan en las estadísticas.</p>
@@ -325,8 +387,18 @@
   <div class="sheet-bar">
     <strong><span class="dot live-dot"></span> Vista previa en vivo</strong>
     <button class="icon-btn" id="close-preview" aria-label="Cerrar vista previa"><i class="fa-solid fa-xmark"></i></button>
+    <div class="device-seg-wrap">
+      <div class="segmented compact device-seg" role="radiogroup" aria-label="Ver la vista previa como">
+        <button type="button" role="radio" data-value="mobile"><i class="fa-solid fa-mobile-screen" aria-hidden="true"></i> Celular</button>
+        <button type="button" role="radio" data-value="pc"><i class="fa-solid fa-desktop" aria-hidden="true"></i> PC</button>
+      </div>
+    </div>
   </div>
-  <iframe id="preview-frame-mobile" title="Vista previa de la página" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
+  <div class="sheet-body" id="sheet-body">
+    <div class="sheet-screen" id="sheet-screen">
+      <iframe id="preview-frame-mobile" title="Vista previa de la página" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
+    </div>
+  </div>
 </div>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>

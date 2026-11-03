@@ -27,7 +27,7 @@
 
   body {
     min-height: 100vh;
-    background: var(--fondo) {{{fondo_imagen_css}}} center / cover no-repeat fixed;
+    background: var(--fondo) {{{fondo_imagen_css}}} {{fondo_foco_css}} / cover no-repeat fixed;
     color: var(--texto);
     font-family: "Poppins", Arial, sans-serif;
     display: flex;
@@ -45,17 +45,18 @@
 
   /* ---------- Encabezado / logo ---------- */
   .logo {
-    text-align: center;
+    align-self: {{logo_align}};
+    text-align: {{logo_text_align}};
     margin-bottom: 30px;
   }
 
   /* Si tienes el logo como imagen, usa esta clase en un <img> */
   .logo img {
-    max-width: 260px;
+    max-width: {{logo_ancho}}px;
     width: 100%;
     height: auto;
     display: block;
-    margin: 0 auto;
+    margin: {{logo_margin}};
   }
 
   .logo .nombre {

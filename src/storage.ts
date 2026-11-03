@@ -126,7 +126,21 @@ export function safeFileName(name: string): string {
   return ext ? `${base}.${ext}` : base;
 }
 
-export function objectPathFor(clientId: string, purpose: UploadPurpose, fileName: string): string {
+/**
+ * Ruta del archivo en el almacenamiento.
+ * - Landing por defecto (sin landingSlug): <cliente>/<purpose>/<stamp>-<nombre> (la ruta de siempre).
+ * - Otras landings: <cliente>/<slug>/<purpose>/<stamp>-<nombre>.
+ * Los archivos ya subidos no se mueven: ambas formas son válidas para leer y borrar.
+ */
+export function objectPathFor(clientId: string, purpose: UploadPurpose, fileName: string, landingSlug?: string): string {
   const stamp = Date.now().toString(36);
-  return `${clientId}/${purpose}/${stamp}-${safeFileName(fileName)}`;
+  const folder = landingSlug ? `${clientId}/${landingSlug}` : clientId;
+  return `${folder}/${purpose}/${stamp}-${safeFileName(fileName)}`;
+}
+
+/** ¿Es una ruta que el CMS pudo generar con objectPathFor para este cliente? (sin salir de su carpeta) */
+export function isValidObjectPath(clientId: string, objectPath: string): boolean {
+  const client = clientId.replace(/[^a-zA-Z0-9_-]/g, '');
+  if (!client || client !== clientId) return false;
+  return new RegExp(`^${client}/([a-z0-9]+(?:-[a-z0-9]+)*/)?(pdf|logo|fondo)/[a-z0-9]+-[A-Za-z0-9._-]+$`).test(objectPath) && !objectPath.includes('..');
 }

@@ -25,6 +25,33 @@ export const socialUrl = z
 const text = (max: number) => z.string().trim().max(max);
 const flag = z.enum(['0', '1']);
 
+/** Entero sin signo en texto dentro de [min, max] (sin espacios, unidades ni ceros a la izquierda). */
+function intText(min: number, max: number, message: string) {
+  return z
+    .string()
+    .trim()
+    .regex(/^(0|[1-9][0-9]{0,2})$/, message)
+    .refine((v) => Number(v) >= min && Number(v) <= max, { message });
+}
+
+export const TEMPLATES = ['cartas', 'experiencias'] as const;
+export type Template = (typeof TEMPLATES)[number];
+
+// Slugs que no pueden usarse como dirección de una landing (rutas del sistema y carpetas de subidas).
+export const RESERVED_SLUGS = new Set([
+  'cms', 'cms_login', 'api', 'go', 'assets', 'uploads', 'favicon.ico', 'robots.txt', 'sitemap.xml',
+  'login', 'logout', 'admin', 'static', 'public', 'preview', 'pdf', 'logo', 'fondo',
+]);
+
+export const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+export const isValidSlug = (slug: string) => slug.length <= 80 && SLUG_RE.test(slug) && !RESERVED_SLUGS.has(slug);
+
+export const landingSlug = z
+  .string()
+  .max(80)
+  .regex(SLUG_RE, 'Dirección inválida (solo minúsculas, números y guiones)')
+  .refine((v) => !RESERVED_SLUGS.has(v), { message: 'Esa dirección está reservada' });
+
 // Cada ajuste editable de la página, con su validación y su valor por defecto.
 export const settingsSchema = z.object({
   cms_nombre: text(80),
@@ -45,11 +72,21 @@ export const settingsSchema = z.object({
   novedades_link_texto: text(60),
   novedades_url: linkUrl,
   redes_titulo: text(60),
+  // Logo y fondo (valores que terminan en el CSS: solo enteros acotados o una lista cerrada).
+  logo_ancho: intText(60, 400, 'El ancho del logo debe ser un número entre 60 y 400'),
+  logo_posicion: z.enum(['left', 'center', 'right']),
+  fondo_foco_x: intText(0, 100, 'El encuadre debe ser un número entre 0 y 100'),
+  fondo_foco_y: intText(0, 100, 'El encuadre debe ser un número entre 0 y 100'),
+  fondo_oscurecer: intText(0, 100, 'El oscurecido debe ser un número entre 0 y 100'),
+  // Títulos de la plantilla "experiencias".
+  titulo_linea1: text(60),
+  titulo_linea2: text(60),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
 export type SettingKey = keyof Settings;
 
+/** Valores por defecto comunes; cada plantilla los ajusta con TEMPLATE_DEFAULTS. */
 export const DEFAULT_SETTINGS: Settings = {
   cms_nombre: 'Mi página',
   titulo_pagina: 'Mi página',
@@ -69,7 +106,34 @@ export const DEFAULT_SETTINGS: Settings = {
   novedades_link_texto: 'Click aquí',
   novedades_url: '',
   redes_titulo: 'Síguenos',
+  logo_ancho: '260',
+  logo_posicion: 'center',
+  fondo_foco_x: '50',
+  fondo_foco_y: '50',
+  fondo_oscurecer: '85',
+  titulo_linea1: 'Experiences',
+  titulo_linea2: 'Experiencias',
 };
+
+// "cartas" = la página original (logo de 260 px = el max-width de siempre).
+export const TEMPLATE_DEFAULTS: Record<Template, Partial<Settings>> = {
+  cartas: { logo_ancho: '260' },
+  experiencias: {
+    logo_ancho: '150',
+    color_fondo: '#2b2b2b',
+    color_texto: '#ffffff',
+    color_boton: '#262626',
+    color_boton_texto: '#ffffff',
+    color_boton_hover: '#3a3a3a',
+    color_texto_boton_hover: '#ffffff',
+    redes_titulo: 'Síguenos en / Follow us on',
+    novedades_activo: '0',
+  },
+};
+
+export function defaultSettingsFor(template: Template): Settings {
+  return { ...DEFAULT_SETTINGS, ...(TEMPLATE_DEFAULTS[template] ?? {}) };
+}
 
 export const settingsPatch = settingsSchema.partial().strict();
 

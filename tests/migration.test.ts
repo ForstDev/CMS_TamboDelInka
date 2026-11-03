@@ -33,7 +33,8 @@ async function clicksMeta(d: Db) {
   };
 }
 
-const EXPECTED_COLUMNS = ['id', 'client_id', 'button_id', 'button_label', 'device', 'clicked_at', 'source', 'social_id'];
+// landing_id llegó con las varias landings (ver tests/landings.test.ts).
+const EXPECTED_COLUMNS = ['id', 'client_id', 'button_id', 'button_label', 'device', 'clicked_at', 'source', 'social_id', 'landing_id'];
 
 describe('migración de clicks', () => {
   it('una base con el formato antiguo conserva sus clics como "button" y se puede reaplicar', async () => {
@@ -72,7 +73,7 @@ describe('migración de clicks', () => {
     // Reaplicar no duplica columnas, restricciones ni índices.
     expect(await clicksMeta(d)).toEqual(metaOnce);
     expect(metaOnce.columns).toEqual(EXPECTED_COLUMNS);
-    expect(metaOnce.constraints).toMatchObject({ c: 2, f: 2, p: 1 }); // device/source · button_id/social_id · id
+    expect(metaOnce.constraints).toMatchObject({ c: 2, f: 3, p: 1 }); // device/source · button_id/social_id/landing_id · id
     expect(metaOnce.indexes).toContain('clicks_social');
 
     // Los clics antiguos siguen siendo de cartas (incluido el del botón eliminado).
@@ -87,7 +88,7 @@ describe('migración de clicks', () => {
     await applySchema();
     const meta = await clicksMeta(d);
     expect(meta.columns).toEqual(EXPECTED_COLUMNS);
-    expect(meta.constraints).toMatchObject({ c: 2, f: 2, p: 1 }); // Postgres 18 además lista los NOT NULL (n)
+    expect(meta.constraints).toMatchObject({ c: 2, f: 3, p: 1 }); // Postgres 18 además lista los NOT NULL (n)
 
     const social = await repo.createSocial('instagram', 'https://instagram.com/x');
     await repo.recordSocialClick(social, 'tablet');

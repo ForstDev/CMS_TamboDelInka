@@ -5,11 +5,10 @@ import { SignJWT, jwtVerify } from 'jose';
 import type { NextFunction, Request, Response } from 'express';
 import { env } from './env.js';
 import * as repo from './repo.js';
+import * as throttle from './loginThrottle.js';
 
 export const COOKIE = 'cms_session';
 const SESSION_HOURS = 12;
-const MAX_ATTEMPTS = 5;
-const LOCK_MINUTES = 15;
 // Hash de relleno: si el usuario no existe se compara igual, para no revelar qué usuarios existen.
 const DUMMY_HASH = bcrypt.hashSync('no-existe-este-usuario', 10);
 
@@ -19,25 +18,27 @@ export const hashPassword = (plain: string) => bcrypt.hash(plain, 10);
 
 export type LoginResult =
   | { ok: true; adminId: string; username: string }
-  | { ok: false; reason: 'invalid' | 'locked'; minutes?: number };
+  | { ok: false; reason: 'invalid' }
+  | { ok: false; reason: 'locked'; seconds: number };
 
-export async function login(username: string, password: string): Promise<LoginResult> {
+/**
+ * El bloqueo por intentos fallidos es por equipo (IP), no por cuenta: la cuenta se comparte entre
+ * varias personas y un equipo que falla no debe dejar fuera a los demás. Ver loginThrottle.ts.
+ */
+export async function login(username: string, password: string, ip: string): Promise<LoginResult> {
+  const hash = throttle.ipHash(ip);
+  // Equipo bloqueado: no se comprueba la contraseña ni se suman intentos.
+  const seconds = await throttle.lockedSeconds(hash);
+  if (seconds !== null) return { ok: false, reason: 'locked', seconds };
+
   const admin = await repo.findAdmin(username);
-  if (!admin) {
-    await bcrypt.compare(password, DUMMY_HASH);
+  // Si el usuario no existe se compara igual contra el hash de relleno (mismo tiempo de respuesta).
+  const matches = await bcrypt.compare(password, admin?.password_hash ?? DUMMY_HASH);
+  if (!admin || !matches) {
+    await throttle.registerFailure(hash);
     return { ok: false, reason: 'invalid' };
   }
-  const lockedUntil = admin.locked_until ? new Date(admin.locked_until) : null;
-  if (lockedUntil && lockedUntil > new Date()) {
-    return { ok: false, reason: 'locked', minutes: Math.ceil((lockedUntil.getTime() - Date.now()) / 60000) };
-  }
-  if (lockedUntil) await repo.clearFailedLogins(admin.id); // el bloqueo anterior ya venció
-
-  if (!(await bcrypt.compare(password, admin.password_hash))) {
-    await repo.registerFailedLogin(admin.id, MAX_ATTEMPTS, LOCK_MINUTES);
-    return { ok: false, reason: 'invalid' };
-  }
-  if (admin.failed_attempts > 0) await repo.clearFailedLogins(admin.id);
+  await throttle.clearFailures(hash);
   return { ok: true, adminId: admin.id, username: admin.username };
 }
 

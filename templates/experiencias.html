@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>{{titulo_pagina}}</title>
+{{#if meta_descripcion}}<meta name="description" content="{{meta_descripcion}}">{{/if}}
+<meta name="theme-color" content="{{color_fondo}}">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500&family=Sofia+Sans:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+<style>
+  :root {
+    --fondo: {{color_fondo}};
+    --texto: {{color_texto}};
+    --boton-bg: {{color_boton}};
+    --boton-texto: {{color_boton_texto}};
+    --boton-hover: {{color_boton_hover}};
+    --texto-boton: {{color_texto_boton_hover}};
+    --oscurecer: {{fondo_oscurecer_css}};
+    --logo-w: {{logo_ancho}}px;
+    --sans: "Sofia Sans", "Helvetica Neue", Arial, sans-serif;
+    --serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Foto del hotel a pantalla completa (sin background-attachment: fixed). */
+  .hero {
+    position: relative;
+    isolation: isolate;
+    min-height: 100vh;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: max(28px, 5vh) 20px max(22px, 4vh);
+    background: var(--fondo) {{{fondo_imagen_css}}} {{fondo_foco_css}} / cover no-repeat;
+  }
+
+  /* Capa de legibilidad: cielo levemente oscurecido arriba, degradado gris oscuro bajo los botones. */
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, .40) 0%,
+      rgba(0, 0, 0, .18) 24%,
+      rgba(0, 0, 0, 0) 36%,
+      rgba(0, 0, 0, 0) 46%,
+      rgba(34, 34, 34, calc(var(--oscurecer) * .55)) 66%,
+      rgba(34, 34, 34, var(--oscurecer)) 100%
+    );
+  }
+
+  .marca {
+    width: 100%;
+    max-width: 1100px;
+    display: flex;
+    flex-direction: column;
+    align-items: {{logo_align}};
+  }
+
+  .logo {
+    width: min(var(--logo-w), 62vw);
+    height: auto;
+    display: block;
+  }
+
+  .divisor {
+    display: block;
+    width: 44px;
+    height: 1px;
+    background: rgba(255, 255, 255, .75);
+    margin: 14px 0 0;
+  }
+
+  /* El título siempre va centrado en la página, aunque el logo esté a un lado. */
+  .titulo {
+    align-self: center;
+    margin-top: clamp(14px, 3vh, 26px);
+    font-weight: 300;
+    line-height: 1.05;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, .28);
+  }
+
+  .t1 {
+    display: block;
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: clamp(34px, 4.4vw, 60px);
+    letter-spacing: .005em;
+  }
+
+  .t2 {
+    display: block;
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(28px, 3.5vw, 48px);
+    margin-top: 4px;
+  }
+
+  /* Deja ver la foto entre el título y los botones. */
+  .espacio {
+    flex: 1 1 auto;
+    min-height: 30vh;
+  }
+
+  .botones {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: min(100%, 360px);
+  }
+
+  .boton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 52px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--boton-bg) 88%, transparent);
+    border: 1px solid rgba(255, 255, 255, .16);
+    color: var(--boton-texto);
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1.15;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    text-decoration: none;
+    box-shadow: 0 8px 22px -12px rgba(0, 0, 0, .7);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    transition: background .2s, color .2s, transform .15s;
+  }
+
+  .boton:hover,
+  .boton:focus-visible {
+    background: var(--boton-hover);
+    color: var(--texto-boton);
+    transform: translateY(-1px);
+  }
+
+  .boton:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, .85);
+    outline-offset: 2px;
+  }
+
+  .redes {
+    margin-top: clamp(18px, 3vh, 28px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  .redes-texto {
+    font-size: 13px;
+    line-height: 1.25;
+    font-weight: 400;
+    max-width: 7.6em;
+    text-align: right;
+  }
+
+  .iconos {
+    display: flex;
+    gap: 14px;
+  }
+
+  .iconos a {
+    color: var(--texto);
+    font-size: 26px;
+    line-height: 1;
+    text-decoration: none;
+    transition: opacity .2s;
+  }
+
+  .iconos a:hover { opacity: .75; }
+
+  .iconos a:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, .85);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  @media (min-width: 768px) {
+    .espacio { min-height: 16vh; }
+
+    .botones {
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+      width: min(100%, 960px);
+    }
+
+    .boton {
+      flex: 0 1 240px;
+      min-height: 60px;
+    }
+
+    .redes-texto { max-width: none; }
+  }
+
+  /* PC con poca altura: que todo quepa sin cortar los botones. */
+  @media (min-width: 768px) and (max-height: 640px) {
+    .espacio { min-height: 6vh; }
+    .t1 { font-size: clamp(30px, 3.8vw, 50px); }
+    .t2 { font-size: clamp(24px, 3vw, 40px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .boton,
+    .iconos a { transition: none; }
+
+    .boton:hover,
+    .boton:focus-visible { transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<main class="hero">
+  <header class="marca">
+    {{#if logo_url}}<img class="logo" src="{{logo_url}}" alt="{{logo_alt}}">{{/if}}
+    <span class="divisor" aria-hidden="true"></span>
+    <h1 class="titulo"><span class="t1">{{titulo_linea1}}</span><span class="t2">{{titulo_linea2}}</span></h1>
+  </header>
+
+  <div class="espacio" aria-hidden="true"></div>
+
+  <nav class="botones" aria-label="Experiencias">
+    {{{botones_html}}}
+  </nav>
+
+  {{#if redes_html}}<footer class="redes"><span class="redes-texto">{{redes_titulo}}</span><span class="iconos">{{{redes_html}}}</span></footer>{{/if}}
+</main>
+
+</body>
+</html>
