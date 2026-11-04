@@ -156,6 +156,7 @@ se guardan en Supabase y se ven al instante.
 > **IMPORTANTE — primero la base, después el código.** Si una versión cambia `db/schema.sql`, hay que migrar Supabase
 > **antes** de subir el código a GitHub/Vercel. Las migraciones son aditivas e idempotentes y nunca se usa `--force`.
 
+<a id="orden-despliegue"></a>
 #### ORDEN DE DESPLIEGUE (versión con varias landings)
 
 > 1. **`npm run setup -- --solo-esquema`** desde un PC con el `.env` de producción. Solo migra Supabase (tablas
@@ -226,7 +227,7 @@ tiene otro diseño, hay que agregar una plantilla nueva (con los mismos marcador
 4. Ábrela en `/<slug>` y edítala en el panel eligiéndola en "Estás editando".
 
 Sus archivos se suben a `<cliente>/<slug>/<tipo>/…` en Supabase Storage (los de la landing por defecto siguen en `<cliente>/<tipo>/…`).
-Si la versión del código que la soporta todavía no está desplegada, sigue el [orden de despliegue](#orden-de-despliegue-versión-con-varias-landings).
+Si la versión del código que la soporta todavía no está desplegada, sigue el [orden de despliegue](#orden-despliegue).
 
 ---
 

@@ -237,7 +237,7 @@ describe('varias landings: API, rutas y aislamiento', () => {
       ['Tambo del Inka', 'tambo-outlets', '/', true, true],
       ['Zeta', 'admin', '/admin', false, true],
     ]);
-    expect(Object.keys(res.body.landings[0]).sort()).toEqual(['active', 'hotel', 'id', 'is_default', 'name', 'slug', 'template', 'url']);
+    expect(Object.keys(res.body.landings[0]).sort()).toEqual(['active', 'buttons_count', 'clicks_30d', 'hotel', 'id', 'is_default', 'name', 'preview', 'slug', 'template', 'url']);
   });
 
   it('state.landing y defaults según la plantilla; X-Landing-Id o ?landing=', async () => {
@@ -624,5 +624,148 @@ describe('seed por landing', () => {
     ]) {
       await expect(seed({ ...quiet, source: { config: { ...base, landings }, dir } }), JSON.stringify(landings)).rejects.toThrow();
     }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+
+// Datos del panel: resumen por landing en GET /api/cms/landings y series diarias de redes en
+// GET /api/cms/stats (socials.series).
+describe('datos del panel', () => {
+  const PREVIEW_KEYS = ['logo_url', 'fondo_tipo', 'fondo_imagen_url', 'color_fondo', 'fondo_foco_x', 'fondo_foco_y'] as const;
+  const pick = (s: Record<string, string>) => Object.fromEntries(PREVIEW_KEYS.map((k) => [k, s[k]]));
+
+  let app: Express;
+  let agent: ReturnType<typeof request.agent>;
+  let A: Landing; // por defecto (cartas, datos del seed)
+  let B: Landing; // experiencias, con ajustes y botones propios
+  let C: Landing; // vacía
+
+  /** Clic insertado a mano, con fecha relativa a ahora (p. ej. '3 days'). */
+  async function click(l: Landing, source: 'button' | 'social', ref: { button_id?: string | null; social_id?: string | null; label: string }, ago = '0 seconds') {
+    const db = await getDb();
+    await db.query(
+      `insert into clicks (client_id, source, button_id, social_id, button_label, device, landing_id, clicked_at)
+       values ('intursa', $1, $2, $3, $4, 'desktop', $5, now() - $6::interval)`,
+      [source, ref.button_id ?? null, ref.social_id ?? null, ref.label, l.id, ago],
+    );
+  }
+
+  beforeAll(async () => {
+    setDb(await openPglite());
+    await applySchema();
+    await seed(quiet);
+    A = (await repo.getDefaultLanding())!;
+    B = await repo.createLanding({ slug: 'exp-panel', name: 'Exp panel', hotel: 'Otro hotel', template: 'experiencias' });
+    C = await repo.createLanding({ slug: 'vacia', name: 'Vacía', hotel: 'Otro hotel', template: 'cartas', position: 1 });
+    const db = await getDb();
+    // Landing de otro cliente con ajustes: no debe aparecer.
+    const foreign = (await db.query(`insert into landings (client_id, slug, name, template) values ('otro', 'x', 'X', 'cartas') returning id`))[0]!.id;
+    await db.query(`insert into landing_settings (landing_id, key, value) values ($1, 'logo_url', '/uploads/otro.png')`, [foreign]);
+    app = createApp();
+    agent = request.agent(app);
+    expect((await agent.post('/api/login').send({ username: 'TambodelInka', password: 'TambodelInka2026' })).status).toBe(200);
+  }, 60_000);
+
+  describe('GET /api/cms/landings: resumen por landing', () => {
+    it('preview, buttons_count y clicks_30d correctos y aislados por landing', async () => {
+      await runWithLanding(B, async () => {
+        await repo.saveSettings({ logo_url: '/uploads/b/logo.png', fondo_tipo: 'imagen', fondo_imagen_url: '/uploads/b/fondo.jpg', fondo_foco_x: '20', fondo_foco_y: '80' });
+        const visible = await repo.createButton({ label: 'Visible', kind: 'link', url: 'https://example.com/a', active: true });
+        await repo.createButton({ label: 'Sin URL', kind: 'link', url: '', active: true });
+        const hidden = await repo.createButton({ label: 'Inactivo', kind: 'link', url: 'https://example.com/b', active: false });
+        const ig = await repo.createSocial('instagram', 'https://instagram.com/b');
+        await click(B, 'button', { button_id: visible.id, label: 'Visible' });
+        await click(B, 'button', { button_id: hidden.id, label: 'Inactivo' }, '29 days');
+        await click(B, 'button', { button_id: null, label: 'Borrado' }, '2 days'); // botón eliminado: cuenta
+        await click(B, 'button', { button_id: visible.id, label: 'Visible' }, '31 days'); // fuera del periodo
+        await click(B, 'social', { social_id: ig.id, label: 'Instagram' }); // red: no cuenta
+      });
+      const aButtons = await runWithLanding(A, () => repo.listButtons());
+      for (const b of aButtons.slice(0, 3)) await click(A, 'button', { button_id: b.id, label: b.label });
+
+      const res = await agent.get('/api/cms/landings');
+      expect(res.status).toBe(200);
+      const list = res.body.landings as any[];
+      expect(list.map((l) => l.slug)).toEqual(['exp-panel', 'vacia', 'tambo-outlets']);
+      for (const l of list) {
+        expect(Object.keys(l).sort()).toEqual(
+          ['active', 'buttons_count', 'clicks_30d', 'hotel', 'id', 'is_default', 'name', 'preview', 'slug', 'template', 'url'],
+        );
+        expect(Object.keys(l.preview).sort()).toEqual([...PREVIEW_KEYS].sort());
+      }
+      const [b, c, a] = list;
+
+      expect(b.preview).toEqual({
+        ...pick(defaultSettingsFor('experiencias')),
+        logo_url: '/uploads/b/logo.png',
+        fondo_tipo: 'imagen',
+        fondo_imagen_url: '/uploads/b/fondo.jpg',
+        fondo_foco_x: '20',
+        fondo_foco_y: '80',
+      });
+      expect([b.buttons_count, b.clicks_30d]).toEqual([1, 3]);
+
+      expect(c.preview).toEqual(pick(defaultSettingsFor('cartas')));
+      expect([c.buttons_count, c.clicks_30d]).toEqual([0, 0]);
+
+      const aSettings = await runWithLanding(A, () => repo.getSettings());
+      expect(a.preview).toEqual(pick(aSettings));
+      expect(a.preview.logo_url).not.toBe('');
+      expect(a.buttons_count).toBe((await runWithLanding(A, () => repo.listButtons(true))).length);
+      expect(a.buttons_count).toBeGreaterThan(0);
+      expect(a.clicks_30d).toBe(3);
+
+      // Mismo número que getStats(30) de cada landing.
+      expect((await agent.get('/api/cms/stats?days=30').set('X-Landing-Id', B.id)).body.total).toBe(3);
+      expect((await agent.get('/api/cms/stats?days=30')).body.total).toBe(3);
+    });
+  });
+
+  describe('GET /api/cms/stats: socials.series', () => {
+    it('alineada con daily, sin redes con 0 clics, aislada por landing y con redes eliminadas', async () => {
+      const db = await getDb();
+      await db.query('delete from clicks');
+      const socials = await runWithLanding(A, () => repo.listSocials());
+      const fb = socials.find((s) => s.network === 'facebook')!;
+      const ig = socials.find((s) => s.network === 'instagram')!;
+      await click(A, 'social', { social_id: fb.id, label: 'Facebook' });
+      await click(A, 'social', { social_id: fb.id, label: 'Facebook' });
+      await click(A, 'social', { social_id: fb.id, label: 'Facebook' }, '3 days');
+      await click(A, 'social', { social_id: fb.id, label: 'Facebook' }, '10 days'); // fuera de 7 días
+      await click(A, 'social', { social_id: null, label: 'YouTube' }, '1 day'); // red eliminada
+      await click(A, 'social', { social_id: null, label: 'YouTube' }, '1 day');
+      await click(A, 'social', { social_id: null, label: 'Mi red' }); // eliminada, nombre desconocido
+      await click(A, 'button', { button_id: null, label: 'Carta borrada' }); // no es de redes
+      const bIg = (await runWithLanding(B, () => repo.listSocials()))[0]!;
+      await click(B, 'social', { social_id: bIg.id, label: 'Instagram' });
+
+      const s = (await agent.get('/api/cms/stats?days=7')).body;
+      expect(s.daily).toHaveLength(7);
+      expect(s.socials.total).toBe(6);
+      expect(s.socials.ranking.find((r: any) => r.id === ig.id).clicks).toBe(0);
+      expect(s.socials.series).toEqual([
+        { id: fb.id, network: 'facebook', label: 'Facebook', deleted: false, data: [0, 0, 0, 1, 0, 0, 2] },
+        { id: null, network: 'youtube', label: 'YouTube', deleted: true, data: [0, 0, 0, 0, 0, 2, 0] },
+        { id: null, network: 'web', label: 'Mi red', deleted: true, data: [0, 0, 0, 0, 0, 0, 1] },
+      ]);
+      // Total de cada serie = sus clics en el ranking.
+      for (const x of s.socials.series) {
+        const r = s.socials.ranking.find((y: any) => y.id === x.id && y.label === x.label);
+        expect(x.data.reduce((a: number, n: number) => a + n, 0)).toBe(r.clicks);
+      }
+
+      const s30 = (await agent.get('/api/cms/stats?days=30')).body;
+      expect(s30.daily).toHaveLength(30);
+      const fb30 = s30.socials.series.find((x: any) => x.id === fb.id);
+      expect(fb30.data).toHaveLength(30);
+      expect([fb30.data[29], fb30.data[26], fb30.data[19]]).toEqual([2, 1, 1]);
+
+      const sB = (await agent.get('/api/cms/stats?days=7').set('X-Landing-Id', B.id)).body;
+      expect(sB.socials.series).toEqual([{ id: bIg.id, network: 'instagram', label: 'Instagram', deleted: false, data: [0, 0, 0, 0, 0, 0, 1] }]);
+
+      const sC = (await agent.get('/api/cms/stats?days=7').set('X-Landing-Id', C.id)).body;
+      expect(sC.socials.series).toEqual([]);
+    });
   });
 });

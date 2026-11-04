@@ -121,6 +121,7 @@ async function save(work) {
     inFlight--;
     if (!inFlight && !timers.size) {
       setSave('saved');
+      invalidateThumb(landingId); // la miniatura de la landing actual quedó vieja
       schedulePreview();
     }
     return result;
@@ -316,12 +317,18 @@ function schedulePreview() {
 }
 
 async function refreshPreview() {
+  const full = $('#preview-frame-full');
   const frames = [$('#preview-frame'), $('#preview-frame-mobile')].filter((f) => f && f.offsetParent !== null);
-  if (!frames.length) return;
+  if ($('#dlg-preview').open) frames.push(full);
+  // La miniatura del selector (si ya se abrió la lista) también aprovecha este pedido.
+  const wantThumb = thumbs.activated && landingId && !thumbs.cache.has(landingId);
+  if (!frames.length && !wantThumb) return;
+  const gen = thumbGen(landingId);
   try {
     const res = await fetch(`/api/cms/preview${landingParam('?')}`, { credentials: 'same-origin' });
     if (!res.ok) return;
     const html = await res.text();
+    if (thumbs.activated && gen === thumbGen(landingId)) putThumb(landingId, html);
     for (const f of frames) {
       let y = 0;
       try {
@@ -347,6 +354,21 @@ $('#close-preview').addEventListener('click', () => {
   $('#preview-sheet').hidden = true;
   document.body.style.overflow = '';
 });
+
+// ---------- Vista previa ampliada (diálogo, escritorio) ----------
+
+const fullDlg = $('#dlg-preview');
+$('#open-full-preview').addEventListener('click', () => {
+  fullDlg.showModal();
+  document.body.style.overflow = 'hidden';
+  layoutFullPreview();
+  refreshPreview();
+});
+$('#dlg-preview-close').addEventListener('click', () => fullDlg.close());
+fullDlg.addEventListener('close', () => {
+  document.body.style.overflow = '';
+  $('#open-full-preview').focus(); // Esc o la X: el foco vuelve a "Ampliar"
+});
 window.matchMedia('(min-width: 1280px)').addEventListener('change', () => {
   layoutDevices();
   schedulePreview();
@@ -363,6 +385,46 @@ function pcScale(available, baseW = PC_W, baseH = PC_H) {
   const width = Math.max(0, Math.floor(Number(available) || 0));
   const k = width / baseW;
   return { k, width, height: Math.round(baseH * k) };
+}
+
+/**
+ * Miniatura de una landing: la página se dibuja a 1366 px de ancho y se escala a `width`.
+ * El alto del iframe se estira lo justo para cubrir cajas más altas que 16:9 (p. ej. 16:10).
+ */
+function thumbScale(width, height, baseW = PC_W, baseH = PC_H) {
+  const w = Math.max(1, Number(width) || 0);
+  const k = w / baseW;
+  return { k, frameW: baseW, frameH: Math.max(baseH, Math.round((Number(height) || 0) / k)) };
+}
+
+/**
+ * Escala de la vista previa ampliada.
+ * PC: iframe 1440×900 en un monitor (borde 10 px), k = min(1, ancho/1460, alto/920).
+ * Celular: iframe 390×844 en el marco de teléfono, k = min(1, alto/880).
+ */
+function fullPreviewScale(mode, availW, availH) {
+  const W = Math.max(0, Number(availW) || 0);
+  const H = Math.max(0, Number(availH) || 0);
+  const pc = mode === 'pc';
+  const frameW = pc ? 1440 : 390;
+  const frameH = pc ? 900 : 844;
+  const k = pc ? Math.min(1, W / 1460, H / 920) : Math.min(1, H / 880);
+  return { k, frameW, frameH, width: Math.round(frameW * k), height: Math.round(frameH * k) };
+}
+
+/** Ajusta la escala del diálogo de vista previa ampliada (si está abierto). */
+function layoutFullPreview() {
+  const dlg = $('#dlg-preview');
+  if (!dlg?.open) return;
+  const body = $('#dlg-preview-body');
+  const cs = getComputedStyle(body);
+  const availW = body.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const availH = body.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const { k, width, height } = fullPreviewScale(previewDevice, availW, availH);
+  const stage = $('#dlg-preview-stage');
+  stage.style.setProperty('--k', String(k));
+  stage.style.setProperty('--sw', `${width}px`);
+  stage.style.setProperty('--sh', `${height}px`);
 }
 
 let previewDevice = pref.get(DEVICE_KEY) === 'pc' ? 'pc' : 'mobile';
@@ -404,6 +466,7 @@ function layoutDevices() {
     el.style.setProperty('--mon-w', `${width}px`);
     el.style.setProperty('--mon-h', `${height}px`);
   }
+  layoutFullPreview();
 }
 
 let layoutFrame = 0;
@@ -1308,61 +1371,233 @@ function renderStats() {
   renderCharts(s);
 }
 
-/** Filas de "Clics en redes sociales" (sin DOM). Respeta el orden que manda el servidor. */
-function socialStatsRows(socials, networks) {
-  const total = Number(socials?.total) || 0;
-  const ranking = Array.isArray(socials?.ranking) ? socials.ranking : [];
-  const nets = Object.fromEntries((networks || []).map((n) => [n.key, n]));
-  const max = Math.max(1, ...ranking.map((r) => Number(r.clicks) || 0));
-  return ranking.map((r) => {
-    const clicks = Number(r.clicks) || 0;
-    return {
-      id: r.id,
-      icon: nets[r.network]?.icon || 'fa-solid fa-link',
-      label: r.label || nets[r.network]?.label || r.network || 'Red',
-      suffix: r.deleted ? ' (eliminada)' : !r.active ? ' (oculta)' : '',
-      clicks,
-      pct: total ? Math.round((clicks / total) * 100) : 0,
-      width: (clicks / max) * 100,
-    };
+// ---------- Redes sociales: tarjetas de vidrio + gráfico de líneas ----------
+
+/** Color fijo por red (nunca por posición). El resto, las eliminadas y "Otras", en gris. */
+const SOCIAL_COLORS = {
+  facebook: '#3987e5',
+  instagram: '#d95926',
+  tiktok: '#199e70',
+  youtube: '#c98500',
+  whatsapp: '#d55181',
+  x: '#008300',
+  linkedin: '#9085e9',
+  tripadvisor: '#e66767',
+};
+const SOCIAL_GRAY = '#c3c2b7';
+/** Trazo por orden de aparición (además del color), y vuelve a empezar. */
+const SOCIAL_DASHES = [[], [6, 4], [2, 3], [10, 4], [4, 2, 1, 2]];
+/** Máximo de líneas en el gráfico; si hay más series, desde la 8.ª se suman en "Otras". */
+const SOCIAL_MAX_SERIES = 8;
+const SOCIAL_BG = '#1d4b49'; // color del fondo de la sección (anillo del punto al pasar el mouse)
+
+const socialColor = (network, deleted) => (!deleted && SOCIAL_COLORS[network]) || SOCIAL_GRAY;
+const socialDash = (i) => SOCIAL_DASHES[i % SOCIAL_DASHES.length];
+
+/** Ajusta una serie al largo de stats.daily (rellena con 0 o recorta; valores no numéricos = 0). */
+function alignSeries(data, length) {
+  const src = Array.isArray(data) ? data : [];
+  return Array.from({ length: Math.max(0, length | 0) }, (_, i) => {
+    const n = Number(src[i]);
+    return Number.isFinite(n) && n > 0 ? n : 0;
   });
 }
 
+/**
+ * Series del gráfico (sin DOM), en el orden que manda el servidor.
+ * null si la API no trae `series` (entonces se ocultan el gráfico y la leyenda).
+ */
+function socialSeries(socials, daily, networks) {
+  if (!socials || !Array.isArray(socials.series)) return null;
+  const len = Array.isArray(daily) ? daily.length : 0;
+  const nets = Object.fromEntries((networks || []).map((n) => [n.key, n]));
+  let rows = socials.series.map((s) => {
+    const deleted = Boolean(s?.deleted);
+    const network = String(s?.network || '');
+    const label = String(s?.label || nets[network]?.label || network || 'Red');
+    const data = alignSeries(s?.data, len);
+    return {
+      key: s?.id != null ? `id:${s.id}` : `del:${network}:${label}`,
+      network,
+      deleted,
+      label,
+      suffix: deleted ? ' (eliminada)' : '',
+      icon: nets[network]?.icon || 'fa-solid fa-link',
+      data,
+      total: data.reduce((a, b) => a + b, 0),
+      other: false,
+    };
+  });
+  if (rows.length > SOCIAL_MAX_SERIES) {
+    const keep = rows.slice(0, SOCIAL_MAX_SERIES - 1);
+    const rest = rows.slice(SOCIAL_MAX_SERIES - 1);
+    const data = Array.from({ length: len }, (_, i) => rest.reduce((a, r) => a + r.data[i], 0));
+    keep.push({ key: 'otras', network: '', deleted: false, label: 'Otras', suffix: '', icon: 'fa-solid fa-ellipsis', data, total: data.reduce((a, b) => a + b, 0), other: true });
+    rows = keep;
+  }
+  return rows.map((r, i) => ({ ...r, color: r.other ? SOCIAL_GRAY : socialColor(r.network, r.deleted), dash: socialDash(i) }));
+}
+
+/** Tarjetas de indicadores: una por red con clics o activa (sin DOM). */
+function socialCards(socials, networks) {
+  const total = Number(socials?.total) || 0;
+  const ranking = Array.isArray(socials?.ranking) ? socials.ranking : [];
+  const nets = Object.fromEntries((networks || []).map((n) => [n.key, n]));
+  return ranking
+    .filter((r) => (Number(r.clicks) || 0) > 0 || (r.active && !r.deleted))
+    .map((r) => {
+      const clicks = Number(r.clicks) || 0;
+      return {
+        id: r.id,
+        icon: nets[r.network]?.icon || 'fa-solid fa-link',
+        label: r.label || nets[r.network]?.label || r.network || 'Red',
+        suffix: r.deleted ? ' (eliminada)' : !r.active ? ' (oculta)' : '',
+        clicks,
+        pct: total ? Math.round((clicks / total) * 100) : 0,
+      };
+    });
+}
+
+/** Muestra del trazo para la leyenda (14 px, mismo color y patrón que la línea). */
+function dashSwatch(color, dash) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'sd-swatch');
+  svg.setAttribute('width', '14');
+  svg.setAttribute('height', '10');
+  svg.setAttribute('viewBox', '0 0 14 10');
+  svg.setAttribute('aria-hidden', 'true');
+  const line = document.createElementNS(NS, 'line');
+  line.setAttribute('x1', '0');
+  line.setAttribute('y1', '5');
+  line.setAttribute('x2', '14');
+  line.setAttribute('y2', '5');
+  line.setAttribute('stroke', color);
+  line.setAttribute('stroke-width', '2');
+  if (dash.length) line.setAttribute('stroke-dasharray', dash.join(' '));
+  svg.append(line);
+  return svg;
+}
+
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
 function renderSocialStats(s) {
   const has = Boolean(s.socials);
-  // Si la API aún no trae datos de redes, no se muestra la tarjeta (un "sin redes" sería falso).
-  $('#social-card').hidden = !has;
+  // Si la API aún no trae datos de redes, no se muestra la sección (un "sin redes" sería falso).
+  $('#social-dash').hidden = !has;
   if (!has) return;
-  const total = Number(s.socials?.total) || 0;
-  const rows = socialStatsRows(s.socials, state.networks);
+  const total = Number(s.socials.total) || 0;
+  const ranking = Array.isArray(s.socials.ranking) ? s.socials.ranking : [];
+  const fmt = (n) => n.toLocaleString('es-PE');
 
-  const totalEl = $('#social-total');
-  totalEl.hidden = !has;
-  fill(totalEl, h('b', { text: total.toLocaleString('es-PE') }), total === 1 ? ' clic' : ' clics');
+  $('#social-total').textContent = `${plural(total, 'clic', 'clics')} · ${s.days} días`;
 
-  const empty = $('#social-empty');
-  if (!rows.length) {
-    empty.hidden = false;
-    fill(empty, icon('fa-regular fa-hand-pointer'), h('p', {}, 'Todavía no hay redes configuradas. Agrégalas en la pestaña ', h('a', { href: '#redes', text: 'Redes' }), '.'));
-  } else if (!total) {
-    empty.hidden = false;
-    fill(empty, icon('fa-regular fa-hand-pointer'), h('p', { text: 'Aún nadie tocó tus redes sociales en este periodo. Aquí verás cuántas personas pasan de tu página a tu Facebook, Instagram, etc.' }));
-  } else empty.hidden = true;
-
-  const list = $('#social-ranking');
-  list.hidden = !rows.length;
-  list.replaceChildren(
-    ...rows.map((r) =>
+  // Indicadores: total + una tarjeta por red
+  const cards = socialCards(s.socials, state.networks);
+  fill(
+    $('#social-kpis'),
+    h('div', { class: 'glass sd-kpi total' }, h('span', { class: 'sd-kpi-label' }, h('span', { text: 'Clics en redes' })), h('strong', { class: 'sd-kpi-value', text: fmt(total) })),
+    cards.map((c) =>
       h(
-        'li',
-        {},
-        h('span', { class: 'net-icon sm' }, icon(r.icon)),
-        h('span', { class: 'rank-label', title: r.label + r.suffix }, r.label, r.suffix ? h('small', { text: r.suffix }) : null),
-        h('span', { class: 'rank-count' }, r.clicks.toLocaleString('es-PE'), h('small', { text: `${r.pct}%` })),
-        h('span', { class: 'rank-bar' }, h('span', { style: `width:${r.width}%` })),
+        'div',
+        { class: 'glass sd-kpi' },
+        h('span', { class: 'sd-kpi-label', title: c.label + c.suffix }, icon(c.icon), h('span', { text: c.label + c.suffix })),
+        h('strong', { class: 'sd-kpi-value', text: fmt(c.clicks) }),
+        h('span', { class: 'sd-kpi-sub', text: `${c.pct}% del total` }),
       ),
     ),
   );
+
+  // Vacío: sin clics en el periodo (o sin redes configuradas)
+  const empty = $('#social-empty');
+  const hasNets = ranking.some((r) => !r.deleted);
+  if (!total) {
+    empty.hidden = false;
+    if (!hasNets) fill(empty, icon('fa-regular fa-hand-pointer'), h('p', {}, 'Esta página no tiene redes configuradas. Agrégalas en la pestaña ', h('a', { href: '#redes', text: 'Redes' }), '.'));
+    else fill(empty, icon('fa-regular fa-hand-pointer'), h('p', { text: 'Aún nadie tocó tus redes sociales en este periodo.' }));
+  } else empty.hidden = true;
+
+  const series = total ? socialSeries(s.socials, s.daily, state.networks) : null;
+  $('#social-chart-card').hidden = !series || !series.length || !window.Chart;
+  if ($('#social-chart-card').hidden) return;
+
+  fill(
+    $('#social-legend'),
+    series.map((r) => h('li', {}, dashSwatch(r.color, r.dash), icon(r.icon), h('span', { text: r.label + r.suffix }), h('b', { text: fmt(r.total) }))),
+  );
+  renderSocialChart(s, series);
+}
+
+function renderSocialChart(s, series) {
+  const canvas = $('#chart-social');
+  const labels = s.daily.map((d) => dayLabel(d.day));
+  const sig = series.map((r) => r.key).join('|');
+  canvas.setAttribute(
+    'aria-label',
+    `Gráfico de líneas: clics por día en cada red social, últimos ${s.days} días. ` + series.map((r) => `${r.label}${r.suffix}: ${plural(r.total, 'clic', 'clics')}`).join('; ') + '.',
+  );
+
+  // Mismas series: solo se cambian los datos, sin animación ni parpadeo.
+  if (charts.social && charts.social.$sig === sig) {
+    charts.social.data.labels = labels;
+    series.forEach((r, i) => (charts.social.data.datasets[i].data = r.data));
+    charts.social.update('none');
+    return;
+  }
+  charts.social?.destroy();
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  const tick = 'rgba(255,255,255,.72)';
+  charts.social = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: series.map((r) => ({
+        label: r.label + r.suffix,
+        data: r.data,
+        borderColor: r.color,
+        backgroundColor: r.color,
+        borderWidth: 2,
+        borderDash: r.dash,
+        tension: 0.3,
+        fill: false,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBorderWidth: 2,
+        pointHoverBackgroundColor: r.color,
+        pointHoverBorderColor: SOCIAL_BG,
+      })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: reduceMotion.matches ? false : { duration: 400 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(15,30,29,.92)',
+          titleColor: '#fff',
+          bodyColor: '#fff',
+          borderColor: 'rgba(255,255,255,.12)',
+          borderWidth: 1,
+          padding: 10,
+          boxPadding: 4,
+          callbacks: {
+            title: (items) => {
+              const d = state.stats?.daily?.[items[0]?.dataIndex];
+              return d ? dayLabel(d.day, true) : '';
+            },
+            label: (item) => ` ${item.dataset.label}: ${plural(item.parsed.y, 'clic', 'clics')}`,
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, border: { display: false }, ticks: { color: tick, maxTicksLimit: 6, maxRotation: 0 } },
+        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,.12)' }, border: { display: false }, ticks: { color: tick, precision: 0, maxTicksLimit: 5 } },
+      },
+    },
+  });
+  charts.social.$sig = sig;
 }
 
 function renderCharts(s) {
@@ -1534,6 +1769,13 @@ $('#welcome-close').addEventListener('click', () => {
 // Landings (qué página se está editando)
 // ---------------------------------------------------------------------------
 
+// ---------- Lógica pura (sin DOM) ----------
+
+const TEMPLATE_LABELS = { experiencias: 'Experiencias', cartas: 'Outlets' };
+const templateLabel = (t) => TEMPLATE_LABELS[t] || TEMPLATE_LABELS.cartas;
+/** Más de esta cantidad de landings: aparece el buscador. */
+const LANDING_SEARCH_MIN = 9;
+
 /** Agrupa las landings por hotel, respetando el orden en que llegan (el servidor ya ordena). */
 function landingGroups(landings) {
   const groups = [];
@@ -1546,9 +1788,67 @@ function landingGroups(landings) {
       byHotel.set(hotel, g);
       groups.push(g);
     }
-    g.items.push({ id: l.id, label: l.is_default ? `${l.name} · principal` : String(l.name || '') });
+    g.items.push(l);
   }
   return groups;
+}
+
+/** Texto en minúsculas y sin tildes, para buscar. */
+function foldText(s) {
+  return String(s ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/** Filtra por nombre u hotel; cada palabra buscada debe aparecer (sin importar tildes ni mayúsculas). */
+function filterLandings(landings, query) {
+  const list = landings || [];
+  const words = foldText(query).split(/\s+/).filter(Boolean);
+  if (!words.length) return [...list];
+  return list.filter((l) => {
+    const hay = foldText(`${l.name || ''} ${l.hotel || ''}`);
+    return words.every((w) => hay.includes(w));
+  });
+}
+
+/** Línea secundaria de cada opción: "Experiencias · 3 botones · 12 clics (30 d)". */
+function landingOptionMeta(l) {
+  const parts = [templateLabel(l.template)];
+  const n = (v) => typeof v === 'number' && Number.isFinite(v);
+  if (n(l.buttons_count)) parts.push(plural(l.buttons_count, 'botón', 'botones'));
+  if (n(l.clicks_30d)) parts.push(`${plural(l.clicks_30d, 'clic', 'clics')} (30 d)`);
+  return parts.join(' · ');
+}
+
+/** "Hotel · Experiencias" del botón disparador. */
+function landingTriggerMeta(l) {
+  return [String(l.hotel || '').trim(), templateLabel(l.template)].filter(Boolean).join(' · ');
+}
+
+/** Dirección legible (sin https://) para mostrar. */
+function displayUrl(url, origin) {
+  try {
+    const u = new URL(url || '/', origin);
+    return `${u.host}${u.pathname}`.replace(/\/$/, '');
+  } catch {
+    return String(url || '');
+  }
+}
+
+/** Estilos del respaldo de la miniatura (sin red): color, imagen de fondo con su encuadre y logo. */
+function thumbFallbackStyle(p) {
+  if (!p || typeof p !== 'object') return null;
+  const safeUrl = (u) => (typeof u === 'string' && /^(https?:\/\/|\/)/i.test(u.trim()) ? u.trim().replace(/["\\\n\r]/g, encodeURIComponent) : '');
+  const color = /^#[0-9a-f]{3,8}$/i.test(String(p.color_fondo || '')) ? p.color_fondo : '#3b4b49';
+  const img = p.fondo_tipo === 'imagen' ? safeUrl(p.fondo_imagen_url) : '';
+  return {
+    backgroundColor: color,
+    backgroundImage: img ? `url("${img}")` : 'none',
+    backgroundPosition: `${clampPct(p.fondo_foco_x)}% ${clampPct(p.fondo_foco_y)}%`,
+    logo: safeUrl(p.logo_url),
+  };
 }
 
 /** Landing a editar: la guardada si sigue existiendo; si no, la por defecto (o la primera). */
@@ -1557,16 +1857,352 @@ function pickLanding(landings, savedId) {
   return list.find((l) => l.id === savedId) || list.find((l) => l.is_default) || list[0] || null;
 }
 
-function renderLandingSelect() {
-  const select = $('#landing-select');
-  fill(
-    select,
-    landingGroups(state.landings).map((g) =>
-      h('optgroup', { label: g.hotel }, ...g.items.map((it) => h('option', { value: it.id, selected: it.id === landingId }, it.label))),
-    ),
-  );
-  select.value = landingId;
+// ---------- Miniaturas (iframe a resolución de PC, perezoso y con caché) ----------
+
+const thumbs = {
+  activated: false, // se piden recién al abrir la lista por primera vez
+  cache: new Map(), // id → HTML de la vista previa
+  pending: new Map(), // id → promesa en curso
+  gens: new Map(), // id → generación (sube al invalidar; descarta respuestas viejas)
+};
+const thumbGen = (id) => thumbs.gens.get(id) || 0;
+
+/** Datos del respaldo: los de la API o, para la landing en edición, los ajustes vivos. */
+function previewDataOf(l) {
+  if (l?.id === landingId && state.settings && 'color_fondo' in state.settings) {
+    const s = state.settings;
+    return { logo_url: s.logo_url, fondo_tipo: s.fondo_tipo, fondo_imagen_url: s.fondo_imagen_url, color_fondo: s.color_fondo, fondo_foco_x: s.fondo_foco_x, fondo_foco_y: s.fondo_foco_y };
+  }
+  return l?.preview || null;
 }
+
+function thumbFallback(l) {
+  const st = thumbFallbackStyle(previewDataOf(l));
+  if (!st) return null;
+  const fb = h('span', { class: 'lthumb-fb' });
+  fb.style.backgroundColor = st.backgroundColor;
+  fb.style.backgroundImage = st.backgroundImage;
+  fb.style.backgroundPosition = st.backgroundPosition;
+  if (st.logo) fb.append(h('img', { src: st.logo, alt: '', loading: 'lazy', decoding: 'async' }));
+  return fb;
+}
+
+/** Pone (o reemplaza sin parpadeo) el iframe de una miniatura. */
+function mountThumbFrame(box, html) {
+  const { k, frameW, frameH } = thumbScale(Number(box.dataset.w), Number(box.dataset.h));
+  const old = $$('.lthumb-frame', box);
+  const frame = h('iframe', {
+    class: 'lthumb-frame',
+    sandbox: 'allow-same-origin',
+    'aria-hidden': 'true',
+    tabindex: '-1',
+    title: '',
+    style: `width:${frameW}px;height:${frameH}px;transform:scale(${k})`,
+  });
+  frame.addEventListener('load', () => {
+    frame.classList.add('is-ready');
+    old.forEach((f) => f.remove());
+  });
+  frame.srcdoc = html;
+  box.append(frame);
+}
+
+function thumbEl(l, width, height) {
+  const box = h('span', { class: 'lthumb', 'aria-hidden': 'true', dataset: { thumb: l.id, w: String(width), h: String(height) } });
+  fill(box, thumbFallback(l));
+  const html = thumbs.cache.get(l.id);
+  if (typeof html === 'string') mountThumbFrame(box, html);
+  return box;
+}
+
+const thumbBoxes = (id) => $$('.lthumb').filter((b) => b.dataset.thumb === id);
+
+function putThumb(id, html) {
+  if (thumbs.cache.get(id) === html) return;
+  thumbs.cache.set(id, html);
+  thumbBoxes(id).forEach((box) => mountThumbFrame(box, html));
+}
+
+/** Tras guardar en la landing actual: se descarta su HTML y se actualiza el respaldo. */
+function invalidateThumb(id) {
+  if (!id) return;
+  thumbs.gens.set(id, thumbGen(id) + 1);
+  thumbs.cache.delete(id);
+  thumbs.pending.delete(id);
+  for (const box of thumbBoxes(id)) {
+    const l = landingById(id);
+    if (!l) continue;
+    $('.lthumb-fb', box)?.remove();
+    const fb = thumbFallback(l);
+    if (fb) box.prepend(fb);
+  }
+}
+
+function loadThumb(id) {
+  if (thumbs.cache.has(id)) return Promise.resolve(thumbs.cache.get(id));
+  if (thumbs.pending.has(id)) return thumbs.pending.get(id);
+  const gen = thumbGen(id);
+  // Sin cabecera X-Landing-Id: el servidor la prefiere al ?landing= y mostraría la landing actual.
+  const p = fetch(`/api/cms/preview?landing=${encodeURIComponent(id)}`, { credentials: 'same-origin' })
+    .then((r) => (r.ok ? r.text() : null))
+    .catch(() => null)
+    .then((html) => {
+      if (thumbs.pending.get(id) === p) thumbs.pending.delete(id);
+      if (typeof html === 'string' && gen === thumbGen(id)) putThumb(id, html);
+      return html;
+    });
+  thumbs.pending.set(id, p);
+  return p;
+}
+
+/** Pide las miniaturas que falten, de a 3 a la vez, empezando por la actual. */
+function loadAllThumbs() {
+  const ids = [landingId, ...state.landings.map((l) => l.id).filter((id) => id !== landingId)];
+  const queue = ids.filter((id) => id && !thumbs.cache.has(id));
+  let i = 0;
+  const worker = async () => {
+    while (i < queue.length) await loadThumb(queue[i++]);
+  };
+  for (let n = 0; n < 3; n++) worker();
+}
+
+// ---------- Selector (botón + lista desplegable) ----------
+
+const landingById = (id) => state.landings.find((l) => l.id === id) || (state.landing?.id === id ? state.landing : null);
+const picker = { open: false, built: false, active: -1, all: [], options: [], groups: [], none: null, hoverTimer: 0 };
+const pickerEls = {
+  root: $('#landing-picker'),
+  trigger: $('#landing-switch'),
+  pop: $('#landing-pop'),
+  list: $('#landing-list'),
+  searchWrap: $('#landing-search-wrap'),
+  search: $('#landing-search'),
+  hover: $('#landing-hover'),
+};
+const hoverMq = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 1100px)');
+
+function renderLandingSwitch() {
+  const l = landingById(landingId);
+  if (!l) return;
+  $('#landing-switch-name').textContent = l.name || '';
+  $('#landing-switch-meta').textContent = landingTriggerMeta(l);
+  fill($('#landing-switch-thumb'), thumbEl(l, 64, 40));
+}
+
+/**
+ * Arma la lista una sola vez (las miniaturas son iframes: moverlos o recrearlos los recargaría).
+ * El buscador solo oculta opciones y grupos.
+ */
+function buildLandingOptions() {
+  const { list, searchWrap } = pickerEls;
+  searchWrap.hidden = state.landings.length < LANDING_SEARCH_MIN;
+  picker.all = [];
+  picker.groups = [];
+  const optionIndex = (id) => picker.options.findIndex((o) => o.landing.id === id);
+  const groups = landingGroups(state.landings).map((g, gi) => {
+    const headId = `lsw-g-${gi}`;
+    const groupEl = h(
+      'div',
+      { role: 'group', 'aria-labelledby': headId },
+      h('div', { class: 'lsw-group-head', id: headId, role: 'presentation', text: g.hotel }),
+      g.items.map((l) => {
+        const selected = l.id === landingId;
+        const open = h(
+          'a',
+          { class: 'lsw-open', href: l.url || '/', target: '_blank', rel: 'noopener', tabindex: '-1', title: 'Abrir página', 'aria-label': `Abrir ${l.name || 'la página'} en una pestaña nueva` },
+          icon('fa-solid fa-arrow-up-right-from-square'),
+        );
+        open.addEventListener('click', (e) => e.stopPropagation()); // abrir no cambia la selección
+        const opt = h(
+          'div',
+          { class: 'lsw-opt', role: 'option', id: `lsw-opt-${picker.all.length}`, 'aria-selected': String(selected), dataset: { id: l.id } },
+          thumbEl(l, 80, 50),
+          h('span', { class: 'lsw-opt-text' }, h('strong', { text: l.name || 'Sin nombre' }), h('small', { text: landingOptionMeta(l) })),
+          open,
+          icon('fa-solid fa-check lsw-check'),
+        );
+        opt.addEventListener('mousedown', (e) => e.preventDefault()); // el foco se queda en la lista
+        opt.addEventListener('click', () => chooseLanding(l.id));
+        opt.addEventListener('mousemove', () => {
+          pickerEls.pop.classList.remove('is-kbd');
+          const index = optionIndex(l.id);
+          if (index >= 0 && picker.active !== index) setActiveOption(index, { scroll: false });
+        });
+        opt.addEventListener('mouseenter', () => scheduleHover(l, opt));
+        opt.addEventListener('mouseleave', hideHover);
+        picker.all.push({ el: opt, landing: l });
+        return opt;
+      }),
+    );
+    picker.groups.push(groupEl);
+    return groupEl;
+  });
+  picker.none = h('div', { class: 'lsw-none', role: 'presentation', text: 'No hay páginas con ese nombre.', hidden: true });
+  fill(list, groups, picker.none);
+  picker.built = true;
+}
+
+/** Aplica el buscador: deja en `picker.options` solo las opciones visibles, en orden. */
+function filterLandingOptions() {
+  const query = pickerEls.searchWrap.hidden ? '' : pickerEls.search.value;
+  const match = new Set(filterLandings(state.landings, query).map((l) => l.id));
+  picker.options = picker.all.filter((o) => {
+    o.el.hidden = !match.has(o.landing.id);
+    return !o.el.hidden;
+  });
+  picker.groups.forEach((g) => (g.hidden = !$$('.lsw-opt', g).some((o) => !o.hidden)));
+  picker.none.hidden = picker.options.length > 0;
+}
+
+function setActiveOption(index, { scroll = true } = {}) {
+  const n = picker.options.length;
+  picker.active = n ? Math.min(n - 1, Math.max(0, index)) : -1;
+  picker.options.forEach((o, i) => o.el.classList.toggle('is-active', i === picker.active));
+  const cur = picker.options[picker.active]?.el;
+  for (const el of [pickerEls.list, pickerEls.search]) {
+    if (cur) el.setAttribute('aria-activedescendant', cur.id);
+    else el.removeAttribute('aria-activedescendant');
+  }
+  if (cur && scroll) cur.scrollIntoView({ block: 'nearest' });
+}
+
+/** Limita el alto de la lista al espacio visible bajo el disparador (sin pasar de 70vh). */
+function fitPickerHeight() {
+  const rect = pickerEls.trigger.getBoundingClientRect();
+  const tabbar = $('.tabbar');
+  const bottomUi = tabbar && getComputedStyle(tabbar).display !== 'none' ? tabbar.offsetHeight : 0;
+  const room = window.innerHeight - rect.bottom - 6 - 12 - bottomUi;
+  pickerEls.pop.style.maxHeight = `${Math.max(220, Math.min(window.innerHeight * 0.7, room))}px`;
+}
+
+function openPicker() {
+  if (picker.open || pickerEls.trigger.disabled) return;
+  picker.open = true;
+  if (!thumbs.activated) {
+    thumbs.activated = true;
+    renderLandingSwitch();
+  }
+  if (!picker.built) buildLandingOptions();
+  loadAllThumbs();
+  pickerEls.search.value = '';
+  filterLandingOptions();
+  pickerEls.pop.hidden = false;
+  pickerEls.trigger.setAttribute('aria-expanded', 'true');
+  fitPickerHeight();
+  const current = picker.options.findIndex((o) => o.landing.id === landingId);
+  setActiveOption(current < 0 ? 0 : current);
+  (pickerEls.searchWrap.hidden ? pickerEls.list : pickerEls.search).focus({ preventScroll: true });
+}
+
+function closePicker({ returnFocus = false } = {}) {
+  if (!picker.open) return;
+  picker.open = false;
+  hideHover();
+  pickerEls.pop.hidden = true;
+  pickerEls.pop.classList.remove('is-kbd');
+  pickerEls.trigger.setAttribute('aria-expanded', 'false');
+  if (returnFocus) pickerEls.trigger.focus();
+}
+
+function chooseLanding(id) {
+  closePicker({ returnFocus: true });
+  if (id && id !== landingId) requestLandingSwitch(id);
+}
+
+// Vista grande al pasar el mouse (solo PC con mouse, ≥1100 px)
+function hideHover() {
+  clearTimeout(picker.hoverTimer);
+  pickerEls.hover.hidden = true;
+}
+
+function scheduleHover(l, opt) {
+  clearTimeout(picker.hoverTimer);
+  if (!hoverMq.matches) return;
+  picker.hoverTimer = setTimeout(() => showHover(l, opt), 350);
+}
+
+function showHover(l, opt) {
+  if (!picker.open || !hoverMq.matches || !opt.isConnected) return;
+  const card = pickerEls.hover;
+  fill($('#landing-hover-thumb'), thumbEl(l, 400, 225));
+  $('#landing-hover-name').textContent = l.name || '';
+  $('#landing-hover-url').textContent = displayUrl(l.url, location.origin);
+  card.hidden = false;
+  const pr = pickerEls.pop.getBoundingClientRect();
+  const or = opt.getBoundingClientRect();
+  const cw = card.offsetWidth;
+  const ch = card.offsetHeight;
+  let left = pr.right + 12;
+  if (left + cw > window.innerWidth - 12) left = pr.left - 12 - cw;
+  if (left < 12) return hideHover(); // no hay lugar a ningún lado
+  const top = Math.min(Math.max(12, or.top + or.height / 2 - ch / 2), window.innerHeight - ch - 12);
+  card.style.left = `${Math.round(left)}px`;
+  card.style.top = `${Math.round(top)}px`;
+}
+
+// Teclado: Enter / Espacio / ↓ abren; ↑ ↓ Inicio Fin mueven; Enter elige; Esc cierra.
+pickerEls.trigger.addEventListener('click', () => (picker.open ? closePicker({ returnFocus: true }) : openPicker()));
+pickerEls.trigger.addEventListener('keydown', (e) => {
+  if (['Enter', ' ', 'ArrowDown'].includes(e.key)) {
+    e.preventDefault();
+    if (!picker.open) openPicker();
+    pickerEls.pop.classList.add('is-kbd'); // abierta con teclado: se marca la opción activa
+  }
+});
+
+function onPickerKey(e) {
+  const inSearch = e.target === pickerEls.search;
+  const move = (i) => {
+    e.preventDefault();
+    pickerEls.pop.classList.add('is-kbd');
+    hideHover();
+    setActiveOption(i);
+  };
+  switch (e.key) {
+    case 'ArrowDown':
+      return move(picker.active + 1);
+    case 'ArrowUp':
+      return move(picker.active - 1);
+    case 'Home':
+      if (!inSearch) move(0);
+      return;
+    case 'End':
+      if (!inSearch) move(picker.options.length - 1);
+      return;
+    case 'Enter':
+      e.preventDefault();
+      if (picker.options[picker.active]) chooseLanding(picker.options[picker.active].landing.id);
+      return;
+    case ' ':
+      if (inSearch) return;
+      e.preventDefault();
+      if (picker.options[picker.active]) chooseLanding(picker.options[picker.active].landing.id);
+      return;
+    case 'Escape':
+      e.preventDefault();
+      e.stopPropagation();
+      closePicker({ returnFocus: true });
+      return;
+    case 'Tab':
+      closePicker({ returnFocus: true }); // el Tab sigue desde el disparador
+  }
+}
+pickerEls.list.addEventListener('keydown', onPickerKey);
+pickerEls.search.addEventListener('keydown', onPickerKey);
+pickerEls.search.addEventListener('input', () => {
+  hideHover();
+  filterLandingOptions();
+  setActiveOption(0);
+});
+pickerEls.list.addEventListener('scroll', hideHover, { passive: true });
+document.addEventListener('click', (e) => {
+  if (picker.open && !pickerEls.root.contains(e.target)) closePicker();
+});
+window.addEventListener('resize', () => {
+  if (!picker.open) return;
+  hideHover();
+  fitPickerHeight();
+});
 
 /** En celular/tablet el selector va bajo la barra superior; desde 900 px, en la barra lateral. */
 const sideMq = window.matchMedia('(min-width: 900px)');
@@ -1579,7 +2215,10 @@ function placeLandingBar() {
     $('#content').before(bar);
   }
 }
-sideMq.addEventListener('change', placeLandingBar);
+sideMq.addEventListener('change', () => {
+  closePicker();
+  placeLandingBar();
+});
 
 let switchWait = null;
 let switchTarget = '';
@@ -1587,7 +2226,8 @@ const hasPendingSaves = () => Boolean(timers.size || inFlight);
 
 function switchLanding(id) {
   pref.set(LANDING_KEY, id);
-  $('#landing-select').disabled = true;
+  closePicker();
+  pickerEls.trigger.disabled = true;
   location.reload(); // el #hash se conserva: se vuelve a la misma pestaña
 }
 
@@ -1611,22 +2251,17 @@ function requestLandingSwitch(id) {
   }, 250);
 }
 
-$('#landing-select').addEventListener('change', (e) => {
-  const next = e.target.value;
-  e.target.value = landingId; // se queda en la actual hasta que realmente se cambie
-  if (next && next !== landingId) requestLandingSwitch(next);
-});
-
 /** Muestra en el panel a qué landing corresponde lo que se edita. */
 function applyLanding() {
   const l = state.landing;
   if (!l) return;
   $('#brand-name').textContent = l.name;
   $('#stats-landing').textContent = ` · ${l.name}`;
+  $('#dlg-preview-name').textContent = l.name;
   $$('[data-landing-url]').forEach((a) => (a.href = l.url || '/'));
   const tpl = /^[a-z0-9-]+$/.test(String(l.template || '')) ? l.template : 'cartas';
   document.body.classList.add(`tpl-${tpl}`);
-  renderLandingSelect();
+  renderLandingSwitch();
   placeLandingBar();
   $('#landing-bar').hidden = false;
 }

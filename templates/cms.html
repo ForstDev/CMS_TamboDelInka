@@ -66,10 +66,32 @@
   <div class="landing-bar" id="landing-bar" hidden>
     <div class="landing-bar-inner">
       <div class="landing-bar-head">
-        <label class="landing-label" for="landing-select">Estás editando</label>
+        <span class="landing-label" id="landing-label">Estás editando</span>
         <a class="landing-view" id="landing-view" href="/" target="_blank" rel="noopener" data-landing-url><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Ver página</a>
       </div>
-      <select class="input landing-select" id="landing-select"></select>
+      <!-- Selector de landing: botón + lista desplegable (la arma el JS). -->
+      <div class="lsw" id="landing-picker">
+        <button type="button" class="lsw-trigger" id="landing-switch" aria-haspopup="listbox" aria-expanded="false" aria-controls="landing-list" aria-labelledby="landing-label landing-switch-name">
+          <span class="lsw-thumb-slot" id="landing-switch-thumb"></span>
+          <span class="lsw-text">
+            <strong class="lsw-name" id="landing-switch-name"></strong>
+            <small class="lsw-meta" id="landing-switch-meta"></small>
+          </span>
+          <i class="fa-solid fa-chevron-down lsw-chev" aria-hidden="true"></i>
+        </button>
+        <div class="lsw-pop" id="landing-pop" hidden>
+          <div class="lsw-search" id="landing-search-wrap" hidden>
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" class="input" id="landing-search" placeholder="Buscar por nombre u hotel" autocomplete="off" spellcheck="false" role="combobox" aria-controls="landing-list" aria-expanded="true" aria-autocomplete="list" aria-label="Buscar página">
+          </div>
+          <div class="lsw-list" id="landing-list" role="listbox" tabindex="-1" aria-label="Páginas que puedes editar"></div>
+        </div>
+        <div class="lsw-hover" id="landing-hover" aria-hidden="true" hidden>
+          <span class="lsw-hover-thumb" id="landing-hover-thumb"></span>
+          <strong id="landing-hover-name"></strong>
+          <small id="landing-hover-url"></small>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -335,15 +357,19 @@
         </div>
       </div>
 
-      <article class="card" id="social-card">
-        <header class="card-head">
-          <h3><i class="fa-solid fa-share-nodes"></i> Clics en redes sociales</h3>
-          <span class="social-total" id="social-total" hidden></span>
+      <section class="social-dash" id="social-dash" aria-labelledby="social-dash-title" hidden>
+        <header class="sd-head">
+          <h3 id="social-dash-title"><i class="fa-solid fa-share-nodes" aria-hidden="true"></i> Redes sociales</h3>
+          <span class="sd-total" id="social-total"></span>
         </header>
-        <p class="hint card-hint">Cuenta los toques en los íconos de tu página; no sabemos si la persona terminó entrando a la red.</p>
-        <div class="social-empty" id="social-empty" hidden></div>
-        <ol class="ranking social-ranking" id="social-ranking"></ol>
-      </article>
+        <p class="sd-note">Cuenta los toques en los íconos de tu página; no sabemos si la persona terminó entrando a la red.</p>
+        <div class="sd-kpis" id="social-kpis"></div>
+        <div class="glass sd-chart-card" id="social-chart-card" hidden>
+          <ul class="sd-legend" id="social-legend"></ul>
+          <div class="sd-chart"><canvas id="chart-social" role="img" aria-label="Clics por día en cada red social"></canvas></div>
+        </div>
+        <div class="glass sd-empty" id="social-empty" hidden></div>
+      </section>
 
       <div class="stats-foot">
         <p class="hint"><i class="fa-solid fa-user-shield"></i> Sin datos personales: solo se guarda qué botón o red social, cuándo y el tipo de dispositivo (Ley 29733). No se guarda la IP. Los clics de bots no se cuentan.</p>
@@ -359,7 +385,10 @@
   <aside class="preview-pane" aria-label="Vista previa">
     <div class="preview-toolbar">
       <span><span class="dot live-dot"></span> Así se ve tu página ahora</span>
-      <a class="icon-btn" href="/" target="_blank" rel="noopener" aria-label="Abrir página" data-landing-url><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+      <div class="preview-tools">
+        <button type="button" class="icon-btn" id="open-full-preview" aria-label="Ampliar vista previa" title="Ampliar"><i class="fa-solid fa-up-right-and-down-left-from-center" aria-hidden="true"></i></button>
+        <a class="icon-btn" href="/" target="_blank" rel="noopener" aria-label="Abrir página" data-landing-url><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+      </div>
       <div class="device-seg-wrap">
         <div class="segmented compact device-seg" role="radiogroup" aria-label="Ver la vista previa como">
           <button type="button" role="radio" data-value="mobile"><i class="fa-solid fa-mobile-screen" aria-hidden="true"></i> Celular</button>
@@ -402,6 +431,29 @@
 </div>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
+
+<!-- Vista previa ampliada (escritorio) -->
+<dialog class="pv-dialog" id="dlg-preview" aria-labelledby="dlg-preview-title">
+  <div class="pv-head">
+    <h3 id="dlg-preview-title">Vista previa · <span id="dlg-preview-name"></span></h3>
+    <div class="device-seg-wrap">
+      <div class="segmented compact device-seg" role="radiogroup" aria-label="Ver la vista previa como">
+        <button type="button" role="radio" data-value="mobile"><i class="fa-solid fa-mobile-screen" aria-hidden="true"></i> Celular</button>
+        <button type="button" role="radio" data-value="pc"><i class="fa-solid fa-desktop" aria-hidden="true"></i> PC</button>
+      </div>
+    </div>
+    <a class="btn btn-ghost btn-sm" href="/" target="_blank" rel="noopener" data-landing-url><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Abrir página</a>
+    <button type="button" class="icon-btn plain" id="dlg-preview-close" aria-label="Cerrar vista previa ampliada"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </div>
+  <div class="pv-body" id="dlg-preview-body">
+    <div class="pv-stage" id="dlg-preview-stage">
+      <span class="pv-notch" aria-hidden="true"></span>
+      <div class="pv-screen">
+        <iframe id="preview-frame-full" title="Vista previa ampliada de la página" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
+      </div>
+    </div>
+  </div>
+</dialog>
 
 <dialog class="dialog" id="dlg-password">
   <form method="dialog" id="password-form">

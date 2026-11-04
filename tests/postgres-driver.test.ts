@@ -94,7 +94,12 @@ describe('conector postgres.js', () => {
     expect(stats.devices.reduce((a, d) => a + d.clicks, 0)).toBe(2);
     expect(stats.hours.reduce((a, h) => a + h.clicks, 0)).toBe(2);
     expect(stats.ranking.some((r) => r.deleted)).toBe(false);
-    expect(stats.socials).toEqual({
+    const { series, ...socialsRest } = stats.socials;
+    expect(series.map((x) => [x.id, x.network, x.deleted, x.data.length, x.data.at(-1)])).toEqual([
+      [fb!.id, 'facebook', false, 30, 2],
+      [null, 'youtube', true, 30, 1],
+    ]);
+    expect(socialsRest).toEqual({
       total: 3,
       ranking: [
         { id: fb!.id, network: 'facebook', label: 'Facebook', clicks: 2, active: true, deleted: false },

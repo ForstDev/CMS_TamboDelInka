@@ -196,7 +196,10 @@ export function createApp() {
   // Lista de landings del cliente (no depende de la landing elegida).
   api.get('/landings', async (_req, res) => {
     res.setHeader('Cache-Control', 'no-store');
-    res.json({ landings: (await repo.listLandings()).map(landingInfo) });
+    const landings = await repo.listLandingsWithSummary();
+    res.json({
+      landings: landings.map((l) => ({ ...landingInfo(l), preview: l.preview, buttons_count: l.buttons_count, clicks_30d: l.clicks_30d })),
+    });
   });
 
   // Landing de trabajo: cabecera X-Landing-Id o ?landing=<uuid> (enlace del CSV, vista previa).

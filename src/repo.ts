@@ -36,11 +36,68 @@ const BUTTON_COLS = 'id, label, kind, url, file_name, file_path, new_tab, positi
 const SOCIAL_COLS = 'id, network, url, position, active';
 const LANDING_COLS = 'id, slug, name, hotel, template, is_default, position, active';
 
+/** Inicio del periodo: medianoche (hora local del cliente) de hace days-1 días. */
+const PERIOD_START = `(((now() at time zone $2)::date - ($3::int - 1))::timestamp at time zone $2)`;
+
 // ---------- Landings ----------
 
 export async function listLandings(): Promise<Landing[]> {
   const db = await getDb();
   return db.query<Landing>(`select ${LANDING_COLS} from landings where client_id = $1 order by hotel, position, name`, [cid()]);
+}
+
+export interface LandingPreview {
+  logo_url: string;
+  fondo_tipo: 'imagen' | 'color';
+  fondo_imagen_url: string;
+  color_fondo: string;
+  fondo_foco_x: string;
+  fondo_foco_y: string;
+}
+
+export interface LandingSummary extends Landing {
+  preview: LandingPreview;
+  buttons_count: number;
+  clicks_30d: number;
+}
+
+const PREVIEW_KEYS = ['logo_url', 'fondo_tipo', 'fondo_imagen_url', 'color_fondo', 'fondo_foco_x', 'fondo_foco_y'] as const;
+
+/**
+ * Landings del cliente con lo que el panel necesita para su tarjeta: ajustes de la vista previa,
+ * botones visibles en la página pública y clics en botones de los últimos 30 días.
+ * Dos consultas (en paralelo) para todas las landings.
+ */
+export async function listLandingsWithSummary(): Promise<LandingSummary[]> {
+  const db = await getDb();
+  const [landings, settings] = await Promise.all([
+    db.query<Landing & { buttons_count: number; clicks_30d: number }>(
+      `select ${LANDING_COLS.split(', ').map((c) => `l.${c}`).join(', ')},
+         (select count(*) from buttons b
+           where b.client_id = $1 and b.landing_id = l.id and b.active and b.url <> '')::int as buttons_count,
+         (select count(*) from clicks c
+           where c.client_id = $1 and c.landing_id = l.id and c.source = 'button' and c.clicked_at >= ${PERIOD_START})::int as clicks_30d
+       from landings l where l.client_id = $1 order by l.hotel, l.position, l.name`,
+      [cid(), env.statsTz, 30],
+    ),
+    db.query<{ landing_id: string; key: string; value: string }>(
+      `select s.landing_id, s.key, s.value from landing_settings s
+       join landings l on l.id = s.landing_id
+       where l.client_id = $1 and s.key = any($2::text[])`,
+      [cid(), [...PREVIEW_KEYS]],
+    ),
+  ]);
+  const byLanding = new Map<string, Record<string, string>>();
+  for (const r of settings) {
+    const m = byLanding.get(r.landing_id) ?? {};
+    m[r.key] = r.value;
+    byLanding.set(r.landing_id, m);
+  }
+  return landings.map(({ buttons_count, clicks_30d, ...l }) => {
+    const s: Record<string, string> = { ...defaultSettingsFor(l.template), ...(byLanding.get(l.id) ?? {}) };
+    const preview = Object.fromEntries(PREVIEW_KEYS.map((k) => [k, s[k] ?? ''])) as unknown as LandingPreview;
+    return { ...l, preview, buttons_count: Number(buttons_count), clicks_30d: Number(clicks_30d) };
+  });
 }
 
 export async function getLandingBySlug(slug: string): Promise<Landing | null> {
@@ -319,8 +376,6 @@ export async function recordSocialClick(social: Pick<Social, 'id' | 'network'>, 
   );
 }
 
-/** Inicio del periodo: medianoche (hora local del cliente) de hace days-1 días. */
-const PERIOD_START = `(((now() at time zone $2)::date - ($3::int - 1))::timestamp at time zone $2)`;
 
 export interface SocialStat {
   id: string | null;
@@ -340,7 +395,16 @@ export interface Stats {
   daily: { day: string; clicks: number }[];
   devices: { device: string; clicks: number }[];
   hours: { hour: number; clicks: number }[];
-  socials: { total: number; ranking: SocialStat[] };
+  socials: { total: number; ranking: SocialStat[]; series: SocialSeries[] };
+}
+
+/** Clics diarios de una red; data[i] corresponde a daily[i].day. */
+export interface SocialSeries {
+  id: string | null;
+  network: string;
+  label: string;
+  deleted: boolean;
+  data: number[];
 }
 
 // Las estadísticas de cartas solo cuentan source = 'button'. Ojo: button_id null significa
@@ -350,7 +414,7 @@ export async function getStats(days: number): Promise<Stats> {
   // $4 = landing actual. Los clics de un botón o red siempre son de su misma landing.
   const p = [cid(), env.statsTz, days, await lid()];
 
-  const [ranking, deleted, daily, devices, hours, totals, socials, deletedSocials] = await Promise.all([
+  const [ranking, deleted, daily, devices, hours, totals, socials, deletedSocials, socialDaily] = await Promise.all([
     db.query(
       `select b.id, b.label, b.active, count(c.id)::int as clicks
        from buttons b
@@ -413,12 +477,56 @@ export async function getStats(days: number): Promise<Stats> {
        group by button_label order by clicks desc`,
       p,
     ),
+    // Clics de redes por día (misma zona horaria que daily); las eliminadas se agrupan por su nombre.
+    db.query(
+      `select to_char((clicked_at at time zone $2)::date, 'YYYY-MM-DD') as day, social_id, button_label as label, count(*)::int as clicks
+       from clicks
+       where client_id = $1 and landing_id = $4 and source = 'social' and clicked_at >= ${PERIOD_START}
+       group by 1, 2, 3`,
+      p,
+    ),
   ]);
 
   // Red eliminada: se recupera su clave a partir del nombre guardado.
   const networkFromLabel = (label: string) => Object.entries(NETWORKS).find(([, n]) => n.label === label)?.[0] ?? 'web';
 
   const t = totals[0] ?? { total: 0, today: 0, all_time: 0, social_total: 0 };
+
+  const socialRanking = [
+    ...socials.map((r) => ({
+      stat: { id: r.id, network: r.network, label: networkLabel(r.network), clicks: Number(r.clicks), active: r.active, deleted: false },
+      position: Number(r.position),
+    })),
+    ...deletedSocials.map((r) => ({
+      stat: { id: null, network: networkFromLabel(r.label), label: r.label, clicks: Number(r.clicks), active: false, deleted: true },
+      position: Number.MAX_SAFE_INTEGER, // sin posición: tras las redes actuales con los mismos clics
+    })),
+  ]
+    .sort((a, b) => b.stat.clicks - a.stat.clicks || a.position - b.position)
+    .map((x) => x.stat);
+
+  // Series por red, alineadas con daily. Clave: id de la red o, si se eliminó, su nombre guardado.
+  const dayIndex = new Map(daily.map((r, i) => [r.day as string, i]));
+  const seriesKey = (id: string | null, label: string) => (id ? `id:${id}` : `label:${label}`);
+  const perDay = new Map<string, number[]>();
+  for (const r of socialDaily) {
+    const i = dayIndex.get(r.day);
+    if (i === undefined) continue;
+    const k = seriesKey(r.social_id, r.label);
+    const data = perDay.get(k) ?? new Array<number>(daily.length).fill(0);
+    data[i]! += Number(r.clicks);
+    perDay.set(k, data);
+  }
+  const series: SocialSeries[] = socialRanking
+    .filter((s) => s.clicks > 0)
+    .map((s) => ({
+      id: s.id,
+      network: s.network,
+      label: s.label,
+      deleted: s.deleted,
+      data: perDay.get(seriesKey(s.id, s.label)) ?? new Array<number>(daily.length).fill(0),
+    }));
+
   return {
     days,
     total: Number(t.total),
@@ -431,21 +539,7 @@ export async function getStats(days: number): Promise<Stats> {
     daily: daily.map((r) => ({ day: r.day, clicks: Number(r.clicks) })),
     devices: devices.map((r) => ({ device: r.device, clicks: Number(r.clicks) })),
     hours: hours.map((r) => ({ hour: Number(r.hour), clicks: Number(r.clicks) })),
-    socials: {
-      total: Number(t.social_total),
-      ranking: [
-        ...socials.map((r) => ({
-          stat: { id: r.id, network: r.network, label: networkLabel(r.network), clicks: Number(r.clicks), active: r.active, deleted: false },
-          position: Number(r.position),
-        })),
-        ...deletedSocials.map((r) => ({
-          stat: { id: null, network: networkFromLabel(r.label), label: r.label, clicks: Number(r.clicks), active: false, deleted: true },
-          position: Number.MAX_SAFE_INTEGER, // sin posición: tras las redes actuales con los mismos clics
-        })),
-      ]
-        .sort((a, b) => b.stat.clicks - a.stat.clicks || a.position - b.position)
-        .map((x) => x.stat),
-    },
+    socials: { total: Number(t.social_total), ranking: socialRanking, series },
   };
 }
 
