@@ -116,8 +116,6 @@ export function renderPage({ settings, buttons, socials, landing }: PageData, op
     ...s,
     ...layoutValues(s, template),
     fondo_imagen_css: useImage ? cssUrl(s.fondo_imagen_url) : '',
-    // La plantilla no tiene {{else}}: bandera inversa para el caso de color sólido.
-    sin_fondo_imagen: useImage ? '' : '1',
     novedades_url: s.novedades_activo === '1' ? s.novedades_url : '',
     botones_html,
     redes_html,

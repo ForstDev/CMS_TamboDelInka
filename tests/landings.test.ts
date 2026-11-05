@@ -526,7 +526,13 @@ describe('plantillas', () => {
     expect(html).toContain('href="/go/social/22222222-2222-4222-8222-222222222201" aria-label="Facebook"');
     expect(html).toContain('href="mailto:reservas@ejemplo.com" aria-label="Correo"');
     expect(html).not.toContain('--oscurecer');
-    expect(html).toContain('<div class="foto" aria-hidden="true"></div>');
+    expect(html).toContain('<div class="espacio" aria-hidden="true"></div>');
+    expect(html).not.toContain('class="foto"');
+    expect(html).not.toContain('.foto');
+    expect(html).toContain('background: var(--fondo) url("/uploads/f.jpg") center / cover no-repeat;');
+    expect(html).toMatch(/@media \(max-width: 767\.98px\) \{\s*\.hero::before \{/);
+    expect(html).toContain('rgba(9, 30, 62, 0.60) 0%');
+    expect(html).toContain('rgba(72, 68, 64, 0.85) 100%');
     expect(html).toContain('.hero::before');
     expect(html).toContain('mask-composite: intersect;');
     expect(html).toContain('--logo-n: 150;');

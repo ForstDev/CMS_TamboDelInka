@@ -86,61 +86,93 @@ describe('plantilla "experiencias"', () => {
 
   it('lleva el foco del fondo, la imagen y el ancho del logo al CSS', () => {
     const html = render({ fondo_tipo: 'imagen', fondo_imagen_url: '/uploads/f.jpg', fondo_foco_x: '30', fondo_foco_y: '70', logo_ancho: '180', logo_url: '/uploads/l.png', logo_alt: 'Hotel' });
-    // Celular: la foto va en .foto; PC: en el fondo del hero. Ambas con el mismo encuadre.
-    expect(html).toContain('background: url("/uploads/f.jpg") 30% 70% / cover no-repeat;');
+    // Celular y PC: la foto va en el fondo del hero (una sola regla), con el mismo encuadre.
     expect(html).toContain('background: var(--fondo) url("/uploads/f.jpg") 30% 70% / cover no-repeat;');
+    expect(html.match(/url\("\/uploads\/f\.jpg"\)/g)).toHaveLength(1);
     expect(html).toContain('--logo-n: 180;');
     expect(html).toContain('<img class="logo" src="/uploads/l.png" alt="Hotel">');
 
     const centro = render({ fondo_tipo: 'imagen', fondo_imagen_url: '/uploads/f.jpg' });
-    expect(centro).toContain('background: url("/uploads/f.jpg") center / cover no-repeat;');
     expect(centro).toContain('background: var(--fondo) url("/uploads/f.jpg") center / cover no-repeat;');
     expect(centro).toContain('--logo-n: 150;');
     expect(centro).not.toContain('class="logo"');
   });
 
   const IMG = { fondo_tipo: 'imagen', fondo_imagen_url: '/uploads/f.jpg' } as const;
-  const mobileCss = (html: string) => html.slice(html.indexOf('Con foto (diseño fijo'), html.indexOf('PC (≥ 768 px): foto a pantalla completa'));
+  const MOBILE_MQ = '@media (max-width: 767.98px) {';
+  const PC_MQ = '@media (min-width: 768px) {\n    .hero::before,\n    .hero::after {';
+  // Solo el bloque @media móvil (hasta su llave de cierre, sin los comentarios de PC que siguen).
+  const mobileCss = (html: string) => {
+    const start = html.indexOf(MOBILE_MQ);
+    return html.slice(start, html.indexOf('\n  }\n', start) + 4);
+  };
+  const MOBILE_GRADIENT =
+    'background: linear-gradient(\n' +
+    '        to bottom,\n' +
+    '        rgba(9, 30, 62, 0.60) 0%,\n' +
+    '        rgba(9, 30, 62, 0.372) 14%,\n' +
+    '        rgba(9, 30, 62, 0.156) 28%,\n' +
+    '        rgba(9, 30, 62, 0) 42%,\n' +
+    '        rgba(72, 68, 64, 0) 46%,\n' +
+    '        rgba(72, 68, 64, 0.425) 58%,\n' +
+    '        rgba(72, 68, 64, 0.748) 74%,\n' +
+    '        rgba(72, 68, 64, 0.85) 100%\n' +
+    '      );';
 
-  it('celular con foto: franja .foto entre el título y los botones, con degradado azul/gris fijo', () => {
-    const html = render(IMG);
-    // .foto sustituye a .espacio, entre el bloque del título y los botones.
-    expect(html).toContain('</header>\n\n  <div class="foto" aria-hidden="true"></div>\n\n  <nav class="botones"');
-    expect(html).not.toContain('class="espacio"');
-    const css = mobileCss(html);
-    // El hero móvil no lleva la foto: lleva el degradado (mismos colores para todos los hoteles).
-    expect(css).toMatch(/\.hero \{\s*background: linear-gradient\(\s*to bottom,\s*rgb\(30, 73, 115\) 0%,/);
-    expect(css).toContain('rgb(64, 111, 156) 36%');
-    expect(css).toContain('rgb(89, 83, 79) 58%');
-    expect(css).toContain('rgb(84, 78, 73) 100%');
-    const heroRule = css.slice(css.indexOf('  .hero {'), css.indexOf('\n  }', css.indexOf('  .hero {')));
-    expect(heroRule).toContain('linear-gradient(');
-    expect(heroRule).not.toContain('url(');
-    // La franja: ancho completo, alto min(espacio libre, 62vw) con mínimo 120u, centrada y difuminada.
-    const foto = css.slice(css.indexOf('  .foto {'));
-    expect(foto).toContain('flex: 1 1 0;');
-    expect(foto).toContain('align-self: stretch;');
-    expect(foto).toContain('min-height: calc(var(--u) * 120);');
-    expect(foto).toContain('max-height: 62vw;');
-    expect(foto).toContain('margin-top: auto;');
-    expect(foto).toContain('margin-bottom: auto;');
-    expect(foto).toContain('margin-left: calc(-1 * max(calc(var(--u) * 20), env(safe-area-inset-left, 0px)));');
-    expect(foto).toContain('margin-right: calc(-1 * max(calc(var(--u) * 20), env(safe-area-inset-right, 0px)));');
-    expect(foto).toContain('background: url("/uploads/f.jpg") center / cover no-repeat;');
-    expect(foto).toContain('-webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 78%, transparent 100%);');
-    expect(foto).toContain('  mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 78%, transparent 100%);');
-    // Sin capa de oscurecido en celular: las capas ::before/::after solo existen dentro del bloque de PC.
-    const pcStart = html.indexOf('@media (min-width: 768px) {\n    .hero {\n      background: var(--fondo) url(');
-    expect(pcStart).toBeGreaterThan(-1);
-    expect(html.indexOf('.hero::before')).toBeGreaterThan(pcStart);
+  it('con foto: la foto a pantalla completa en .hero (celular y PC), sin franja ni máscara', () => {
+    const html = render({ ...IMG, fondo_foco_x: '30', fondo_foco_y: '70' });
+    // Una sola regla para el hero, fuera de toda media query (vale para celular y PC).
+    const fotoRule = '  .hero {\n    background: var(--fondo) url("/uploads/f.jpg") 30% 70% / cover no-repeat;\n  }';
+    expect(html).toContain(fotoRule);
+    expect(html.indexOf(fotoRule)).toBeLessThan(html.indexOf(MOBILE_MQ));
+    expect(html.indexOf(fotoRule)).toBeGreaterThan(html.indexOf('.redes-texto { max-width: none; }'));
+    // Separador flexible de siempre, entre el título y los botones.
+    expect(html).toContain('</header>\n\n  <div class="espacio" aria-hidden="true"></div>\n\n  <nav class="botones"');
+    expect(html).toMatch(/\.espacio \{\s*flex: 1 1 auto;\s*min-height: calc\(var\(--u\) \* 20\);\s*\}/);
+    // Nada de la franja ni del degradado azul/gris de fondo.
+    expect(html).not.toContain('class="foto"');
+    expect(html).not.toContain('.foto');
+    expect(html).not.toContain('mask-image: linear-gradient(to bottom');
+    expect(html).not.toContain('rgb(30, 73, 115)');
+    expect(html).not.toContain('rgb(64, 111, 156)');
+    expect(html).not.toContain('rgb(84, 78, 73)');
+    expect(html).not.toContain('62vw');
   });
 
-  it('PC con foto: foto a pantalla completa y reloj de arena horizontal (dos triángulos enmascarados)', () => {
+  it('celular con foto: capa de oscurecido fija (60 arriba, 85 abajo) solo en pantallas < 768 px', () => {
     const html = render(IMG);
-    const pc = html.slice(html.indexOf('@media (min-width: 768px) {\n    .hero {\n      background: var(--fondo) url('));
-    expect(pc).toContain('background: var(--fondo) url("/uploads/f.jpg") center / cover no-repeat;');
-    // .foto vuelve a ser solo el separador.
-    expect(pc).toMatch(/\.foto \{[^}]*background: none;[^}]*mask-image: none;/);
+    expect(html.split(MOBILE_MQ).length - 1).toBe(1);
+    const css = mobileCss(html);
+    expect(css).toMatch(/^@media \(max-width: 767\.98px\) \{\s*\.hero::before \{\s*content: "";\s*position: absolute;\s*inset: 0;\s*z-index: -1;\s*pointer-events: none;/);
+    expect(css).toContain(MOBILE_GRADIENT);
+    expect(css.endsWith(MOBILE_GRADIENT + '\n    }\n  }')).toBe(true);
+    expect(css).toContain('rgba(9, 30, 62, 0.60) 0%');
+    expect(css).toContain('rgba(72, 68, 64, 0.85) 100%');
+    // Solo ::before, sin máscaras ni la foto: la capa no toca nada más.
+    expect(css).not.toContain('::after');
+    expect(css).not.toContain('mask');
+    expect(css).not.toContain('url(');
+    // El degradado vertical existe una sola vez, dentro del bloque móvil (no llega a PC).
+    expect(html.split('rgba(9, 30, 62').length - 1).toBe(4);
+    expect(html.split('rgba(72, 68, 64').length - 1).toBe(4);
+    expect(html.split('to bottom,').length - 1).toBe(1);
+    expect(html.indexOf('to bottom,')).toBeGreaterThan(html.indexOf(MOBILE_MQ));
+    expect(html.indexOf('to bottom,')).toBeLessThan(html.indexOf(PC_MQ));
+  });
+
+  it('PC con foto: reloj de arena horizontal (dos triángulos enmascarados), sin la capa móvil', () => {
+    const html = render(IMG);
+    const pc = html.slice(html.indexOf(PC_MQ));
+    expect(html.indexOf(PC_MQ)).toBeGreaterThan(html.indexOf(MOBILE_MQ));
+    // Regla común de los dos triángulos, intacta.
+    expect(pc).toContain(
+      PC_MQ + '\n      content: "";\n      position: absolute;\n      inset: 0;\n      z-index: -1;\n      pointer-events: none;\n' +
+      '      -webkit-mask-repeat: no-repeat;\n      mask-repeat: no-repeat;\n      -webkit-mask-composite: source-in;\n      mask-composite: intersect;\n    }',
+    );
+    // La media query de PC no repite la foto (ya está en .hero) ni trae la capa móvil.
+    expect(pc).not.toContain('url(');
+    expect(pc).not.toContain('rgba(9, 30, 62');
+    expect(pc).not.toContain('rgba(72, 68, 64');
     // Un triángulo por lado: degradado horizontal (máx. en el borde, 0 en la punta del centro)…
     expect(pc).toMatch(/\.hero::before \{\s*background: linear-gradient\(\s*to right,\s*rgba\(6, 16, 34, \.52\) 0%,/);
     expect(pc).toMatch(/\.hero::after \{\s*background: linear-gradient\(\s*to left,\s*rgba\(6, 16, 34, \.52\) 0%,/);
@@ -152,8 +184,10 @@ describe('plantilla "experiencias"', () => {
       const layer = `linear-gradient(${dir}, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%)`;
       expect(pc.split(layer).length - 1, dir).toBe(2); // con y sin prefijo -webkit-
     }
-    // Regla común (".hero::before, .hero::after") + una propia de cada lado; nada más.
-    expect(html.match(/\.hero::(?:before|after)/g)).toHaveLength(4);
+    // PC: regla común (".hero::before, .hero::after") + una propia de cada lado; nada más.
+    expect(pc.match(/\.hero::(?:before|after)/g)).toHaveLength(4);
+    // En toda la página: esas 4 + la capa móvil (::before).
+    expect(html.match(/\.hero::(?:before|after)/g)).toHaveLength(5);
     // Sin degradado vertical en PC.
     expect(pc.slice(0, pc.indexOf('@media (prefers-reduced-motion'))).not.toContain('to bottom,');
     // Legibilidad de las redes.
@@ -161,7 +195,7 @@ describe('plantilla "experiencias"', () => {
     expect(html).toMatch(/\.iconos a \{[^}]*text-shadow: 0 1px 8px rgba\(0, 0, 0, \.45\);/);
   });
 
-  it('color sólido (sin imagen): color plano, sin franja, sin degradados ni oscurecido', () => {
+  it('color sólido (sin imagen): color plano, sin foto, sin degradados ni capas', () => {
     for (const over of [{}, { fondo_tipo: 'color', fondo_imagen_url: '/uploads/f.jpg' }, { fondo_tipo: 'imagen', fondo_imagen_url: '' }] as Partial<Settings>[]) {
       const html = render(over);
       const label = JSON.stringify(over);
@@ -175,6 +209,10 @@ describe('plantilla "experiencias"', () => {
       expect(html, label).not.toContain('mask-image');
       expect(html, label).not.toContain('rgb(30, 73, 115)');
       expect(html, label).not.toContain('rgba(6, 16, 34');
+      expect(html, label).not.toContain('rgba(9, 30, 62');
+      expect(html, label).not.toContain('rgba(72, 68, 64');
+      expect(html, label).not.toContain('max-width: 767.98px');
+      expect(html, label).not.toContain('linear-gradient');
     }
   });
 
@@ -195,13 +233,12 @@ describe('plantilla "experiencias"', () => {
     const url = '/uploads/a"b\\c\nd\re<x>);}</style><script>alert(1)</script>.jpg';
     const html = render({ fondo_tipo: 'imagen', fondo_imagen_url: url });
     const enc = 'url("/uploads/a%22b%5Cc%0Ad%0De%3Cx%3E);}%3C/style%3E%3Cscript%3Ealert(1)%3C/script%3E.jpg")';
-    expect(html).toContain(`background: ${enc} center / cover no-repeat;`);
     expect(html).toContain(`background: var(--fondo) ${enc} center / cover no-repeat;`);
     expect(html).not.toContain('<script>');
     expect(html.match(/<\/style>/g)).toHaveLength(1);
     // Comillas simples y paréntesis: dentro de url("…") no cierran nada.
     const simple = render({ fondo_tipo: 'imagen', fondo_imagen_url: "https://cdn.ejemplo.com/f o't(o).jpg" });
-    expect(simple).toContain(`background: url("https://cdn.ejemplo.com/f o't(o).jpg") center / cover no-repeat;`);
+    expect(simple).toContain(`background: var(--fondo) url("https://cdn.ejemplo.com/f o't(o).jpg") center / cover no-repeat;`);
   });
 
   it('escala fluida: todo en --u, sin alturas fijas en vh', () => {
