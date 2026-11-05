@@ -77,8 +77,8 @@ export const settingsSchema = z.object({
   logo_posicion: z.enum(['left', 'center', 'right']),
   fondo_foco_x: intText(0, 100, 'El encuadre debe ser un número entre 0 y 100'),
   fondo_foco_y: intText(0, 100, 'El encuadre debe ser un número entre 0 y 100'),
-  fondo_oscurecer: intText(0, 100, 'El oscurecido debe ser un número entre 0 y 100'),
-  fondo_oscurecer_arriba: intText(0, 100, 'El oscurecido debe ser un número entre 0 y 100'),
+  // El oscurecido de "experiencias" es de diseño fijo (no editable). Las filas antiguas
+  // fondo_oscurecer / fondo_oscurecer_arriba de landing_settings se ignoran al leer (repo.getSettings).
   // Títulos de la plantilla "experiencias".
   titulo_linea1: text(60),
   titulo_linea2: text(60),
@@ -111,8 +111,6 @@ export const DEFAULT_SETTINGS: Settings = {
   logo_posicion: 'center',
   fondo_foco_x: '50',
   fondo_foco_y: '50',
-  fondo_oscurecer: '85',
-  fondo_oscurecer_arriba: '60',
   titulo_linea1: 'Experiences',
   titulo_linea2: 'Experiencias',
 };

@@ -20,8 +20,6 @@
     --boton-texto: {{color_boton_texto}};
     --boton-hover: {{color_boton_hover}};
     --texto-boton: {{color_texto_boton_hover}};
-    --oscurecer: {{fondo_oscurecer_css}};
-    --oscurecer-arriba: {{fondo_oscurecer_arriba_css}};
     --logo-n: {{logo_ancho}};
     --sans: "Sofia Sans", "Helvetica Neue", Arial, sans-serif;
     --serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
@@ -58,7 +56,8 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Foto del hotel a pantalla completa (sin background-attachment: fixed).
+  /* Página a pantalla completa. Sin imagen (color sólido): color plano. Con imagen, ver el bloque
+     "Con foto" al final (celular: franja de foto entre degradados; PC: foto a pantalla completa).
      Si el contenido no cabe (zoom extremo), la página crece y hace scroll vertical. */
   .hero {
     position: relative;
@@ -74,27 +73,7 @@
       max(calc(var(--u) * 20), env(safe-area-inset-right, 0px))
       calc(var(--u) * 24 + env(safe-area-inset-bottom, 0px))
       max(calc(var(--u) * 20), env(safe-area-inset-left, 0px));
-    background: var(--fondo) {{{fondo_imagen_css}}} {{fondo_foco_css}} / cover no-repeat;
-  }
-
-  /* Capa de legibilidad: azul marino arriba (cielo), centro despejado y gris cálido abajo (botones). */
-  .hero::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background: linear-gradient(
-      to bottom,
-      rgba(9, 30, 62, calc(var(--oscurecer-arriba) * 1.00)) 0%,
-      rgba(9, 30, 62, calc(var(--oscurecer-arriba) * .62)) 14%,
-      rgba(9, 30, 62, calc(var(--oscurecer-arriba) * .26)) 28%,
-      rgba(9, 30, 62, 0) 42%,
-      rgba(72, 68, 64, 0) 46%,
-      rgba(72, 68, 64, calc(var(--oscurecer) * .50)) 58%,
-      rgba(72, 68, 64, calc(var(--oscurecer) * .88)) 74%,
-      rgba(72, 68, 64, var(--oscurecer)) 100%
-    );
+    background: var(--fondo);
   }
 
   .marca {
@@ -110,6 +89,8 @@
     max-width: 100%;
     height: auto;
     display: block;
+    /* Halo sutil: el logo blanco se lee también sobre cielos claros. */
+    filter: drop-shadow(0 1px 8px rgba(0, 0, 0, .5));
   }
 
   .divisor {
@@ -127,7 +108,7 @@
     margin-top: calc(var(--u) * 26);
     font-weight: 300;
     line-height: 1.05;
-    text-shadow: 0 2px 14px rgba(0, 0, 0, .28);
+    text-shadow: 0 2px 14px rgba(0, 0, 0, .42), 0 1px 3px rgba(0, 0, 0, .28);
     overflow-wrap: anywhere;
     text-wrap: balance;
   }
@@ -149,7 +130,7 @@
     margin-top: calc(var(--u) * 4);
   }
 
-  /* Deja ver la foto entre el título y los botones. */
+  /* Sin imagen: separa el título de los botones (con imagen lo hace la franja de foto). */
   .espacio {
     flex: 1 1 auto;
     min-height: calc(var(--u) * 20);
@@ -213,6 +194,7 @@
     font-weight: 400;
     max-width: 7.6em;
     text-align: right;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, .45);
   }
 
   .iconos {
@@ -227,6 +209,7 @@
     font-size: max(22px, calc(var(--u) * 26));
     line-height: 1;
     text-decoration: none;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, .45);
     transition: opacity .2s;
   }
 
@@ -257,7 +240,125 @@
 
     .redes-texto { max-width: none; }
   }
+{{#if fondo_imagen_css}}
+  /* ================= Con foto (diseño fijo del mockup, no editable) ================= */
 
+  /* --- Celular (< 768 px): franja de foto entre dos degradados ---
+     Arriba azul profundo (continúa el cielo), abajo gris cálido casi plano (sostiene los botones).
+     Los mismos colores para todos los hoteles; no dependen de la foto. */
+  .hero {
+    background: linear-gradient(
+      to bottom,
+      rgb(30, 73, 115) 0%,
+      rgb(30, 73, 115) 12%,
+      rgb(64, 111, 156) 36%,
+      rgb(89, 83, 79) 58%,
+      rgb(86, 81, 78) 66%,
+      rgb(84, 80, 78) 78%,
+      rgb(84, 78, 73) 100%
+    );
+  }
+
+  /* La foto, en el flujo entre el título y los botones (en lugar de .espacio):
+     - ancho completo: márgenes negativos que anulan el padding lateral del hero;
+     - alto = min(espacio libre, 62vw), nunca menos de 120u: crece desde 0 (flex 1 1 0) hasta su
+       max-height; el espacio que sobra lo reparten los márgenes auto de arriba y abajo (queda
+       centrada). Si no cabe ni el mínimo, la página crece y hace scroll (nunca se recorta texto);
+     - bordes de arriba y abajo difuminados hacia los degradados con una máscara. */
+  .foto {
+    flex: 1 1 0;
+    align-self: stretch;
+    min-height: calc(var(--u) * 120);
+    max-height: 62vw;
+    margin-top: auto;
+    margin-bottom: auto;
+    margin-left: calc(-1 * max(calc(var(--u) * 20), env(safe-area-inset-left, 0px)));
+    margin-right: calc(-1 * max(calc(var(--u) * 20), env(safe-area-inset-right, 0px)));
+    background: {{{fondo_imagen_css}}} {{fondo_foco_css}} / cover no-repeat;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 78%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 78%, transparent 100%);
+  }
+
+  /* --- PC (≥ 768 px): foto a pantalla completa + oscurecido en "reloj de arena" acostado ---
+     Dos triángulos con la base en el borde izquierdo y en el derecho (a lo alto completo) y las
+     puntas tocándose en el centro: los bordes laterales quedan oscuros y arriba-centro y
+     abajo-centro quedan claros. Sin degradado vertical.
+     Cómo se dibuja (solo CSS, sin imágenes ni JS):
+     - ::before = triángulo izquierdo, ::after = derecho (espejo).
+     - Su fondo es un degradado HORIZONTAL azul marino muy oscuro: 52 % en el borde de la pantalla
+       → 0 en el centro (la punta), así no hay "borde de figura".
+     - La forma la recorta una máscara = intersección de dos degradados de esquina a esquina.
+       Con "to top right" / "to bottom right" (etc.) el 50 % del degradado cae justo sobre una
+       diagonal de la pantalla, a cualquier proporción: la forma se estira con la ventana.
+       La máscara es opaca hasta la diagonal (las esquinas conservan todo el oscurecido) y se
+       difumina hacia fuera hasta el 62 % (≈ 24 % del ancho en horizontal): sin líneas duras. */
+  @media (min-width: 768px) {
+    .hero {
+      background: var(--fondo) {{{fondo_imagen_css}}} {{fondo_foco_css}} / cover no-repeat;
+    }
+
+    /* En PC .foto vuelve a ser solo el separador flexible (como .espacio). */
+    .foto {
+      flex: 1 1 auto;
+      align-self: auto;
+      min-height: calc(var(--u) * 20);
+      max-height: none;
+      margin: 0;
+      background: none;
+      -webkit-mask-image: none;
+      mask-image: none;
+    }
+
+    .hero::before,
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      -webkit-mask-composite: source-in;
+      mask-composite: intersect;
+    }
+
+    /* Izquierdo: lado izquierdo de las dos diagonales. */
+    .hero::before {
+      background: linear-gradient(
+        to right,
+        rgba(6, 16, 34, .52) 0%,
+        rgba(6, 16, 34, .42) 12%,
+        rgba(6, 16, 34, .24) 28%,
+        rgba(6, 16, 34, .09) 40%,
+        rgba(6, 16, 34, 0) 50%
+      );
+      -webkit-mask-image:
+        linear-gradient(to top right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
+        linear-gradient(to bottom right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
+      mask-image:
+        linear-gradient(to top right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
+        linear-gradient(to bottom right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
+    }
+
+    /* Derecho: espejo del izquierdo. */
+    .hero::after {
+      background: linear-gradient(
+        to left,
+        rgba(6, 16, 34, .52) 0%,
+        rgba(6, 16, 34, .42) 12%,
+        rgba(6, 16, 34, .24) 28%,
+        rgba(6, 16, 34, .09) 40%,
+        rgba(6, 16, 34, 0) 50%
+      );
+      -webkit-mask-image:
+        linear-gradient(to top left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
+        linear-gradient(to bottom left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
+      mask-image:
+        linear-gradient(to top left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
+        linear-gradient(to bottom left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
+    }
+  }
+{{/if}}
   @media (prefers-reduced-motion: reduce) {
     .boton,
     .iconos a { transition: none; }
@@ -276,7 +377,7 @@
     <h1 class="titulo"><span class="t1">{{titulo_linea1}}</span><span class="t2">{{titulo_linea2}}</span></h1>
   </header>
 
-  <div class="espacio" aria-hidden="true"></div>
+  {{#if fondo_imagen_css}}<div class="foto" aria-hidden="true"></div>{{/if}}{{#if sin_fondo_imagen}}<div class="espacio" aria-hidden="true"></div>{{/if}}
 
   <nav class="botones" aria-label="Experiencias">
     {{{botones_html}}}

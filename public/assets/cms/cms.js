@@ -579,21 +579,10 @@ function applyBindings() {
   renderDesignPreview();
 }
 
-/** Valor de un ajuste numérico 0–100; si falta, el del servidor por defecto o `fallback`. */
-function pctSetting(key, fallback) {
-  const v = state.settings[key];
-  if (v != null && v !== '') return clampPct(v);
-  const d = state.defaults?.[key];
-  return clampPct(d != null && d !== '' ? d : fallback);
-}
-/** Ajustes nuevos que un servidor viejo podría no devolver: valor a mostrar si faltan. */
-const SETTING_FALLBACKS = { fondo_oscurecer_arriba: () => String(pctSetting('fondo_oscurecer_arriba', 60)) };
-
 function bindSettings() {
   $$('[data-setting]').forEach((input) => {
     const key = input.dataset.setting;
-    const raw = state.settings[key];
-    input.value = raw != null && raw !== '' ? raw : SETTING_FALLBACKS[key]?.() ?? '';
+    input.value = state.settings[key] ?? '';
     const field = input.closest('.field');
     const isUrl = input.type === 'url';
     input.addEventListener('input', () => {
@@ -674,7 +663,7 @@ function renderDesign() {
   });
   acceptDrops($('#focus-stage'), (file) => handleImage(file, 'fondo', $('#bg-progress'), (url) => saveSetting('fondo_imagen_url', url, { immediate: true })));
 
-  // Punto focal (encuadre en celular)
+  // Punto focal (encuadre de la foto, en celular y en PC)
   const frame = $('#focus-frame');
   frame.addEventListener('click', (e) => {
     const { x, y } = focusFromPoint(e.clientX, e.clientY, $('#focus-img').getBoundingClientRect());
@@ -822,10 +811,6 @@ function renderDesignPreview() {
     dot.setAttribute('aria-valuenow', String(x));
     dot.setAttribute('aria-valuetext', `${x}% desde la izquierda, ${y}% desde arriba. Usa las flechas para moverlo.`);
   }
-  const darkTop = $('#bg-dark-top-value');
-  if (darkTop) darkTop.textContent = `${pctSetting('fondo_oscurecer_arriba', 60)}%`;
-  const dark = $('#bg-dark-value');
-  if (dark) dark.textContent = `${clampPct(s.fondo_oscurecer)}%`;
   const sample = $('#btn-sample');
   if (sample) {
     sample.style.backgroundColor = s.color_fondo;

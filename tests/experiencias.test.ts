@@ -36,7 +36,8 @@ function settings(over: Partial<Settings> = {}): Settings {
 }
 
 function render(over: Partial<Settings> = {}, opts: { preview?: boolean } = {}, socials: Social[] = SOCIALS) {
-  return renderPage({ settings: settings(over), buttons: BUTTONS, socials, landing }, opts);
+  // Saltos de línea normalizados (con core.autocrlf la plantilla puede tener CRLF).
+  return renderPage({ settings: settings(over), buttons: BUTTONS, socials, landing }, opts).replace(/\r\n/g, '\n');
 }
 
 describe('plantilla "experiencias"', () => {
@@ -85,16 +86,122 @@ describe('plantilla "experiencias"', () => {
 
   it('lleva el foco del fondo, la imagen y el ancho del logo al CSS', () => {
     const html = render({ fondo_tipo: 'imagen', fondo_imagen_url: '/uploads/f.jpg', fondo_foco_x: '30', fondo_foco_y: '70', logo_ancho: '180', logo_url: '/uploads/l.png', logo_alt: 'Hotel' });
+    // Celular: la foto va en .foto; PC: en el fondo del hero. Ambas con el mismo encuadre.
+    expect(html).toContain('background: url("/uploads/f.jpg") 30% 70% / cover no-repeat;');
     expect(html).toContain('background: var(--fondo) url("/uploads/f.jpg") 30% 70% / cover no-repeat;');
     expect(html).toContain('--logo-n: 180;');
-    expect(html).toContain('--oscurecer: 0.85;');
-    expect(html).toContain('--oscurecer-arriba: 0.60;');
     expect(html).toContain('<img class="logo" src="/uploads/l.png" alt="Hotel">');
 
-    const centro = render();
-    expect(centro).toContain('background: var(--fondo)  center / cover no-repeat;');
+    const centro = render({ fondo_tipo: 'imagen', fondo_imagen_url: '/uploads/f.jpg' });
+    expect(centro).toContain('background: url("/uploads/f.jpg") center / cover no-repeat;');
+    expect(centro).toContain('background: var(--fondo) url("/uploads/f.jpg") center / cover no-repeat;');
     expect(centro).toContain('--logo-n: 150;');
     expect(centro).not.toContain('class="logo"');
+  });
+
+  const IMG = { fondo_tipo: 'imagen', fondo_imagen_url: '/uploads/f.jpg' } as const;
+  const mobileCss = (html: string) => html.slice(html.indexOf('Con foto (diseño fijo'), html.indexOf('PC (≥ 768 px): foto a pantalla completa'));
+
+  it('celular con foto: franja .foto entre el título y los botones, con degradado azul/gris fijo', () => {
+    const html = render(IMG);
+    // .foto sustituye a .espacio, entre el bloque del título y los botones.
+    expect(html).toContain('</header>\n\n  <div class="foto" aria-hidden="true"></div>\n\n  <nav class="botones"');
+    expect(html).not.toContain('class="espacio"');
+    const css = mobileCss(html);
+    // El hero móvil no lleva la foto: lleva el degradado (mismos colores para todos los hoteles).
+    expect(css).toMatch(/\.hero \{\s*background: linear-gradient\(\s*to bottom,\s*rgb\(30, 73, 115\) 0%,/);
+    expect(css).toContain('rgb(64, 111, 156) 36%');
+    expect(css).toContain('rgb(89, 83, 79) 58%');
+    expect(css).toContain('rgb(84, 78, 73) 100%');
+    const heroRule = css.slice(css.indexOf('  .hero {'), css.indexOf('\n  }', css.indexOf('  .hero {')));
+    expect(heroRule).toContain('linear-gradient(');
+    expect(heroRule).not.toContain('url(');
+    // La franja: ancho completo, alto min(espacio libre, 62vw) con mínimo 120u, centrada y difuminada.
+    const foto = css.slice(css.indexOf('  .foto {'));
+    expect(foto).toContain('flex: 1 1 0;');
+    expect(foto).toContain('align-self: stretch;');
+    expect(foto).toContain('min-height: calc(var(--u) * 120);');
+    expect(foto).toContain('max-height: 62vw;');
+    expect(foto).toContain('margin-top: auto;');
+    expect(foto).toContain('margin-bottom: auto;');
+    expect(foto).toContain('margin-left: calc(-1 * max(calc(var(--u) * 20), env(safe-area-inset-left, 0px)));');
+    expect(foto).toContain('margin-right: calc(-1 * max(calc(var(--u) * 20), env(safe-area-inset-right, 0px)));');
+    expect(foto).toContain('background: url("/uploads/f.jpg") center / cover no-repeat;');
+    expect(foto).toContain('-webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 78%, transparent 100%);');
+    expect(foto).toContain('  mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 78%, transparent 100%);');
+    // Sin capa de oscurecido en celular: las capas ::before/::after solo existen dentro del bloque de PC.
+    const pcStart = html.indexOf('@media (min-width: 768px) {\n    .hero {\n      background: var(--fondo) url(');
+    expect(pcStart).toBeGreaterThan(-1);
+    expect(html.indexOf('.hero::before')).toBeGreaterThan(pcStart);
+  });
+
+  it('PC con foto: foto a pantalla completa y reloj de arena horizontal (dos triángulos enmascarados)', () => {
+    const html = render(IMG);
+    const pc = html.slice(html.indexOf('@media (min-width: 768px) {\n    .hero {\n      background: var(--fondo) url('));
+    expect(pc).toContain('background: var(--fondo) url("/uploads/f.jpg") center / cover no-repeat;');
+    // .foto vuelve a ser solo el separador.
+    expect(pc).toMatch(/\.foto \{[^}]*background: none;[^}]*mask-image: none;/);
+    // Un triángulo por lado: degradado horizontal (máx. en el borde, 0 en la punta del centro)…
+    expect(pc).toMatch(/\.hero::before \{\s*background: linear-gradient\(\s*to right,\s*rgba\(6, 16, 34, \.52\) 0%,/);
+    expect(pc).toMatch(/\.hero::after \{\s*background: linear-gradient\(\s*to left,\s*rgba\(6, 16, 34, \.52\) 0%,/);
+    expect(pc.split('rgba(6, 16, 34, 0) 50%').length - 1).toBe(2);
+    // …recortado por la intersección de dos degradados de esquina (siguen las diagonales a cualquier proporción).
+    expect(pc).toContain('mask-composite: intersect;');
+    expect(pc).toContain('-webkit-mask-composite: source-in;');
+    for (const dir of ['to top right', 'to bottom right', 'to top left', 'to bottom left']) {
+      const layer = `linear-gradient(${dir}, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%)`;
+      expect(pc.split(layer).length - 1, dir).toBe(2); // con y sin prefijo -webkit-
+    }
+    // Regla común (".hero::before, .hero::after") + una propia de cada lado; nada más.
+    expect(html.match(/\.hero::(?:before|after)/g)).toHaveLength(4);
+    // Sin degradado vertical en PC.
+    expect(pc.slice(0, pc.indexOf('@media (prefers-reduced-motion'))).not.toContain('to bottom,');
+    // Legibilidad de las redes.
+    expect(html).toMatch(/\.redes-texto \{[^}]*text-shadow: 0 1px 8px rgba\(0, 0, 0, \.45\);/);
+    expect(html).toMatch(/\.iconos a \{[^}]*text-shadow: 0 1px 8px rgba\(0, 0, 0, \.45\);/);
+  });
+
+  it('color sólido (sin imagen): color plano, sin franja, sin degradados ni oscurecido', () => {
+    for (const over of [{}, { fondo_tipo: 'color', fondo_imagen_url: '/uploads/f.jpg' }, { fondo_tipo: 'imagen', fondo_imagen_url: '' }] as Partial<Settings>[]) {
+      const html = render(over);
+      const label = JSON.stringify(over);
+      expect(html, label).toMatch(/\.hero \{[^}]*background: var\(--fondo\);\s*\}/);
+      expect(html, label).toContain('<div class="espacio" aria-hidden="true"></div>');
+      expect(html, label).not.toContain('class="foto"');
+      expect(html, label).not.toContain('.foto');
+      expect(html, label).not.toContain('url(');
+      expect(html, label).not.toContain('.hero::before');
+      expect(html, label).not.toContain('.hero::after');
+      expect(html, label).not.toContain('mask-image');
+      expect(html, label).not.toContain('rgb(30, 73, 115)');
+      expect(html, label).not.toContain('rgba(6, 16, 34');
+    }
+  });
+
+  it('el oscurecido ya no es editable: sin --oscurecer ni --oscurecer-arriba', () => {
+    for (const html of [render(), render(IMG), render({ ...IMG, fondo_oscurecer: '10', fondo_oscurecer_arriba: '0' } as any, { preview: true })]) {
+      expect(html).not.toContain('--oscurecer');
+      expect(html).not.toContain('oscurecer');
+    }
+    for (const t of ['experiencias', 'cartas'] as const) {
+      const v = layoutValues({ ...defaultSettingsFor(t), fondo_oscurecer: '85' } as Settings, t);
+      expect(Object.keys(v).sort(), t).toEqual(['fondo_foco_css', 'logo_align', 'logo_ancho', 'logo_margin', 'logo_text_align']);
+    }
+    // Un ajuste antiguo con la clave (fila de producción) no cambia nada.
+    expect(render({ ...IMG, fondo_oscurecer: '85' } as any)).toBe(render(IMG));
+  });
+
+  it('escapa la URL de la imagen dentro del CSS (comillas, barras, saltos de línea, < >)', () => {
+    const url = '/uploads/a"b\\c\nd\re<x>);}</style><script>alert(1)</script>.jpg';
+    const html = render({ fondo_tipo: 'imagen', fondo_imagen_url: url });
+    const enc = 'url("/uploads/a%22b%5Cc%0Ad%0De%3Cx%3E);}%3C/style%3E%3Cscript%3Ealert(1)%3C/script%3E.jpg")';
+    expect(html).toContain(`background: ${enc} center / cover no-repeat;`);
+    expect(html).toContain(`background: var(--fondo) ${enc} center / cover no-repeat;`);
+    expect(html).not.toContain('<script>');
+    expect(html.match(/<\/style>/g)).toHaveLength(1);
+    // Comillas simples y paréntesis: dentro de url("…") no cierran nada.
+    const simple = render({ fondo_tipo: 'imagen', fondo_imagen_url: "https://cdn.ejemplo.com/f o't(o).jpg" });
+    expect(simple).toContain(`background: url("https://cdn.ejemplo.com/f o't(o).jpg") center / cover no-repeat;`);
   });
 
   it('escala fluida: todo en --u, sin alturas fijas en vh', () => {
@@ -114,39 +221,6 @@ describe('plantilla "experiencias"', () => {
     expect(html).toContain('font-size: max(12px, calc(var(--u) * 15));');
     expect(html).toContain('font-size: max(11.5px, calc(var(--u) * 13));');
     expect(html).toContain('font-size: max(22px, calc(var(--u) * 26));');
-  });
-
-  it('oscurece arriba y abajo con dos tintes en una sola capa', () => {
-    const html = render({ fondo_oscurecer: '40', fondo_oscurecer_arriba: '25' });
-    expect(html).toContain('--oscurecer: 0.40;');
-    expect(html).toContain('--oscurecer-arriba: 0.25;');
-    expect(html).toContain('rgba(9, 30, 62, calc(var(--oscurecer-arriba) * 1.00)) 0%');
-    expect(html).toContain('rgba(72, 68, 64, var(--oscurecer)) 100%');
-    expect(html.match(/\.hero::before/g)).toHaveLength(1);
-  });
-
-  it('fondo_oscurecer_arriba siempre produce un número válido o el valor por defecto', () => {
-    const value = (html: string) => html.match(/--oscurecer-arriba: ([^;]*);/)![1];
-    expect(value(render({ fondo_oscurecer_arriba: '0' }))).toBe('0.00');
-    expect(value(render({ fondo_oscurecer_arriba: '100' }))).toBe('1.00');
-    expect(value(render({ fondo_oscurecer_arriba: '60' }))).toBe('0.60');
-    expect(value(render({ fondo_oscurecer_arriba: '999' }))).toBe('1.00'); // fuera de rango: se acota
-    for (const bad of ['1.5', '100%', 'x', '-1', '0x10', '', '1); } body { color: red', '<script>']) {
-      const html = render({ fondo_oscurecer_arriba: bad });
-      expect(value(html), bad).toBe('0.60');
-      expect(html).not.toContain('<script>');
-      expect(html).not.toContain('color: red');
-    }
-    // Ajustes guardados antes de existir la clave (sin ella): valor por defecto.
-    const { fondo_oscurecer_arriba: _omit, ...sinClave } = defaultSettingsFor('experiencias');
-    const html = renderPage({ settings: sinClave as Settings, buttons: BUTTONS, socials: SOCIALS, landing });
-    expect(value(html)).toBe('0.60');
-    expect(html).toContain('--oscurecer: 0.85;');
-    // layoutValues por sí solo también recurre al valor por defecto.
-    for (const t of ['experiencias', 'cartas'] as const) {
-      expect(layoutValues(sinClave as Settings, t).fondo_oscurecer_arriba_css, t).toBe('0.60');
-      expect(layoutValues({ ...sinClave, fondo_oscurecer_arriba: 'basura' } as Settings, t).fondo_oscurecer_arriba_css, t).toBe('0.60');
-    }
   });
 
   it('escapa el título', () => {

@@ -294,35 +294,56 @@ describe('varias landings: API, rutas y aislamiento', () => {
     expect(a2.socials).toEqual(a.socials);
 
     // Validación estricta de las claves nuevas también en la API.
-    for (const body of [{ logo_ancho: '999' }, { logo_posicion: 'x' }, { fondo_foco_x: '50%; }' }, { fondo_oscurecer: '1.5' }, { fondo_oscurecer_arriba: '1.5' }]) {
+    for (const body of [{ logo_ancho: '999' }, { logo_posicion: 'x' }, { fondo_foco_x: '50%; }' }]) {
       expect((await asB(agent.patch('/api/cms/settings')).send(body)).status, JSON.stringify(body)).toBe(400);
     }
   });
 
-  it('fondo_oscurecer_arriba: valor por defecto sin migrar, guardado y aislado por landing', async () => {
-    // Datos guardados antes de existir la clave (como producción): sin la fila, el estado trae el valor por defecto.
+  it('filas antiguas fondo_oscurecer / fondo_oscurecer_arriba (como en producción): se ignoran sin romper nada', async () => {
     const db = await getDb();
-    await db.query(`delete from landing_settings where key = 'fondo_oscurecer_arriba'`);
-    expect(await db.query(`select 1 from landing_settings where key = 'fondo_oscurecer_arriba'`)).toEqual([]);
-    expect((await db.query(`select 1 from landing_settings where landing_id = $1 and key = 'fondo_oscurecer'`, [A.id])).length).toBe(1);
-    expect((await agent.get('/api/cms/state')).body.settings.fondo_oscurecer_arriba).toBe('60');
-    expect((await asB(agent.get('/api/cms/state'))).body.settings.fondo_oscurecer_arriba).toBe('60');
-    expect((await request(app).get('/exp-demo')).text).toContain('--oscurecer-arriba: 0.60;');
+    // El seed ya no las crea; se insertan a mano como las tiene la base de producción.
+    expect(await db.query(`select 1 from landing_settings where key like 'fondo_oscurecer%'`)).toEqual([]);
+    for (const l of [A, B]) {
+      await db.query(`insert into landing_settings (landing_id, key, value) values ($1, 'fondo_oscurecer', '85')`, [l.id]);
+    }
+    await db.query(`insert into landing_settings (landing_id, key, value) values ($1, 'fondo_oscurecer_arriba', '60')`, [B.id]);
 
-    const bad = await asB(agent.patch('/api/cms/settings')).send({ fondo_oscurecer_arriba: '100%' });
-    expect(bad.status).toBe(400);
-    expect(bad.body.error).toBe('El oscurecido debe ser un número entre 0 y 100');
+    // GET /api/cms/state: 200 y sin las claves antiguas (ni en settings ni en defaults).
+    for (const forB of [false, true]) {
+      const res = await (forB ? asB(agent.get('/api/cms/state')) : agent.get('/api/cms/state'));
+      expect(res.status).toBe(200);
+      expect(res.body.settings).not.toHaveProperty('fondo_oscurecer');
+      expect(res.body.settings).not.toHaveProperty('fondo_oscurecer_arriba');
+      expect(res.body.defaults).not.toHaveProperty('fondo_oscurecer');
+    }
 
-    const r = await asB(agent.patch('/api/cms/settings')).send({ fondo_oscurecer_arriba: '25' });
+    // PATCH de otro ajuste: se guarda bien; la respuesta tampoco trae las claves antiguas.
+    const before = (await asB(agent.get('/api/cms/state'))).body.settings.redes_titulo;
+    const r = await asB(agent.patch('/api/cms/settings')).send({ redes_titulo: 'Síguenos (prueba)' });
     expect(r.status).toBe(200);
-    expect(r.body.settings).toMatchObject({ fondo_oscurecer_arriba: '25', fondo_oscurecer: '85' });
-    expect((await asB(agent.get('/api/cms/state'))).body.settings.fondo_oscurecer_arriba).toBe('25');
-    expect((await agent.get('/api/cms/state')).body.settings.fondo_oscurecer_arriba).toBe('60');
-    expect((await request(app).get('/exp-demo')).text).toContain('--oscurecer-arriba: 0.25;');
-    expect((await agent.get(`/api/cms/preview?landing=${B.id}`)).text).toContain('--oscurecer-arriba: 0.25;');
+    expect(r.body.settings.redes_titulo).toBe('Síguenos (prueba)');
+    expect(r.body.settings).not.toHaveProperty('fondo_oscurecer');
 
-    // Vuelve al valor por defecto para no afectar a las demás pruebas.
-    expect((await asB(agent.patch('/api/cms/settings')).send({ fondo_oscurecer_arriba: '60' })).status).toBe(200);
+    // PATCH con la clave antigua: clave desconocida, igual que cualquier otra (esquema estricto).
+    for (const body of [{ fondo_oscurecer: '50' }, { fondo_oscurecer_arriba: '50' }, { clave_que_no_existe: '1' }]) {
+      expect((await asB(agent.patch('/api/cms/settings')).send(body)).status, JSON.stringify(body)).toBe(400);
+    }
+    expect((await db.query(`select value from landing_settings where landing_id = $1 and key = 'fondo_oscurecer'`, [B.id]))[0]!.value).toBe('85');
+
+    // Página pública y vista previa: se renderizan y no hay rastro del oscurecido editable.
+    const pub = await request(app).get('/exp-demo');
+    const prev = await agent.get(`/api/cms/preview?landing=${B.id}`);
+    for (const res of [pub, prev]) {
+      expect(res.status).toBe(200);
+      expect(res.text).toContain('Síguenos (prueba)');
+      expect(res.text).not.toContain('oscurecer');
+      expect(res.text).not.toContain('{{');
+    }
+    expect((await request(app).get('/')).status).toBe(200);
+
+    // Deja todo como estaba para las demás pruebas.
+    expect((await asB(agent.patch('/api/cms/settings')).send({ redes_titulo: before })).status).toBe(200);
+    await db.query(`delete from landing_settings where key like 'fondo_oscurecer%'`);
   });
 
   it('GET /:slug: existe, inexistente, inactiva, reservada y slug inválido', async () => {
@@ -504,9 +525,10 @@ describe('plantillas', () => {
     expect(html).toContain('<span class="redes-texto">Síguenos en / Follow us on</span>');
     expect(html).toContain('href="/go/social/22222222-2222-4222-8222-222222222201" aria-label="Facebook"');
     expect(html).toContain('href="mailto:reservas@ejemplo.com" aria-label="Correo"');
-    expect(html).toContain('--oscurecer: 0.85;');
+    expect(html).not.toContain('--oscurecer');
+    expect(html).toContain('<div class="foto" aria-hidden="true"></div>');
     expect(html).toContain('.hero::before');
-    expect(html).toContain('--oscurecer-arriba: 0.60;');
+    expect(html).toContain('mask-composite: intersect;');
     expect(html).toContain('--logo-n: 150;');
     expect(html).toContain('--u:');
     expect(html).not.toMatch(/min-height:\s*30vh/);
@@ -527,10 +549,8 @@ describe('validación de los ajustes nuevos', () => {
       { logo_ancho: '999' }, { logo_ancho: '59' }, { logo_ancho: '401' }, { logo_ancho: '060' }, { logo_ancho: '200px' }, { logo_ancho: '' }, { logo_ancho: 200 },
       { logo_posicion: 'x' }, { logo_posicion: 'LEFT' }, { logo_posicion: 'center;}' },
       { fondo_foco_x: '50%; }' }, { fondo_foco_x: '101' }, { fondo_foco_x: '-1' }, { fondo_foco_y: '1e2' }, { fondo_foco_y: '50.5' },
-      { fondo_oscurecer: '1.5' }, { fondo_oscurecer: '100%' }, { fondo_oscurecer: '0x10' },
-      { fondo_oscurecer_arriba: '1.5' }, { fondo_oscurecer_arriba: '100%' }, { fondo_oscurecer_arriba: '-1' },
-      { fondo_oscurecer_arriba: '101' }, { fondo_oscurecer_arriba: '0x10' }, { fondo_oscurecer_arriba: '' },
-      { fondo_oscurecer_arriba: '060' }, { fondo_oscurecer_arriba: 60 },
+      // Ajustes de oscurecido retirados (diseño fijo): ahora son claves desconocidas, incluso con valores que antes valían.
+      { fondo_oscurecer: '85' }, { fondo_oscurecer: '0' }, { fondo_oscurecer_arriba: '60' }, { fondo_oscurecer_arriba: '100' },
       { titulo_linea1: 'x'.repeat(61) }, { titulo_linea2: 'x'.repeat(61) },
     ];
     for (const body of bad) expect(settingsPatch.safeParse(body).success, JSON.stringify(body)).toBe(false);
@@ -540,8 +560,7 @@ describe('validación de los ajustes nuevos', () => {
     const good = [
       { logo_ancho: '60' }, { logo_ancho: '400' }, { logo_ancho: ' 150 ' },
       { logo_posicion: 'left' }, { logo_posicion: 'center' }, { logo_posicion: 'right' },
-      { fondo_foco_x: '0', fondo_foco_y: '100' }, { fondo_oscurecer: '0' }, { fondo_oscurecer: '100' },
-      { fondo_oscurecer_arriba: '0' }, { fondo_oscurecer_arriba: '100' }, { fondo_oscurecer_arriba: '60' },
+      { fondo_foco_x: '0', fondo_foco_y: '100' },
       { titulo_linea1: 'x'.repeat(60), titulo_linea2: '' },
     ];
     for (const body of good) expect(settingsPatch.safeParse(body).success, JSON.stringify(body)).toBe(true);
@@ -549,9 +568,15 @@ describe('validación de los ajustes nuevos', () => {
 
   it('valores por defecto por plantilla', () => {
     expect(defaultSettingsFor('cartas')).toEqual({ ...DEFAULT_SETTINGS, logo_ancho: '260' });
-    expect(defaultSettingsFor('cartas')).toMatchObject({ logo_posicion: 'center', fondo_foco_x: '50', fondo_foco_y: '50', fondo_oscurecer: '85', fondo_oscurecer_arriba: '60' });
+    expect(defaultSettingsFor('cartas')).toMatchObject({ logo_posicion: 'center', fondo_foco_x: '50', fondo_foco_y: '50' });
+    for (const t of ['cartas', 'experiencias'] as const) {
+      expect(defaultSettingsFor(t), t).not.toHaveProperty('fondo_oscurecer');
+      expect(defaultSettingsFor(t), t).not.toHaveProperty('fondo_oscurecer_arriba');
+    }
+    expect(Object.keys(settingsSchema.shape)).not.toContain('fondo_oscurecer');
+    expect(Object.keys(settingsSchema.shape)).not.toContain('fondo_oscurecer_arriba');
     expect(defaultSettingsFor('experiencias')).toMatchObject({
-      logo_ancho: '150', logo_posicion: 'center', fondo_foco_x: '50', fondo_foco_y: '50', fondo_oscurecer: '85', fondo_oscurecer_arriba: '60',
+      logo_ancho: '150', logo_posicion: 'center', fondo_foco_x: '50', fondo_foco_y: '50',
       titulo_linea1: 'Experiences', titulo_linea2: 'Experiencias',
       color_fondo: '#2b2b2b', color_texto: '#ffffff', color_boton: '#262626', color_boton_texto: '#ffffff',
       color_boton_hover: '#3a3a3a', color_texto_boton_hover: '#ffffff', redes_titulo: 'Síguenos en / Follow us on', novedades_activo: '0',

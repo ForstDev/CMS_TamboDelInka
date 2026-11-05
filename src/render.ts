@@ -37,8 +37,9 @@ export function renderTemplate(tpl: string, data: Record<string, unknown>): stri
     .replace(/\{\{(\w+)\}\}/g, (_, key) => escapeHtml(data[key]));
 }
 
+/** url("...") seguro dentro de <style>: comillas, barras, saltos de línea y < > se codifican. */
 function cssUrl(url: string): string {
-  return `url("${url.replace(/["\\\n\r]/g, (c) => encodeURIComponent(c))}")`;
+  return `url("${url.replace(/["\\\n\r<>]/g, (c) => encodeURIComponent(c))}")`;
 }
 
 export interface PageData {
@@ -79,8 +80,6 @@ export function layoutValues(s: Settings, template: Template) {
     logo_margin: pos.margin,
     // 50% 50% se escribe "center", igual que la plantilla original.
     fondo_foco_css: x === 50 && y === 50 ? 'center' : `${x}% ${y}%`,
-    fondo_oscurecer_css: (intSetting(s.fondo_oscurecer, 0, 100, Number(d.fondo_oscurecer)) / 100).toFixed(2),
-    fondo_oscurecer_arriba_css: (intSetting(s.fondo_oscurecer_arriba, 0, 100, Number(d.fondo_oscurecer_arriba)) / 100).toFixed(2),
   };
 }
 
@@ -117,6 +116,8 @@ export function renderPage({ settings, buttons, socials, landing }: PageData, op
     ...s,
     ...layoutValues(s, template),
     fondo_imagen_css: useImage ? cssUrl(s.fondo_imagen_url) : '',
+    // La plantilla no tiene {{else}}: bandera inversa para el caso de color sólido.
+    sin_fondo_imagen: useImage ? '' : '1',
     novedades_url: s.novedades_activo === '1' ? s.novedades_url : '',
     botones_html,
     redes_html,
