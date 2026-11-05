@@ -80,6 +80,7 @@ export function layoutValues(s: Settings, template: Template) {
     // 50% 50% se escribe "center", igual que la plantilla original.
     fondo_foco_css: x === 50 && y === 50 ? 'center' : `${x}% ${y}%`,
     fondo_oscurecer_css: (intSetting(s.fondo_oscurecer, 0, 100, Number(d.fondo_oscurecer)) / 100).toFixed(2),
+    fondo_oscurecer_arriba_css: (intSetting(s.fondo_oscurecer_arriba, 0, 100, Number(d.fondo_oscurecer_arriba)) / 100).toFixed(2),
   };
 }
 

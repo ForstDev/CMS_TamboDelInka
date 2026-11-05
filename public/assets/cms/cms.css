@@ -238,9 +238,8 @@ img { max-width: 100%; }
   .sheet-bar .device-seg-wrap { order: 1; flex-basis: auto; margin-left: auto; }
   .sheet-bar #close-preview { order: 2; }
 }
-.sheet-body { flex: 1; min-height: 0; display: flex; }
-.sheet-screen { flex: 1; display: flex; min-width: 0; }
-.sheet iframe { flex: 1; width: 100%; border: 0; background: #fff; }
+/* El marco (celular o PC) se centra y el JS lo escala al tamaño de .sheet-body. */
+.sheet-body { flex: 1; min-height: 0; min-width: 0; display: grid; place-items: center; overflow: hidden; }
 
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
 .live-dot, .live .dot { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); animation: pulse 2s infinite; }
@@ -336,6 +335,7 @@ img { max-width: 100%; }
 /* Deslizadores */
 .range-field input[type="range"] { width: 100%; height: 30px; margin: 0; accent-color: var(--brand); cursor: pointer; }
 .range-value { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.range-help { margin-top: 10px; }
 
 /* Punto focal del fondo */
 .focus-block { display: grid; gap: 8px; min-width: 0; }
@@ -463,7 +463,7 @@ body:not(.tpl-experiencias) [data-only="experiencias"] { display: none !importan
 .sample-btn { display: block; padding: 11px 10px; border-radius: 999px; border: 1.5px solid #ccc; text-align: center; font-family: "Poppins", Arial, sans-serif; font-size: 11px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
 
 /* Vista de Google */
-.serp { display: grid; gap: 2px; margin-top: 16px; padding: 14px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--line); font-family: Arial, sans-serif; }
+.serp { display: grid; gap: 2px; margin-top: 16px; padding: 14px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--line); font-family: Arial, sans-serif; overflow-wrap: anywhere; }
 .serp-url { font-size: 12px; color: #4d5156; }
 .serp-title { font-size: 18px; color: #1a0dab; line-height: 1.3; }
 .serp-desc { font-size: 13px; color: #4d5156; line-height: 1.5; }
@@ -494,8 +494,11 @@ body:not(.tpl-experiencias) [data-only="experiencias"] { display: none !importan
 .chart-box { position: relative; height: 220px; margin-top: 12px; }
 .chart-box.short { height: 170px; }
 
-.stats-grid { display: grid; gap: 0 14px; }
-.stack { display: grid; align-content: start; }
+/* minmax(0, …) y min-width: 0: sin esto el ancho de los <canvas> de Chart.js impide que las columnas se achiquen. */
+.stats-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 14px; }
+.stats-grid > *, .stack > * { min-width: 0; }
+.stack { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; }
+.chart-box, .sd-chart { min-width: 0; }
 
 .ranking { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 12px; }
 .ranking li { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 4px 10px; }
@@ -519,7 +522,7 @@ body:not(.tpl-experiencias) [data-only="experiencias"] { display: none !importan
 
 /* Redes sociales: dashboard con estilo vidrio */
 .social-dash {
-  display: grid; gap: 12px; margin-bottom: 14px; padding: 16px; border-radius: 18px; color: #fff;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-bottom: 14px; padding: 16px; border-radius: 18px; color: #fff;
   background: radial-gradient(circle at 88% 8%, rgba(120, 214, 196, .28), transparent 38%), radial-gradient(circle at 6% 96%, rgba(201, 170, 110, .22), transparent 42%), linear-gradient(135deg, #163d3b 0%, #1d4b49 45%, #26615f 100%); min-width: 0;
 }
 .social-dash a { color: #fff; font-weight: 700; }
@@ -583,32 +586,39 @@ body:not(.tpl-experiencias) [data-only="experiencias"] { display: none !importan
    Vista previa (escritorio)
    ========================================================================== */
 .preview-pane { display: none; }
-.phone { position: relative; width: 340px; height: 680px; border-radius: 44px; padding: 12px; background: #101615; box-shadow: var(--shadow-lg), inset 0 0 0 2px #2b3533; }
+/* Celular: el iframe mide SIEMPRE 390×844 px lógicos dentro de un marco de 414×868 (padding 12 px).
+   Todo el marco (radio, notch) se escala con --k; .phone-box reserva el tamaño ya escalado
+   (--box-w, --box-h). El JS los calcula con el tamaño real del contenedor (ResizeObserver + resize/zoom). */
+.phone-box { position: relative; flex: none; width: var(--box-w, 331px); height: var(--box-h, 694px); }
+.phone {
+  position: absolute; top: 0; left: 0; width: 414px; height: 868px; padding: 12px; border-radius: 44px;
+  background: #101615; box-shadow: var(--shadow-lg), inset 0 0 0 2px #2b3533;
+  transform: scale(var(--k, .8)); transform-origin: 0 0;
+}
 .phone-notch { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 120px; height: 26px; background: #101615; border-radius: 0 0 16px 16px; z-index: 2; }
-.phone iframe { width: 100%; height: 100%; border: 0; border-radius: 33px; background: #fff; }
+.phone iframe { display: block; width: 390px; height: 844px; border: 0; border-radius: 33px; background: #fff; }
+/* Espacio de la columna derecha que ocupa el marco (lo mide el JS). */
+.preview-fit { align-self: stretch; flex: 1 1 0; min-width: 0; min-height: 200px; display: grid; place-items: center; }
 
-/* Vista previa "PC": la página se dibuja a 1366×768 y se escala (k) dentro de un monitor.
-   El JS pone --mon-w, --mon-h (px) y --k según el ancho disponible. */
-body[data-device="pc"] .phone,
-body[data-device="pc"] .sheet-screen {
-  box-sizing: content-box; flex: none; display: block; position: relative;
-  width: var(--mon-w, 364px); height: var(--mon-h, 205px); padding: 0;
+/* Vista previa "PC": la página se dibuja a 1366×768 y se escala (k) dentro de un monitor (borde 8 px sin escalar).
+   El JS pone --mon-w, --mon-h (px) y --k según el espacio disponible. */
+body[data-device="pc"] .phone-box { width: calc(var(--mon-w, 364px) + 16px); height: calc(var(--mon-h, 205px) + 16px); }
+body[data-device="pc"] .phone {
+  box-sizing: content-box; width: var(--mon-w, 364px); height: var(--mon-h, 205px); padding: 0; transform: none;
   border: 8px solid #101615; border-radius: 10px; overflow: hidden; background: #101615;
   box-shadow: var(--shadow-lg), 0 0 0 1px #2b3533;
 }
 body[data-device="pc"] .phone-notch { display: none; }
-body[data-device="pc"] .phone iframe,
-body[data-device="pc"] .sheet-screen iframe {
-  flex: none; display: block; width: 1366px; height: 768px; border: 0; border-radius: 0;
+body[data-device="pc"] .phone iframe {
+  width: 1366px; height: 768px; border-radius: 0;
   transform: scale(var(--k, .2665)); transform-origin: 0 0;
 }
-body[data-device="pc"] .sheet-body { display: grid; place-items: center; }
 
 /* Vista previa ampliada (diálogo). El JS pone --k (escala), --sw y --sh (tamaño de la pantalla, px). */
 .pv-dialog { width: min(96vw, 1600px); height: 92vh; max-width: none; max-height: none; padding: 0; border: 0; border-radius: 16px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); overflow: hidden; }
 .pv-dialog[open] { display: flex; flex-direction: column; }
 .pv-dialog::backdrop { background: rgba(14, 22, 21, .55); backdrop-filter: blur(2px); }
-.pv-head { flex: none; display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 10px 0 18px; border-bottom: 1px solid var(--line); }
+.pv-head { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; min-height: 56px; padding: 8px 10px 8px 18px; border-bottom: 1px solid var(--line); }
 .pv-head h3 { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pv-body { flex: 1; min-height: 0; display: grid; place-items: center; padding: 20px; overflow: hidden; background: #1b1f1e; }
 .pv-stage { position: relative; flex: none; box-sizing: content-box; background: #101615; }
@@ -660,7 +670,7 @@ body[data-device="pc"] .pv-screen iframe { width: 1440px; height: 900px; }
   .preview-fab { bottom: 24px; right: 24px; }
   .toasts { bottom: 24px; left: auto; right: 24px; width: 420px; justify-items: end; }
   .hide-desktop { display: none; }
-  .stats-grid { grid-template-columns: 1.3fr 1fr; }
+  .stats-grid { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
 }
 
 @media (min-width: 1280px) {
@@ -677,8 +687,10 @@ body[data-device="pc"] .pv-screen iframe { width: 1440px; height: 900px; }
   .toasts { right: 444px; }
 }
 
-@media (min-width: 1280px) and (max-height: 820px) {
-  .phone { height: calc(100vh - 120px); }
+/* Ventanas bajas (p. ej. zoom alto): la barra lateral deja de ser fija para que todo se pueda alcanzar
+   con el scroll de la página (con overflow propio recortaría la lista de landings, que sobresale). */
+@media (min-width: 900px) and (max-height: 600px) {
+  .sidebar { position: relative; height: auto; min-height: 100vh; gap: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

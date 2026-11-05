@@ -27,12 +27,26 @@
 
   body {
     min-height: 100vh;
-    background: var(--fondo) {{{fondo_imagen_css}}} {{fondo_foco_css}} / cover no-repeat fixed;
+    min-height: 100svh;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    background: var(--fondo);
     color: var(--texto);
     font-family: "Poppins", Arial, sans-serif;
     display: flex;
     justify-content: center;
     padding: 48px 16px 40px;
+  }
+
+  /* Fondo fijo en su propia capa (en vez de background-attachment: fixed, que en iPhone/Android
+     se amplía o se corta al hacer zoom). Mismo aspecto: cubre la ventana y no se mueve al hacer scroll. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--fondo) {{{fondo_imagen_css}}} {{fondo_foco_css}} / cover no-repeat;
   }
 
   .pagina {

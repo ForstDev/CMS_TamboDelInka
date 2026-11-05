@@ -201,10 +201,14 @@
           </div>
         </div>
         <label class="field range-field" data-only="experiencias">
+          <span class="field-label">Oscurecer la parte de arriba <output class="range-value" id="bg-dark-top-value" for="bg-dark-top"></output></span>
+          <input type="range" id="bg-dark-top" min="0" max="100" step="1" data-setting="fondo_oscurecer_arriba" aria-describedby="bg-dark-top-value">
+        </label>
+        <label class="field range-field" data-only="experiencias">
           <span class="field-label">Oscurecer la parte de abajo <output class="range-value" id="bg-dark-value" for="bg-dark"></output></span>
           <input type="range" id="bg-dark" min="0" max="100" step="1" data-setting="fondo_oscurecer" aria-describedby="bg-dark-value">
-          <span class="hint">Hace que los botones y textos se lean mejor sobre la foto.</span>
         </label>
+        <p class="hint range-help" data-only="experiencias">Arriba mejora la lectura del logo y el título; abajo, la de los botones.</p>
         <div class="color-row" data-color="color_fondo">
           <div><strong>Color de fondo</strong><small>Se ve mientras carga la imagen o si eliges color sólido.</small></div>
         </div>
@@ -396,7 +400,12 @@
         </div>
       </div>
     </div>
-    <div class="phone"><div class="phone-notch"></div><iframe id="preview-frame" title="Vista previa de la página" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe></div>
+    <!-- El JS escala el marco (celular 390×844 lógicos o PC 1366×768) al tamaño de #preview-fit. -->
+    <div class="preview-fit" id="preview-fit">
+      <div class="phone-box" id="preview-box">
+        <div class="phone"><div class="phone-notch" aria-hidden="true"></div><iframe id="preview-frame" title="Vista previa de la página" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe></div>
+      </div>
+    </div>
     <p class="hint center">En la vista previa los clics no se cuentan en las estadísticas.</p>
   </aside>
 
@@ -424,8 +433,11 @@
     </div>
   </div>
   <div class="sheet-body" id="sheet-body">
-    <div class="sheet-screen" id="sheet-screen">
-      <iframe id="preview-frame-mobile" title="Vista previa de la página" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
+    <div class="phone-box" id="sheet-box">
+      <div class="phone sheet-screen" id="sheet-screen">
+        <div class="phone-notch" aria-hidden="true"></div>
+        <iframe id="preview-frame-mobile" title="Vista previa de la página" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
+      </div>
     </div>
   </div>
 </div>

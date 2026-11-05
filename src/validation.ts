@@ -78,6 +78,7 @@ export const settingsSchema = z.object({
   fondo_foco_x: intText(0, 100, 'El encuadre debe ser un número entre 0 y 100'),
   fondo_foco_y: intText(0, 100, 'El encuadre debe ser un número entre 0 y 100'),
   fondo_oscurecer: intText(0, 100, 'El oscurecido debe ser un número entre 0 y 100'),
+  fondo_oscurecer_arriba: intText(0, 100, 'El oscurecido debe ser un número entre 0 y 100'),
   // Títulos de la plantilla "experiencias".
   titulo_linea1: text(60),
   titulo_linea2: text(60),
@@ -111,6 +112,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fondo_foco_x: '50',
   fondo_foco_y: '50',
   fondo_oscurecer: '85',
+  fondo_oscurecer_arriba: '60',
   titulo_linea1: 'Experiences',
   titulo_linea2: 'Experiencias',
 };

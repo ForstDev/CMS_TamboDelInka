@@ -379,12 +379,34 @@ window.matchMedia('(min-width: 1280px)').addEventListener('change', () => {
 const PC_W = 1366;
 const PC_H = 768;
 const MONITOR_BORDER = 8;
+/** Celular: pantalla lógica fija (iframe) y marco de teléfono alrededor. */
+const PHONE_W = 390;
+const PHONE_H = 844;
+const PHONE_PAD = 12;
+/** Aire alrededor del teléfono, en px lógicos (se escala junto con el marco). */
+const PHONE_MARGIN = 24;
 
-/** Escala del modo PC: la página de 1366×768 cabe en `available` px de ancho. */
-function pcScale(available, baseW = PC_W, baseH = PC_H) {
-  const width = Math.max(0, Math.floor(Number(available) || 0));
-  const k = width / baseW;
-  return { k, width, height: Math.round(baseH * k) };
+/**
+ * Escala de la vista previa del panel derecho y de la hoja (celular/tablet).
+ * Celular: el marco de (390+24)×(844+24) se escala entero con
+ *   k = min(1, ancho/(414+margen), alto/(868+margen)) → caja de boxW×boxH px.
+ * PC: la página de 1366×768 se escala dentro de un monitor de borde fijo (8 px):
+ *   k = min(1, (ancho−16)/1366, (alto−16)/768) → pantalla de width×height px.
+ */
+function deviceScale(mode, availW, availH) {
+  const W = Math.max(0, Number(availW) || 0);
+  const H = Math.max(0, Number(availH) || 0);
+  if (mode === 'pc') {
+    const b = MONITOR_BORDER * 2;
+    const k = Math.max(0, Math.min(1, (W - b) / PC_W, (H - b) / PC_H));
+    const width = Math.floor(PC_W * k);
+    const height = Math.floor(PC_H * k);
+    return { k, frameW: PC_W, frameH: PC_H, width, height, boxW: width + b, boxH: height + b };
+  }
+  const outerW = PHONE_W + PHONE_PAD * 2;
+  const outerH = PHONE_H + PHONE_PAD * 2;
+  const k = Math.max(0, Math.min(1, W / (outerW + PHONE_MARGIN), H / (outerH + PHONE_MARGIN)));
+  return { k, frameW: PHONE_W, frameH: PHONE_H, width: PHONE_W * k, height: PHONE_H * k, boxW: Math.floor(outerW * k), boxH: Math.floor(outerH * k) };
 }
 
 /**
@@ -399,17 +421,19 @@ function thumbScale(width, height, baseW = PC_W, baseH = PC_H) {
 
 /**
  * Escala de la vista previa ampliada.
- * PC: iframe 1440×900 en un monitor (borde 10 px), k = min(1, ancho/1460, alto/920).
- * Celular: iframe 390×844 en el marco de teléfono, k = min(1, alto/880).
+ * El marco no se escala (PC: borde 10 px; celular: padding 12 px), así que se descuenta entero:
+ * PC: iframe 1440×900, k = min(1, (ancho−20)/1440, (alto−20)/900).
+ * Celular: iframe 390×844, k = min(1, (ancho−24)/390, (alto−24)/844).
  */
 function fullPreviewScale(mode, availW, availH) {
   const W = Math.max(0, Number(availW) || 0);
   const H = Math.max(0, Number(availH) || 0);
   const pc = mode === 'pc';
-  const frameW = pc ? 1440 : 390;
-  const frameH = pc ? 900 : 844;
-  const k = pc ? Math.min(1, W / 1460, H / 920) : Math.min(1, H / 880);
-  return { k, frameW, frameH, width: Math.round(frameW * k), height: Math.round(frameH * k) };
+  const frameW = pc ? 1440 : PHONE_W;
+  const frameH = pc ? 900 : PHONE_H;
+  const b = pc ? 20 : PHONE_PAD * 2;
+  const k = Math.max(0, Math.min(1, (W - b) / frameW, (H - b) / frameH));
+  return { k, frameW, frameH, width: Math.floor(frameW * k), height: Math.floor(frameH * k) };
 }
 
 /** Ajusta la escala del diálogo de vista previa ampliada (si está abierto). */
@@ -442,38 +466,56 @@ function applyPreviewDevice() {
   layoutDevices();
 }
 
-/** Ancho útil (sin padding) de un contenedor visible; 0 si está oculto. */
-function contentWidth(el) {
-  if (!el || !el.clientWidth) return 0;
+/** Tamaño útil (sin padding) de un contenedor visible; 0×0 si está oculto. */
+function contentBox(el) {
+  if (!el || !el.clientWidth || !el.clientHeight) return { w: 0, h: 0 };
   const cs = getComputedStyle(el);
-  return el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  return {
+    w: el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
+    h: el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom),
+  };
 }
 
-/** Calcula el tamaño del "monitor" y la escala del iframe en el panel de escritorio y en la hoja de celular. */
+/** [contenedor que se mide, caja que se escala]: panel derecho (≥1280 px) y hoja de celular/tablet. */
+const DEVICE_TARGETS = [
+  ['#preview-fit', '#preview-box'],
+  ['#sheet-body', '#sheet-box'],
+];
+
+/** Escala el celular (390×844) o el "monitor" (1366×768) al espacio real de cada vista previa visible. */
 function layoutDevices() {
-  const targets = [
-    [$('.phone'), contentWidth($('.preview-pane'))],
-    [$('#sheet-screen'), contentWidth($('#sheet-body'))],
-  ];
-  for (const [el, avail] of targets) {
-    if (!el) continue;
-    if (previewDevice !== 'pc' || avail <= MONITOR_BORDER * 2) {
-      ['--k', '--mon-w', '--mon-h'].forEach((p) => el.style.removeProperty(p));
-      continue;
+  for (const [fitSel, boxSel] of DEVICE_TARGETS) {
+    const box = $(boxSel);
+    const { w, h } = contentBox($(fitSel));
+    if (!box || w <= 0 || h <= 0) continue; // oculto: se recalcula cuando vuelva a verse (ResizeObserver)
+    const s = deviceScale(previewDevice, w, h);
+    box.style.setProperty('--k', String(s.k));
+    if (previewDevice === 'pc') {
+      box.style.setProperty('--mon-w', `${s.width}px`);
+      box.style.setProperty('--mon-h', `${s.height}px`);
+    } else {
+      box.style.setProperty('--box-w', `${s.boxW}px`);
+      box.style.setProperty('--box-h', `${s.boxH}px`);
     }
-    const { k, width, height } = pcScale(avail - MONITOR_BORDER * 2);
-    el.style.setProperty('--k', String(k));
-    el.style.setProperty('--mon-w', `${width}px`);
-    el.style.setProperty('--mon-h', `${height}px`);
   }
   layoutFullPreview();
 }
 
 let layoutFrame = 0;
-window.addEventListener('resize', () => {
+function scheduleLayout() {
   cancelAnimationFrame(layoutFrame);
   layoutFrame = requestAnimationFrame(layoutDevices);
-});
+}
+// El zoom del navegador dispara `resize`; el observador cubre además los cambios de tamaño de cada
+// contenedor (paneles que se muestran u ocultan, la hoja al abrirse, el diálogo "Ampliar").
+window.addEventListener('resize', scheduleLayout);
+if (typeof ResizeObserver === 'function') {
+  const ro = new ResizeObserver(scheduleLayout);
+  ['#preview-fit', '#sheet-body', '#dlg-preview-body'].forEach((sel) => {
+    const el = $(sel);
+    if (el) ro.observe(el);
+  });
+}
 applyPreviewDevice();
 
 // ---------------------------------------------------------------------------
@@ -537,10 +579,21 @@ function applyBindings() {
   renderDesignPreview();
 }
 
+/** Valor de un ajuste numérico 0–100; si falta, el del servidor por defecto o `fallback`. */
+function pctSetting(key, fallback) {
+  const v = state.settings[key];
+  if (v != null && v !== '') return clampPct(v);
+  const d = state.defaults?.[key];
+  return clampPct(d != null && d !== '' ? d : fallback);
+}
+/** Ajustes nuevos que un servidor viejo podría no devolver: valor a mostrar si faltan. */
+const SETTING_FALLBACKS = { fondo_oscurecer_arriba: () => String(pctSetting('fondo_oscurecer_arriba', 60)) };
+
 function bindSettings() {
   $$('[data-setting]').forEach((input) => {
     const key = input.dataset.setting;
-    input.value = state.settings[key] ?? '';
+    const raw = state.settings[key];
+    input.value = raw != null && raw !== '' ? raw : SETTING_FALLBACKS[key]?.() ?? '';
     const field = input.closest('.field');
     const isUrl = input.type === 'url';
     input.addEventListener('input', () => {
@@ -769,6 +822,8 @@ function renderDesignPreview() {
     dot.setAttribute('aria-valuenow', String(x));
     dot.setAttribute('aria-valuetext', `${x}% desde la izquierda, ${y}% desde arriba. Usa las flechas para moverlo.`);
   }
+  const darkTop = $('#bg-dark-top-value');
+  if (darkTop) darkTop.textContent = `${pctSetting('fondo_oscurecer_arriba', 60)}%`;
   const dark = $('#bg-dark-value');
   if (dark) dark.textContent = `${clampPct(s.fondo_oscurecer)}%`;
   const sample = $('#btn-sample');
@@ -2072,7 +2127,8 @@ function fitPickerHeight() {
   const tabbar = $('.tabbar');
   const bottomUi = tabbar && getComputedStyle(tabbar).display !== 'none' ? tabbar.offsetHeight : 0;
   const room = window.innerHeight - rect.bottom - 6 - 12 - bottomUi;
-  pickerEls.pop.style.maxHeight = `${Math.max(220, Math.min(window.innerHeight * 0.7, room))}px`;
+  // Piso de 140 px (buscador + una opción): en ventanas bajas no se mete debajo de la barra inferior.
+  pickerEls.pop.style.maxHeight = `${Math.max(140, Math.min(window.innerHeight * 0.7, room))}px`;
 }
 
 function openPicker() {

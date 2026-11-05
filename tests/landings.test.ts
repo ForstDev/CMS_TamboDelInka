@@ -294,9 +294,35 @@ describe('varias landings: API, rutas y aislamiento', () => {
     expect(a2.socials).toEqual(a.socials);
 
     // Validación estricta de las claves nuevas también en la API.
-    for (const body of [{ logo_ancho: '999' }, { logo_posicion: 'x' }, { fondo_foco_x: '50%; }' }, { fondo_oscurecer: '1.5' }]) {
+    for (const body of [{ logo_ancho: '999' }, { logo_posicion: 'x' }, { fondo_foco_x: '50%; }' }, { fondo_oscurecer: '1.5' }, { fondo_oscurecer_arriba: '1.5' }]) {
       expect((await asB(agent.patch('/api/cms/settings')).send(body)).status, JSON.stringify(body)).toBe(400);
     }
+  });
+
+  it('fondo_oscurecer_arriba: valor por defecto sin migrar, guardado y aislado por landing', async () => {
+    // Datos guardados antes de existir la clave (como producción): sin la fila, el estado trae el valor por defecto.
+    const db = await getDb();
+    await db.query(`delete from landing_settings where key = 'fondo_oscurecer_arriba'`);
+    expect(await db.query(`select 1 from landing_settings where key = 'fondo_oscurecer_arriba'`)).toEqual([]);
+    expect((await db.query(`select 1 from landing_settings where landing_id = $1 and key = 'fondo_oscurecer'`, [A.id])).length).toBe(1);
+    expect((await agent.get('/api/cms/state')).body.settings.fondo_oscurecer_arriba).toBe('60');
+    expect((await asB(agent.get('/api/cms/state'))).body.settings.fondo_oscurecer_arriba).toBe('60');
+    expect((await request(app).get('/exp-demo')).text).toContain('--oscurecer-arriba: 0.60;');
+
+    const bad = await asB(agent.patch('/api/cms/settings')).send({ fondo_oscurecer_arriba: '100%' });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error).toBe('El oscurecido debe ser un número entre 0 y 100');
+
+    const r = await asB(agent.patch('/api/cms/settings')).send({ fondo_oscurecer_arriba: '25' });
+    expect(r.status).toBe(200);
+    expect(r.body.settings).toMatchObject({ fondo_oscurecer_arriba: '25', fondo_oscurecer: '85' });
+    expect((await asB(agent.get('/api/cms/state'))).body.settings.fondo_oscurecer_arriba).toBe('25');
+    expect((await agent.get('/api/cms/state')).body.settings.fondo_oscurecer_arriba).toBe('60');
+    expect((await request(app).get('/exp-demo')).text).toContain('--oscurecer-arriba: 0.25;');
+    expect((await agent.get(`/api/cms/preview?landing=${B.id}`)).text).toContain('--oscurecer-arriba: 0.25;');
+
+    // Vuelve al valor por defecto para no afectar a las demás pruebas.
+    expect((await asB(agent.patch('/api/cms/settings')).send({ fondo_oscurecer_arriba: '60' })).status).toBe(200);
   });
 
   it('GET /:slug: existe, inexistente, inactiva, reservada y slug inválido', async () => {
@@ -332,7 +358,9 @@ describe('varias landings: API, rutas y aislamiento', () => {
     expect(res.text).not.toContain('Tour al valle');
     expect(res.text).not.toContain('class="titulo"');
     expect(res.text).toContain('max-width: 260px;');
-    expect(res.text).toMatch(/background: var\(--fondo\) url\("[^"]+"\) center \/ cover no-repeat fixed;/);
+    expect(res.text).toMatch(/body::before \{[^}]*position: fixed;[^}]*background: var\(--fondo\) url\("[^"]+"\) center \/ cover no-repeat;/);
+    expect(res.text).not.toContain('no-repeat fixed');
+    expect(res.text).toContain('min-height: 100svh;');
   });
 
   it('tracking, estadísticas, CSV y borrar clics por landing', async () => {
@@ -420,12 +448,23 @@ describe('plantillas', () => {
   // (.pagina ya centra a sus hijos con align-items: center).
   const OLD_LOGO = '  .logo {\n    text-align: center;';
   const NEW_LOGO = '  .logo {\n    align-self: center;\n    text-align: center;';
+  // Y el fondo: de background-attachment: fixed en body a una capa fija propia (body::before),
+  // con 100svh y text-size-adjust. El resto del CSS de body no cambia.
+  const OLD_BODY = /  body \{\n    min-height: 100vh;\n    background: (var\(--fondo\) [^\n]*) \/ cover no-repeat fixed;\n([\s\S]*?\n    padding: 48px 16px 40px;\n  \}\n)/;
+  const newBody = (_: string, bg: string, rest: string) =>
+    '  body {\n    min-height: 100vh;\n    min-height: 100svh;\n    -webkit-text-size-adjust: 100%;\n    text-size-adjust: 100%;\n' +
+    `    background: var(--fondo);\n${rest}\n` +
+    '  /* Fondo fijo en su propia capa (en vez de background-attachment: fixed, que en iPhone/Android\n' +
+    '     se amplía o se corta al hacer zoom). Mismo aspecto: cubre la ventana y no se mueve al hacer scroll. */\n' +
+    '  body::before {\n    content: "";\n    position: fixed;\n    inset: 0;\n    z-index: -1;\n    pointer-events: none;\n' +
+    `    background: ${bg} / cover no-repeat;\n  }\n`;
 
-  it('"cartas" con los ajustes por defecto produce el mismo HTML que antes (salvo align-self: center)', () => {
+  it('"cartas" con los ajustes por defecto produce el mismo HTML que antes (salvo align-self: center y la capa del fondo)', () => {
     for (const [name, v] of Object.entries(CARTAS_VARIANTS)) {
       const before = fixture(name);
       expect(before, name).toContain(OLD_LOGO);
-      const expected = before.replace(OLD_LOGO, NEW_LOGO);
+      expect(before, name).toMatch(OLD_BODY);
+      const expected = before.replace(OLD_LOGO, NEW_LOGO).replace(OLD_BODY, newBody);
       const socials = 'noSocials' in v ? [] : CARTAS_SOCIALS;
       const page = (settings: any, landing?: any) =>
         norm(renderPage({ settings, buttons: CARTAS_BUTTONS as any, socials: socials as any, landing }, v.opts as any));
@@ -444,7 +483,8 @@ describe('plantillas', () => {
     expect(left).toContain('align-self: flex-start;');
     expect(left).toContain('text-align: left;');
     expect(left).toContain('margin: 0 auto 0 0;');
-    expect(left).toContain('url("/uploads/intursa/fondo/mabc123-fondo_intursa.jpg") 30% 70% / cover no-repeat fixed;');
+    expect(left).toContain('url("/uploads/intursa/fondo/mabc123-fondo_intursa.jpg") 30% 70% / cover no-repeat;');
+    expect(left).not.toContain('no-repeat fixed');
     const right = html({ logo_posicion: 'right', fondo_foco_x: '50', fondo_foco_y: '0' });
     expect(right).toContain('align-self: flex-end;');
     expect(right).toContain('margin: 0 0 0 auto;');
@@ -466,7 +506,10 @@ describe('plantillas', () => {
     expect(html).toContain('href="mailto:reservas@ejemplo.com" aria-label="Correo"');
     expect(html).toContain('--oscurecer: 0.85;');
     expect(html).toContain('.hero::before');
-    expect(html).toContain('--logo-w: 150px;');
+    expect(html).toContain('--oscurecer-arriba: 0.60;');
+    expect(html).toContain('--logo-n: 150;');
+    expect(html).toContain('--u:');
+    expect(html).not.toMatch(/min-height:\s*30vh/);
     expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
     expect(html).not.toContain('class="novedades"'); // novedades_activo '0' por defecto
     expect(html).not.toContain('{{');
@@ -485,6 +528,9 @@ describe('validación de los ajustes nuevos', () => {
       { logo_posicion: 'x' }, { logo_posicion: 'LEFT' }, { logo_posicion: 'center;}' },
       { fondo_foco_x: '50%; }' }, { fondo_foco_x: '101' }, { fondo_foco_x: '-1' }, { fondo_foco_y: '1e2' }, { fondo_foco_y: '50.5' },
       { fondo_oscurecer: '1.5' }, { fondo_oscurecer: '100%' }, { fondo_oscurecer: '0x10' },
+      { fondo_oscurecer_arriba: '1.5' }, { fondo_oscurecer_arriba: '100%' }, { fondo_oscurecer_arriba: '-1' },
+      { fondo_oscurecer_arriba: '101' }, { fondo_oscurecer_arriba: '0x10' }, { fondo_oscurecer_arriba: '' },
+      { fondo_oscurecer_arriba: '060' }, { fondo_oscurecer_arriba: 60 },
       { titulo_linea1: 'x'.repeat(61) }, { titulo_linea2: 'x'.repeat(61) },
     ];
     for (const body of bad) expect(settingsPatch.safeParse(body).success, JSON.stringify(body)).toBe(false);
@@ -495,6 +541,7 @@ describe('validación de los ajustes nuevos', () => {
       { logo_ancho: '60' }, { logo_ancho: '400' }, { logo_ancho: ' 150 ' },
       { logo_posicion: 'left' }, { logo_posicion: 'center' }, { logo_posicion: 'right' },
       { fondo_foco_x: '0', fondo_foco_y: '100' }, { fondo_oscurecer: '0' }, { fondo_oscurecer: '100' },
+      { fondo_oscurecer_arriba: '0' }, { fondo_oscurecer_arriba: '100' }, { fondo_oscurecer_arriba: '60' },
       { titulo_linea1: 'x'.repeat(60), titulo_linea2: '' },
     ];
     for (const body of good) expect(settingsPatch.safeParse(body).success, JSON.stringify(body)).toBe(true);
@@ -502,9 +549,9 @@ describe('validación de los ajustes nuevos', () => {
 
   it('valores por defecto por plantilla', () => {
     expect(defaultSettingsFor('cartas')).toEqual({ ...DEFAULT_SETTINGS, logo_ancho: '260' });
-    expect(defaultSettingsFor('cartas')).toMatchObject({ logo_posicion: 'center', fondo_foco_x: '50', fondo_foco_y: '50', fondo_oscurecer: '85' });
+    expect(defaultSettingsFor('cartas')).toMatchObject({ logo_posicion: 'center', fondo_foco_x: '50', fondo_foco_y: '50', fondo_oscurecer: '85', fondo_oscurecer_arriba: '60' });
     expect(defaultSettingsFor('experiencias')).toMatchObject({
-      logo_ancho: '150', logo_posicion: 'center', fondo_foco_x: '50', fondo_foco_y: '50', fondo_oscurecer: '85',
+      logo_ancho: '150', logo_posicion: 'center', fondo_foco_x: '50', fondo_foco_y: '50', fondo_oscurecer: '85', fondo_oscurecer_arriba: '60',
       titulo_linea1: 'Experiences', titulo_linea2: 'Experiencias',
       color_fondo: '#2b2b2b', color_texto: '#ffffff', color_boton: '#262626', color_boton_texto: '#ffffff',
       color_boton_hover: '#3a3a3a', color_texto_boton_hover: '#ffffff', redes_titulo: 'Síguenos en / Follow us on', novedades_activo: '0',

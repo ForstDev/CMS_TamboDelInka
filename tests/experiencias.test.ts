@@ -1,6 +1,6 @@
 // Plantilla pública "experiencias" (templates/experiencias.html).
 import { describe, expect, it } from 'vitest';
-import { renderPage } from '../src/render.js';
+import { layoutValues, renderPage } from '../src/render.js';
 import { defaultSettingsFor, type Settings } from '../src/validation.js';
 import type { Button, Social } from '../src/repo.js';
 
@@ -86,14 +86,67 @@ describe('plantilla "experiencias"', () => {
   it('lleva el foco del fondo, la imagen y el ancho del logo al CSS', () => {
     const html = render({ fondo_tipo: 'imagen', fondo_imagen_url: '/uploads/f.jpg', fondo_foco_x: '30', fondo_foco_y: '70', logo_ancho: '180', logo_url: '/uploads/l.png', logo_alt: 'Hotel' });
     expect(html).toContain('background: var(--fondo) url("/uploads/f.jpg") 30% 70% / cover no-repeat;');
-    expect(html).toContain('--logo-w: 180px;');
+    expect(html).toContain('--logo-n: 180;');
     expect(html).toContain('--oscurecer: 0.85;');
+    expect(html).toContain('--oscurecer-arriba: 0.60;');
     expect(html).toContain('<img class="logo" src="/uploads/l.png" alt="Hotel">');
 
     const centro = render();
     expect(centro).toContain('background: var(--fondo)  center / cover no-repeat;');
-    expect(centro).toContain('--logo-w: 150px;');
+    expect(centro).toContain('--logo-n: 150;');
     expect(centro).not.toContain('class="logo"');
+  });
+
+  it('escala fluida: todo en --u, sin alturas fijas en vh', () => {
+    const html = render();
+    expect(html).toContain('--u: clamp(.8px, min(.25641vw, .13889svh), 1.5px);');
+    expect(html).toContain('--u: clamp(.85px, min(.07321vw, .13021svh), 2.4px);');
+    // Respaldo sin svh, declarado antes de la versión con svh.
+    expect(html.indexOf('.13889vh')).toBeGreaterThan(-1);
+    expect(html.indexOf('.13889vh')).toBeLessThan(html.indexOf('.13889svh'));
+    expect(html).toContain('@supports (height: 1svh)');
+    expect(html).toContain('width: min(calc(var(--u) * var(--logo-n)), 80vw);');
+    expect(html).toContain('text-size-adjust: 100%;');
+    expect(html).not.toMatch(/min-height:\s*(30|16|6)vh/);
+    expect(html).not.toContain('max-height: 640px');
+    expect(html).not.toContain('--logo-w');
+    // Suelo de legibilidad para textos e iconos pequeños.
+    expect(html).toContain('font-size: max(12px, calc(var(--u) * 15));');
+    expect(html).toContain('font-size: max(11.5px, calc(var(--u) * 13));');
+    expect(html).toContain('font-size: max(22px, calc(var(--u) * 26));');
+  });
+
+  it('oscurece arriba y abajo con dos tintes en una sola capa', () => {
+    const html = render({ fondo_oscurecer: '40', fondo_oscurecer_arriba: '25' });
+    expect(html).toContain('--oscurecer: 0.40;');
+    expect(html).toContain('--oscurecer-arriba: 0.25;');
+    expect(html).toContain('rgba(9, 30, 62, calc(var(--oscurecer-arriba) * 1.00)) 0%');
+    expect(html).toContain('rgba(72, 68, 64, var(--oscurecer)) 100%');
+    expect(html.match(/\.hero::before/g)).toHaveLength(1);
+  });
+
+  it('fondo_oscurecer_arriba siempre produce un número válido o el valor por defecto', () => {
+    const value = (html: string) => html.match(/--oscurecer-arriba: ([^;]*);/)![1];
+    expect(value(render({ fondo_oscurecer_arriba: '0' }))).toBe('0.00');
+    expect(value(render({ fondo_oscurecer_arriba: '100' }))).toBe('1.00');
+    expect(value(render({ fondo_oscurecer_arriba: '60' }))).toBe('0.60');
+    expect(value(render({ fondo_oscurecer_arriba: '999' }))).toBe('1.00'); // fuera de rango: se acota
+    for (const bad of ['1.5', '100%', 'x', '-1', '0x10', '', '1); } body { color: red', '<script>']) {
+      const html = render({ fondo_oscurecer_arriba: bad });
+      expect(value(html), bad).toBe('0.60');
+      expect(html).not.toContain('<script>');
+      expect(html).not.toContain('color: red');
+    }
+    // Ajustes guardados antes de existir la clave (sin ella): valor por defecto.
+    const { fondo_oscurecer_arriba: _omit, ...sinClave } = defaultSettingsFor('experiencias');
+    const html = renderPage({ settings: sinClave as Settings, buttons: BUTTONS, socials: SOCIALS, landing });
+    expect(value(html)).toBe('0.60');
+    expect(html).toContain('--oscurecer: 0.85;');
+    // layoutValues por sí solo también recurre al valor por defecto.
+    for (const t of ['experiencias', 'cartas'] as const) {
+      expect(layoutValues(sinClave as Settings, t).fondo_oscurecer_arriba_css, t).toBe('0.60');
+      expect(layoutValues({ ...sinClave, fondo_oscurecer_arriba: 'basura' } as Settings, t).fondo_oscurecer_arriba_css, t).toBe('0.60');
+    }
   });
 
   it('escapa el título', () => {
