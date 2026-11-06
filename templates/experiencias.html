@@ -273,19 +273,21 @@
     }
   }
 
-  /* --- PC (≥ 768 px): foto a pantalla completa + oscurecido en "reloj de arena" acostado ---
-     Dos triángulos con la base en el borde izquierdo y en el derecho (a lo alto completo) y las
-     puntas tocándose en el centro: los bordes laterales quedan oscuros y arriba-centro y
-     abajo-centro quedan claros. Sin degradado vertical.
+  /* --- PC (≥ 768 px): foto a pantalla completa + oscurecido en "reloj de arena" parado ---
+     Dos triángulos con la base en el borde superior y en el inferior (a todo lo ancho) y las
+     puntas tocándose en el centro de la pantalla: los bordes de arriba y de abajo quedan oscuros
+     (tras el logo y el título, y tras los botones) y se aclaran hacia el centro; los laterales a
+     media altura quedan sin sombra. Sin degradado horizontal.
      Cómo se dibuja (solo CSS, sin imágenes ni JS):
-     - ::before = triángulo izquierdo, ::after = derecho (espejo).
-     - Su fondo es un degradado HORIZONTAL azul marino muy oscuro: 52 % en el borde de la pantalla
-       → 0 en el centro (la punta), así no hay "borde de figura".
+     - ::before = triángulo de arriba, vértices (0,0), (100 %,0) y (50 %,50 %);
+       ::after = triángulo de abajo, vértices (0,100 %), (100 %,100 %) y (50 %,50 %).
+     - Su fondo es un degradado VERTICAL azul marino muy oscuro: 55 % en el borde de la pantalla
+       → 0 al 50 % del alto (la punta del centro), así no hay "borde de figura".
      - La forma la recorta una máscara = intersección de dos degradados de esquina a esquina.
-       Con "to top right" / "to bottom right" (etc.) el 50 % del degradado cae justo sobre una
+       Con "to bottom left" / "to bottom right" (etc.) el 50 % del degradado cae justo sobre una
        diagonal de la pantalla, a cualquier proporción: la forma se estira con la ventana.
        La máscara es opaca hasta la diagonal (las esquinas conservan todo el oscurecido) y se
-       difumina hacia fuera hasta el 62 % (≈ 24 % del ancho en horizontal): sin líneas duras. */
+       difumina hacia fuera hasta el 62 % (≈ 24 % del alto en vertical): sin líneas duras. */
   @media (min-width: 768px) {
     .hero::before,
     .hero::after {
@@ -300,29 +302,29 @@
       mask-composite: intersect;
     }
 
-    /* Izquierdo: lado izquierdo de las dos diagonales. */
+    /* Arriba: por encima de las dos diagonales de la pantalla. */
     .hero::before {
       background: linear-gradient(
-        to right,
-        rgba(6, 16, 34, .52) 0%,
+        to bottom,
+        rgba(6, 16, 34, .55) 0%,
         rgba(6, 16, 34, .42) 12%,
         rgba(6, 16, 34, .24) 28%,
         rgba(6, 16, 34, .09) 40%,
         rgba(6, 16, 34, 0) 50%
       );
       -webkit-mask-image:
-        linear-gradient(to top right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
+        linear-gradient(to bottom left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
         linear-gradient(to bottom right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
       mask-image:
-        linear-gradient(to top right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
+        linear-gradient(to bottom left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
         linear-gradient(to bottom right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
     }
 
-    /* Derecho: espejo del izquierdo. */
+    /* Abajo: espejo del de arriba (por debajo de las dos diagonales). */
     .hero::after {
       background: linear-gradient(
-        to left,
-        rgba(6, 16, 34, .52) 0%,
+        to top,
+        rgba(6, 16, 34, .55) 0%,
         rgba(6, 16, 34, .42) 12%,
         rgba(6, 16, 34, .24) 28%,
         rgba(6, 16, 34, .09) 40%,
@@ -330,10 +332,10 @@
       );
       -webkit-mask-image:
         linear-gradient(to top left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
-        linear-gradient(to bottom left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
+        linear-gradient(to top right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
       mask-image:
         linear-gradient(to top left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
-        linear-gradient(to bottom left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
+        linear-gradient(to top right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
     }
   }
 {{/if}}

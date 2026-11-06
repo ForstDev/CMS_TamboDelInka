@@ -152,15 +152,14 @@ describe('plantilla "experiencias"', () => {
     expect(css).not.toContain('::after');
     expect(css).not.toContain('mask');
     expect(css).not.toContain('url(');
-    // El degradado vertical existe una sola vez, dentro del bloque móvil (no llega a PC).
+    // La capa móvil (azul 9,30,62 y gris 72,68,64) existe solo dentro del bloque móvil (no llega a PC).
     expect(html.split('rgba(9, 30, 62').length - 1).toBe(4);
     expect(html.split('rgba(72, 68, 64').length - 1).toBe(4);
-    expect(html.split('to bottom,').length - 1).toBe(1);
-    expect(html.indexOf('to bottom,')).toBeGreaterThan(html.indexOf(MOBILE_MQ));
-    expect(html.indexOf('to bottom,')).toBeLessThan(html.indexOf(PC_MQ));
+    expect(html.indexOf('rgba(9, 30, 62')).toBeGreaterThan(html.indexOf(MOBILE_MQ));
+    expect(html.lastIndexOf('rgba(72, 68, 64')).toBeLessThan(html.indexOf(PC_MQ));
   });
 
-  it('PC con foto: reloj de arena horizontal (dos triángulos enmascarados), sin la capa móvil', () => {
+  it('PC con foto: reloj de arena parado (triángulo arriba y abajo, enmascarados), sin la capa móvil', () => {
     const html = render(IMG);
     const pc = html.slice(html.indexOf(PC_MQ));
     expect(html.indexOf(PC_MQ)).toBeGreaterThan(html.indexOf(MOBILE_MQ));
@@ -173,23 +172,38 @@ describe('plantilla "experiencias"', () => {
     expect(pc).not.toContain('url(');
     expect(pc).not.toContain('rgba(9, 30, 62');
     expect(pc).not.toContain('rgba(72, 68, 64');
-    // Un triángulo por lado: degradado horizontal (máx. en el borde, 0 en la punta del centro)…
-    expect(pc).toMatch(/\.hero::before \{\s*background: linear-gradient\(\s*to right,\s*rgba\(6, 16, 34, \.52\) 0%,/);
-    expect(pc).toMatch(/\.hero::after \{\s*background: linear-gradient\(\s*to left,\s*rgba\(6, 16, 34, \.52\) 0%,/);
-    expect(pc.split('rgba(6, 16, 34, 0) 50%').length - 1).toBe(2);
+    // Un triángulo por borde: degradado VERTICAL (.55 en el borde de la pantalla → 0 al 50 % del alto, la punta del centro)…
+    const shade = (dir: string) =>
+      `linear-gradient(\n        ${dir},\n        rgba(6, 16, 34, .55) 0%,\n        rgba(6, 16, 34, .42) 12%,\n        rgba(6, 16, 34, .24) 28%,\n        rgba(6, 16, 34, .09) 40%,\n        rgba(6, 16, 34, 0) 50%\n      );`;
+    const arriba = pc.slice(pc.indexOf('.hero::before {'), pc.lastIndexOf('.hero::after {'));
+    const abajo = pc.slice(pc.lastIndexOf('.hero::after {'));
+    expect(arriba).toContain('.hero::before {\n      background: ' + shade('to bottom'));
+    expect(abajo).toContain('.hero::after {\n      background: ' + shade('to top'));
+    expect(pc.split('rgba(6, 16, 34, ').length - 1).toBe(10);
+    // Sin degradado horizontal de sombreado.
+    expect(pc).not.toContain('to right,');
+    expect(pc).not.toContain('to left,');
     // …recortado por la intersección de dos degradados de esquina (siguen las diagonales a cualquier proporción).
     expect(pc).toContain('mask-composite: intersect;');
     expect(pc).toContain('-webkit-mask-composite: source-in;');
-    for (const dir of ['to top right', 'to bottom right', 'to top left', 'to bottom left']) {
-      const layer = `linear-gradient(${dir}, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%)`;
-      expect(pc.split(layer).length - 1, dir).toBe(2); // con y sin prefijo -webkit-
+    const layer = (dir: string) => `linear-gradient(${dir}, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%)`;
+    // Arriba, vértices (0,0), (100 %,0), (50 %,50 %): por encima de las dos diagonales.
+    // Abajo, vértices (0,100 %), (100 %,100 %), (50 %,50 %): por debajo de las dos diagonales.
+    for (const [nombre, css, dirs] of [
+      ['arriba', arriba, ['to bottom left', 'to bottom right']],
+      ['abajo', abajo, ['to top left', 'to top right']],
+    ] as const) {
+      for (const dir of dirs) expect(css.split(layer(dir)).length - 1, `${nombre} ${dir}`).toBe(2); // con y sin prefijo -webkit-
+      expect(css.match(/-webkit-mask-image:/g), nombre).toHaveLength(1);
+      expect(css.match(/(?<!-webkit-)mask-image:/g), nombre).toHaveLength(1);
     }
+    // Difuminado de la máscara: de la diagonal (50 %) a transparente (62 %), sin salto duro.
+    expect(pc.split('transparent 62%').length - 1).toBe(8);
+    expect(pc).not.toMatch(/#000 50%, transparent/);
     // PC: regla común (".hero::before, .hero::after") + una propia de cada lado; nada más.
     expect(pc.match(/\.hero::(?:before|after)/g)).toHaveLength(4);
     // En toda la página: esas 4 + la capa móvil (::before).
     expect(html.match(/\.hero::(?:before|after)/g)).toHaveLength(5);
-    // Sin degradado vertical en PC.
-    expect(pc.slice(0, pc.indexOf('@media (prefers-reduced-motion'))).not.toContain('to bottom,');
     // Legibilidad de las redes.
     expect(html).toMatch(/\.redes-texto \{[^}]*text-shadow: 0 1px 8px rgba\(0, 0, 0, \.45\);/);
     expect(html).toMatch(/\.iconos a \{[^}]*text-shadow: 0 1px 8px rgba\(0, 0, 0, \.45\);/);
