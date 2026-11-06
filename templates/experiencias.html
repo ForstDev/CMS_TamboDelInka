@@ -57,7 +57,7 @@
   }
 
   /* Página a pantalla completa. Sin imagen (color sólido): color plano. Con imagen, ver el bloque
-     "Con foto" al final (foto a pantalla completa con su capa de legibilidad).
+     "Con foto" al final (foto a pantalla completa, sin oscurecido añadido).
      Si el contenido no cabe (zoom extremo), la página crece y hace scroll vertical. */
   .hero {
     position: relative;
@@ -243,100 +243,9 @@
 {{#if fondo_imagen_css}}
   /* ================= Con foto (diseño fijo, no editable) ================= */
 
-  /* Celular y PC: foto del hotel a pantalla completa, recortada con cover y el punto de encuadre. */
+  /* Celular y PC: foto a pantalla completa, recortada con cover y el punto de encuadre. Sin oscurecido añadido. */
   .hero {
     background: var(--fondo) {{{fondo_imagen_css}}} {{fondo_foco_css}} / cover no-repeat;
-  }
-
-  /* --- Celular (< 768 px): capa de legibilidad fija sobre la foto ---
-     Azul marino arriba (cielo), centro despejado y gris cálido abajo (sostiene los botones).
-     Los mismos valores para todos los hoteles. Solo en celular: en PC ::before/::after son el
-     reloj de arena (bloque siguiente) y no heredan nada de aquí. */
-  @media (max-width: 767.98px) {
-    .hero::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      z-index: -1;
-      pointer-events: none;
-      background: linear-gradient(
-        to bottom,
-        rgba(9, 30, 62, 0.60) 0%,
-        rgba(9, 30, 62, 0.372) 14%,
-        rgba(9, 30, 62, 0.156) 28%,
-        rgba(9, 30, 62, 0) 42%,
-        rgba(72, 68, 64, 0) 46%,
-        rgba(72, 68, 64, 0.425) 58%,
-        rgba(72, 68, 64, 0.748) 74%,
-        rgba(72, 68, 64, 0.85) 100%
-      );
-    }
-  }
-
-  /* --- PC (≥ 768 px): foto a pantalla completa + oscurecido en "reloj de arena" parado ---
-     Dos triángulos con la base en el borde superior y en el inferior (a todo lo ancho) y las
-     puntas tocándose en el centro de la pantalla: los bordes de arriba y de abajo quedan oscuros
-     (tras el logo y el título, y tras los botones) y se aclaran hacia el centro; los laterales a
-     media altura quedan sin sombra. Sin degradado horizontal.
-     Cómo se dibuja (solo CSS, sin imágenes ni JS):
-     - ::before = triángulo de arriba, vértices (0,0), (100 %,0) y (50 %,50 %);
-       ::after = triángulo de abajo, vértices (0,100 %), (100 %,100 %) y (50 %,50 %).
-     - Su fondo es un degradado VERTICAL azul marino muy oscuro: 55 % en el borde de la pantalla
-       → 0 al 50 % del alto (la punta del centro), así no hay "borde de figura".
-     - La forma la recorta una máscara = intersección de dos degradados de esquina a esquina.
-       Con "to bottom left" / "to bottom right" (etc.) el 50 % del degradado cae justo sobre una
-       diagonal de la pantalla, a cualquier proporción: la forma se estira con la ventana.
-       La máscara es opaca hasta la diagonal (las esquinas conservan todo el oscurecido) y se
-       difumina hacia fuera hasta el 62 % (≈ 24 % del alto en vertical): sin líneas duras. */
-  @media (min-width: 768px) {
-    .hero::before,
-    .hero::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      z-index: -1;
-      pointer-events: none;
-      -webkit-mask-repeat: no-repeat;
-      mask-repeat: no-repeat;
-      -webkit-mask-composite: source-in;
-      mask-composite: intersect;
-    }
-
-    /* Arriba: por encima de las dos diagonales de la pantalla. */
-    .hero::before {
-      background: linear-gradient(
-        to bottom,
-        rgba(6, 16, 34, .55) 0%,
-        rgba(6, 16, 34, .42) 12%,
-        rgba(6, 16, 34, .24) 28%,
-        rgba(6, 16, 34, .09) 40%,
-        rgba(6, 16, 34, 0) 50%
-      );
-      -webkit-mask-image:
-        linear-gradient(to bottom left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
-        linear-gradient(to bottom right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
-      mask-image:
-        linear-gradient(to bottom left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
-        linear-gradient(to bottom right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
-    }
-
-    /* Abajo: espejo del de arriba (por debajo de las dos diagonales). */
-    .hero::after {
-      background: linear-gradient(
-        to top,
-        rgba(6, 16, 34, .55) 0%,
-        rgba(6, 16, 34, .42) 12%,
-        rgba(6, 16, 34, .24) 28%,
-        rgba(6, 16, 34, .09) 40%,
-        rgba(6, 16, 34, 0) 50%
-      );
-      -webkit-mask-image:
-        linear-gradient(to top left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
-        linear-gradient(to top right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
-      mask-image:
-        linear-gradient(to top left, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%),
-        linear-gradient(to top right, #000 50%, rgba(0, 0, 0, .55) 55%, rgba(0, 0, 0, .18) 59%, transparent 62%);
-    }
   }
 {{/if}}
   @media (prefers-reduced-motion: reduce) {

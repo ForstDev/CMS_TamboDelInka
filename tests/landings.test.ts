@@ -514,7 +514,7 @@ describe('plantillas', () => {
     expect(html({ logo_ancho: '9999', fondo_foco_x: 'x; }' })).toContain('max-width: 260px;');
   });
 
-  it('"experiencias" mínima: títulos, botones /go/<id>, redes y oscurecido', () => {
+  it('"experiencias" mínima: títulos, botones /go/<id>, redes y foto sin oscurecido', () => {
     const settings = { ...defaultSettingsFor('experiencias'), logo_url: '/uploads/l.png', fondo_tipo: 'imagen', fondo_imagen_url: '/uploads/f.jpg', titulo_linea1: 'Viví <Cusco>' };
     const html = renderPage({ settings: settings as any, buttons: CARTAS_BUTTONS as any, socials: CARTAS_SOCIALS as any, landing: { template: 'experiencias' } }, { noindex: true });
     expect(html).toContain('<span class="t1">Viví &lt;Cusco&gt;</span><span class="t2">Experiencias</span>');
@@ -530,11 +530,15 @@ describe('plantillas', () => {
     expect(html).not.toContain('class="foto"');
     expect(html).not.toContain('.foto');
     expect(html).toContain('background: var(--fondo) url("/uploads/f.jpg") center / cover no-repeat;');
-    expect(html).toMatch(/@media \(max-width: 767\.98px\) \{\s*\.hero::before \{/);
-    expect(html).toContain('rgba(9, 30, 62, 0.60) 0%');
-    expect(html).toContain('rgba(72, 68, 64, 0.85) 100%');
-    expect(html).toContain('.hero::before');
-    expect(html).toContain('mask-composite: intersect;');
+    expect(html).not.toContain('.hero::before');
+    expect(html).not.toContain('.hero::after');
+    expect(html).not.toContain('mask-image');
+    expect(html).not.toContain('mask-composite');
+    expect(html).not.toContain('rgba(9, 30, 62');
+    expect(html).not.toContain('rgba(6, 16, 34');
+    expect(html).not.toContain('rgba(72, 68, 64');
+    expect(html).toContain('filter: drop-shadow(0 1px 8px rgba(0, 0, 0, .5));');
+    expect(html).toContain('text-shadow: 0 2px 14px rgba(0, 0, 0, .42)');
     expect(html).toContain('--logo-n: 150;');
     expect(html).toContain('--u:');
     expect(html).not.toMatch(/min-height:\s*30vh/);
