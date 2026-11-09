@@ -1,12 +1,19 @@
 // Prueba fotos de fondo nuevas en las landings de "experiencias" y vuelve a las anteriores con un comando.
-//   npx tsx scripts/fondos-prueba.ts estado                       → muestra el fondo actual de cada landing y si hay respaldo
+//   npx tsx scripts/fondos-prueba.ts estado                       → muestra el fondo y el encuadre actual de cada landing y si hay respaldo
 //   npx tsx scripts/fondos-prueba.ts aplicar                      → ENSAYO: muestra qué haría, sin cambiar nada
-//   npx tsx scripts/fondos-prueba.ts aplicar --confirmar          → guarda el respaldo, sube las fotos y las pone de fondo
+//   npx tsx scripts/fondos-prueba.ts aplicar --confirmar          → guarda el respaldo, sube las fotos y las pone de fondo (con su encuadre)
+//   npx tsx scripts/fondos-prueba.ts aplicar --confirmar --actualizar → cambia a otras fotos de prueba SIN tocar el respaldo original
 //   npx tsx scripts/fondos-prueba.ts revertir                     → ENSAYO: muestra qué restauraría
 //   npx tsx scripts/fondos-prueba.ts revertir --confirmar         → vuelve a los fondos anteriores (según el respaldo)
-//   --forzar (solo con aplicar): sigue aunque ya exista un respaldo; el respaldo viejo se conserva con otro nombre.
+//   --actualizar (solo con aplicar): si ya hay respaldo, lo deja EXACTAMENTE como está (así "revertir" sigue devolviendo a los
+//     fondos originales) y solo sube las fotos nuevas y guarda su URL y encuadre. Si no hay respaldo, actúa como un aplicar normal.
+//   --forzar (solo con aplicar): sigue aunque ya exista un respaldo; el respaldo viejo se conserva con otro nombre
+//     (pero el nuevo respaldo guardará los fondos de prueba actuales, no los originales). No se combina con --actualizar.
 // Fotos de prueba y respaldo: clients/intursa/seed/pruebas/ (paracas.jpg, palacio.jpg, tambo.jpg, respaldo-fondos.json).
-// Solo SUBE archivos nuevos y CAMBIA ajustes (fondo_tipo, fondo_imagen_url); no borra nada del almacenamiento ni de la base.
+// Las fotos de pruebas/ son ahora las verticales nuevas (con mucho cielo arriba); las anteriores 16:9 están en pruebas/anteriores-16x9/.
+// Cada destino lleva su encuadre (fondo_foco_x / fondo_foco_y); el respaldo guarda también el encuadre anterior y "revertir" lo restaura.
+// Un respaldo antiguo (sin encuadre) sigue siendo válido: "revertir" restaura solo fondo_tipo y fondo_imagen_url y no toca el encuadre.
+// Solo SUBE archivos nuevos y CAMBIA ajustes (fondo_tipo, fondo_imagen_url, fondo_foco_x, fondo_foco_y); no borra nada del almacenamiento ni de la base.
 // En modo local (sin DATABASE_URL) detén antes `npm start`: la base embebida no admite dos procesos.
 // FORCE_LOCAL=1 ignora las claves del .env y usa solo .data/ (para probar sin tocar producción).
 
@@ -33,17 +40,25 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dir = path.join(root, 'clients', env.clientId, 'seed', 'pruebas');
 const backupFile = path.join(dir, 'respaldo-fondos.json');
 
+// foco_x / foco_y: encuadre de la foto (0-100) que se guarda junto con ella.
 const TARGETS = [
-  { slug: 'experiencias-hotel-paracas', file: 'paracas.jpg' },
-  { slug: 'experiencias-palacio-del-inka', file: 'palacio.jpg' },
-  { slug: 'experiencias-tambo-del-inka', file: 'tambo.jpg' },
+  { slug: 'experiencias-hotel-paracas', file: 'paracas.jpg', foco_x: '50', foco_y: '85' },
+  { slug: 'experiencias-palacio-del-inka', file: 'palacio.jpg', foco_x: '50', foco_y: '85' },
+  { slug: 'experiencias-tambo-del-inka', file: 'tambo.jpg', foco_x: '62', foco_y: '78' },
 ];
 
-interface BackupEntry {
-  slug: string;
-  id: string;
+interface Fondo {
   fondo_tipo: string;
   fondo_imagen_url: string;
+  fondo_foco_x: string;
+  fondo_foco_y: string;
+}
+/** Lo que se guarda en una landing: el encuadre es opcional (los respaldos antiguos no lo tienen y entonces no se toca). */
+type FondoPatch = Pick<Fondo, 'fondo_tipo' | 'fondo_imagen_url'> & Partial<Pick<Fondo, 'fondo_foco_x' | 'fondo_foco_y'>>;
+
+interface BackupEntry extends FondoPatch {
+  slug: string;
+  id: string;
 }
 interface Backup {
   fecha: string;
@@ -55,6 +70,7 @@ const COMMANDS = ['aplicar', 'revertir', 'estado'];
 const command = process.argv[2] ?? '';
 const confirm = process.argv.includes('--confirmar');
 const force = process.argv.includes('--forzar');
+const update = process.argv.includes('--actualizar');
 
 const stamp = () => new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const kb = (n: number) => `${Math.round(n / 1024)} KB`;
@@ -63,19 +79,30 @@ const exists = (file: string) => fs.access(file).then(() => true, () => false);
 
 type LandingRow = NonNullable<Awaited<ReturnType<typeof repo.getLandingBySlug>>>;
 
-async function currentFondo(landing: LandingRow) {
+async function currentFondo(landing: LandingRow): Promise<Fondo> {
   const s = await runWithLanding(landing, () => repo.getSettings());
-  return { fondo_tipo: s.fondo_tipo as string, fondo_imagen_url: s.fondo_imagen_url };
+  return { fondo_tipo: s.fondo_tipo as string, fondo_imagen_url: s.fondo_imagen_url, fondo_foco_x: s.fondo_foco_x, fondo_foco_y: s.fondo_foco_y };
 }
 
-/** Guarda fondo_tipo y fondo_imagen_url de la landing con la misma validación del panel y comprueba el resultado. */
-async function saveFondo(landing: LandingRow, fondo_tipo: string, fondo_imagen_url: string) {
-  const patch = settingsPatch.parse({ fondo_tipo, fondo_imagen_url });
+/** Guarda el fondo (y el encuadre, si viene) de la landing con la misma validación del panel y comprueba el resultado. */
+async function saveFondo(landing: LandingRow, fondo: FondoPatch) {
+  const patch = settingsPatch.parse({
+    fondo_tipo: fondo.fondo_tipo,
+    fondo_imagen_url: fondo.fondo_imagen_url,
+    ...(fondo.fondo_foco_x !== undefined ? { fondo_foco_x: fondo.fondo_foco_x } : {}),
+    ...(fondo.fondo_foco_y !== undefined ? { fondo_foco_y: fondo.fondo_foco_y } : {}),
+  });
   await runWithLanding(landing, () => repo.saveSettings(patch));
   const now = await currentFondo(landing);
-  if (now.fondo_tipo !== patch.fondo_tipo || now.fondo_imagen_url !== patch.fondo_imagen_url) {
-    throw new Error('el valor guardado no coincide con el esperado');
+  for (const [key, value] of Object.entries(patch) as [keyof Fondo, string][]) {
+    if (now[key] !== value) throw new Error('el valor guardado no coincide con el esperado');
   }
+}
+
+/** Encuadre en una línea; si falta (respaldo antiguo) lo dice. */
+function focoText(f: { fondo_foco_x?: string; fondo_foco_y?: string }) {
+  const parts = [f.fondo_foco_x !== undefined ? `x=${f.fondo_foco_x}` : '', f.fondo_foco_y !== undefined ? `y=${f.fondo_foco_y}` : ''].filter(Boolean);
+  return parts.length ? parts.join(', ') : '(sin encuadre en el respaldo: no se toca)';
 }
 
 function storageMode(): 'supabase' | 'local' | 'error' {
@@ -107,7 +134,20 @@ function checkModes(): string | null {
 
 async function readBackup(): Promise<Backup> {
   const data = JSON.parse(await fs.readFile(backupFile, 'utf8')) as Backup;
-  if (!Array.isArray(data?.landings) || data.landings.some((e) => !e?.slug || !e?.id || typeof e.fondo_tipo !== 'string' || typeof e.fondo_imagen_url !== 'string')) {
+  // El encuadre es opcional (los respaldos antiguos no lo traen); si viene, debe ser texto.
+  const optionalText = (v: unknown) => v === undefined || typeof v === 'string';
+  if (
+    !Array.isArray(data?.landings) ||
+    data.landings.some(
+      (e) =>
+        !e?.slug ||
+        !e?.id ||
+        typeof e.fondo_tipo !== 'string' ||
+        typeof e.fondo_imagen_url !== 'string' ||
+        !optionalText(e.fondo_foco_x) ||
+        !optionalText(e.fondo_foco_y),
+    )
+  ) {
     throw new Error('El respaldo existe pero no tiene el formato esperado. No se cambió nada.');
   }
   return data;
@@ -126,6 +166,7 @@ async function estado() {
     console.log(`- ${t.slug}`);
     console.log(`    fondo_tipo: ${now.fondo_tipo}`);
     console.log(`    fondo_imagen_url: ${show(now.fondo_imagen_url)}`);
+    console.log(`    encuadre: ${focoText(now)}`);
   }
 }
 
@@ -163,16 +204,29 @@ async function aplicar() {
 
   // 2. Respaldo previo.
   const hasBackup = await exists(backupFile);
-  if (hasBackup && !force) {
+  if (hasBackup && !force && !update) {
     console.error('✗ Ya existe un respaldo (respaldo-fondos.json). Si lo pisara se perderían los fondos originales.');
     console.error('  Para volver a los fondos anteriores: npx tsx scripts/fondos-prueba.ts revertir --confirmar');
+    console.error('  Para cambiar a otras fotos de prueba conservando ese respaldo: agrega --actualizar');
     console.error('  Solo si estás seguro de que el respaldo ya no sirve: agrega --forzar (el respaldo viejo se conserva con otro nombre).');
     process.exitCode = 1;
     return;
   }
+  // Con --actualizar y respaldo existente: el respaldo no se toca, pero debe ser legible y servir para revertir.
+  const keepBackup = hasBackup && update;
+  let kept: Backup | null = null;
+  if (keepBackup) {
+    try {
+      kept = await readBackup();
+    } catch (err) {
+      console.error(`✗ ${err instanceof Error ? err.message : err}`);
+      process.exitCode = 1;
+      return;
+    }
+  }
 
   // Landings que existen.
-  const plan: { slug: string; file: string; landing: LandingRow; before: { fondo_tipo: string; fondo_imagen_url: string } }[] = [];
+  const plan: { slug: string; file: string; foco_x: string; foco_y: string; landing: LandingRow; before: Fondo }[] = [];
   for (const t of TARGETS) {
     const landing = await repo.getLandingBySlug(t.slug);
     if (!landing) {
@@ -187,33 +241,50 @@ async function aplicar() {
     return;
   }
 
-  console.log(hasBackup ? 'Plan (con --forzar: el respaldo existente se conservará con otro nombre):' : 'Plan:');
+  if (kept) {
+    const missing = plan.filter((p) => !kept!.landings.some((e) => e.slug === p.slug)).map((p) => p.slug);
+    if (missing.length) {
+      console.error(`✗ El respaldo existente (${kept.fecha}) no incluye: ${missing.join(', ')}. Con --actualizar no se tocaría ese respaldo y sus fondos originales no se podrían revertir. No se cambió nada.`);
+      process.exitCode = 1;
+      return;
+    }
+  }
+
+  if (keepBackup) console.log(`Plan (con --actualizar: se CONSERVA el respaldo original respaldo-fondos.json del ${kept!.fecha}, sin tocarlo; "revertir" seguirá devolviendo a esos fondos):`);
+  else if (hasBackup) console.log('Plan (con --forzar: el respaldo existente se conservará con otro nombre y se creará uno nuevo con los fondos actuales):');
+  else console.log('Plan (se creará el respaldo respaldo-fondos.json con los fondos actuales):');
   for (const p of plan) {
     console.log(`- ${p.slug}`);
     console.log(`    imagen: ${p.file} (${kb(images.get(p.file)!.length)})`);
     console.log(`    fondo actual: ${p.before.fondo_tipo} · ${show(p.before.fondo_imagen_url)}`);
+    console.log(`    encuadre actual: ${focoText(p.before)}`);
     console.log('    quedará: imagen · (URL nueva al subir la foto)');
+    console.log(`    encuadre nuevo: ${focoText({ fondo_foco_x: p.foco_x, fondo_foco_y: p.foco_y })}`);
   }
   if (!confirm) {
     console.log('\nEnsayo: no se cambió nada. Para ejecutar agrega --confirmar.');
     return;
   }
 
-  // 3. Respaldo: escribir, releer y verificar ANTES de tocar la base.
-  if (hasBackup) {
-    const old = path.join(dir, `respaldo-fondos-previo-${stamp()}.json`);
-    await fs.rename(backupFile, old);
-    console.log(`Respaldo anterior conservado como ${path.basename(old)}`);
+  // 3. Respaldo: escribir, releer y verificar ANTES de tocar la base (con --actualizar y respaldo existente no se toca).
+  if (keepBackup) {
+    console.log(`✓ Respaldo original conservado sin cambios (${kept!.fecha})\n`);
+  } else {
+    if (hasBackup) {
+      const old = path.join(dir, `respaldo-fondos-previo-${stamp()}.json`);
+      await fs.rename(backupFile, old);
+      console.log(`Respaldo anterior conservado como ${path.basename(old)}`);
+    }
+    const backup: Backup = {
+      fecha: new Date().toISOString(),
+      cliente: env.clientId,
+      landings: plan.map((p) => ({ slug: p.slug, id: p.landing.id, ...p.before })),
+    };
+    await fs.writeFile(backupFile, JSON.stringify(backup, null, 2), 'utf8');
+    const check = await readBackup();
+    if (JSON.stringify(check) !== JSON.stringify(backup)) throw new Error('El respaldo no quedó bien escrito. No se cambió nada en la base.');
+    console.log('✓ Respaldo guardado y verificado\n');
   }
-  const backup: Backup = {
-    fecha: new Date().toISOString(),
-    cliente: env.clientId,
-    landings: plan.map((p) => ({ slug: p.slug, id: p.landing.id, ...p.before })),
-  };
-  await fs.writeFile(backupFile, JSON.stringify(backup, null, 2), 'utf8');
-  const check = await readBackup();
-  if (JSON.stringify(check) !== JSON.stringify(backup)) throw new Error('El respaldo no quedó bien escrito. No se cambió nada en la base.');
-  console.log('✓ Respaldo guardado y verificado\n');
 
   // 4. Subir y guardar, landing por landing.
   const done: string[] = [];
@@ -223,10 +294,10 @@ async function aplicar() {
       const name = `fondo-prueba-${stamp()}.jpg`;
       const objectPath = objectPathFor(env.clientId, 'fondo', name, p.landing.is_default ? undefined : p.landing.slug);
       const url = await getStorage().put(objectPath, images.get(p.file)!, 'image/jpeg');
-      await saveFondo(p.landing, 'imagen', url);
+      await saveFondo(p.landing, { fondo_tipo: 'imagen', fondo_imagen_url: url, fondo_foco_x: p.foco_x, fondo_foco_y: p.foco_y });
       done.push(p.slug);
       pending.splice(pending.indexOf(p.slug), 1);
-      console.log(`✓ ${p.slug}\n    ${url}`);
+      console.log(`✓ ${p.slug}\n    ${url}\n    encuadre: ${focoText({ fondo_foco_x: p.foco_x, fondo_foco_y: p.foco_y })}`);
     }
   } catch (err) {
     console.error(`\n✗ Falló: ${err instanceof Error ? err.message : err}`);
@@ -238,9 +309,11 @@ async function aplicar() {
   }
 
   // 5. Resumen.
-  console.log(`\nListo: ${done.length} landing(s) con foto de prueba.`);
-  console.log('Para volver a los fondos anteriores:');
+  console.log(`\nListo: ${done.length} landing(s) con foto de prueba y su encuadre.`);
+  if (keepBackup) console.log('El respaldo original no se tocó: "revertir" devuelve a los fondos de antes de la primera prueba.');
+  console.log('Para volver a los fondos anteriores (foto y encuadre):');
   console.log('  npx tsx scripts/fondos-prueba.ts revertir --confirmar');
+  console.log('Para cambiar a otras fotos de prueba sin perder ese respaldo: aplicar --confirmar --actualizar');
 }
 
 async function revertir() {
@@ -251,7 +324,7 @@ async function revertir() {
   }
   const backup = await readBackup();
   console.log(`Respaldo del ${backup.fecha}:`);
-  const plan: { entry: BackupEntry; landing: LandingRow; now: { fondo_tipo: string; fondo_imagen_url: string } }[] = [];
+  const plan: { entry: BackupEntry; landing: LandingRow; now: Fondo }[] = [];
   for (const entry of backup.landings) {
     const landing = await repo.getLandingBySlug(entry.slug);
     if (!landing) {
@@ -260,8 +333,9 @@ async function revertir() {
     }
     plan.push({ entry, landing, now: await currentFondo(landing) });
     console.log(`- ${entry.slug}`);
-    console.log(`    ahora:     ${plan.at(-1)!.now.fondo_tipo} · ${show(plan.at(-1)!.now.fondo_imagen_url)}`);
-    console.log(`    volverá a: ${entry.fondo_tipo} · ${show(entry.fondo_imagen_url)}`);
+    const now = plan.at(-1)!.now;
+    console.log(`    ahora:     ${now.fondo_tipo} · ${show(now.fondo_imagen_url)} · encuadre ${focoText(now)}`);
+    console.log(`    volverá a: ${entry.fondo_tipo} · ${show(entry.fondo_imagen_url)} · encuadre ${focoText(entry)}`);
   }
   if (!confirm) {
     console.log('\nEnsayo: no se cambió nada. Para ejecutar agrega --confirmar.');
@@ -272,7 +346,13 @@ async function revertir() {
   const failed: string[] = [];
   for (const p of plan) {
     try {
-      await saveFondo(p.landing, p.entry.fondo_tipo, p.entry.fondo_imagen_url);
+      // El encuadre solo se restaura si el respaldo lo trae (los antiguos no).
+      await saveFondo(p.landing, {
+        fondo_tipo: p.entry.fondo_tipo,
+        fondo_imagen_url: p.entry.fondo_imagen_url,
+        fondo_foco_x: p.entry.fondo_foco_x,
+        fondo_foco_y: p.entry.fondo_foco_y,
+      });
       restored.push(p.entry.slug);
       console.log(`✓ ${p.entry.slug} restaurada`);
     } catch (err) {
@@ -293,7 +373,17 @@ async function revertir() {
 
 async function main() {
   if (!COMMANDS.includes(command)) {
-    console.error('Uso: npx tsx scripts/fondos-prueba.ts <aplicar|revertir|estado> [--confirmar] [--forzar]');
+    console.error('Uso: npx tsx scripts/fondos-prueba.ts <aplicar|revertir|estado> [--confirmar] [--actualizar | --forzar]');
+    process.exitCode = 1;
+    return;
+  }
+  if (update && force) {
+    console.error('✗ --actualizar y --forzar son excluyentes: --actualizar conserva el respaldo original tal cual y --forzar lo reemplaza por uno nuevo. Usa solo uno. No se cambió nada.');
+    process.exitCode = 1;
+    return;
+  }
+  if (update && command !== 'aplicar') {
+    console.error('✗ --actualizar solo se usa con aplicar. No se cambió nada.');
     process.exitCode = 1;
     return;
   }
