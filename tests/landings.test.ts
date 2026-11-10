@@ -352,7 +352,7 @@ describe('varias landings: API, rutas y aislamiento', () => {
     expect(res.headers['cache-control']).toBe('no-store');
     expect(res.text).toContain('<span class="t1">Hola mundo</span><span class="t2">Experiencias</span>');
     expect(res.text).toContain(`<a class="boton" href="/go/${bButton}">Tour al valle</a>`);
-    expect(res.text).toContain('<span class="redes-texto">Síguenos en / Follow us on</span>');
+    expect(res.text).toContain('<span class="redes-texto"><span class="l">Síguenos en /</span> <span class="l">Follow us on</span></span>');
     expect(res.text).toContain(`href="/go/social/${bSocial}" aria-label="Instagram" target="_blank" rel="noopener"`);
     expect(res.text).toContain('align-items: flex-start;');
     expect(res.text).not.toContain('Hawa');
@@ -522,7 +522,7 @@ describe('plantillas', () => {
     expect(html).toContain('<a class="boton" href="/go/11111111-1111-4111-8111-111111111103" target="_blank" rel="noopener">');
     expect(html).not.toContain('Oculto');
     expect(html).not.toContain('Sin destino');
-    expect(html).toContain('<span class="redes-texto">Síguenos en / Follow us on</span>');
+    expect(html).toContain('<span class="redes-texto"><span class="l">Síguenos en /</span> <span class="l">Follow us on</span></span>');
     expect(html).toContain('href="/go/social/22222222-2222-4222-8222-222222222201" aria-label="Facebook"');
     expect(html).toContain('href="mailto:reservas@ejemplo.com" aria-label="Correo"');
     expect(html).not.toContain('--oscurecer');

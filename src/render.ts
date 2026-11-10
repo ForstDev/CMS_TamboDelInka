@@ -84,6 +84,22 @@ export function layoutValues(s: Settings, template: Template) {
 }
 
 /**
+ * Texto de redes en HTML ya escapado. Con una "/" se parte en la primera en dos líneas
+ * ("Síguenos en /" y "Follow us on"); sin barra, o con un lado vacío, va en un solo <span>.
+ */
+export function redesTituloHtml(value: unknown): string {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  const i = text.indexOf('/');
+  if (i >= 0) {
+    const before = text.slice(0, i).trim();
+    const after = text.slice(i + 1).trim();
+    if (before && after) return `<span class="l">${escapeHtml(`${before} /`)}</span> <span class="l">${escapeHtml(after)}</span>`;
+  }
+  return `<span>${escapeHtml(text)}</span>`;
+}
+
+/**
  * preview = true: vista previa dentro del CMS. Los botones apuntan directo a su destino
  * (no pasan por /go, así no cuentan clics) y todo se abre en otra pestaña.
  */
@@ -119,6 +135,7 @@ export function renderPage({ settings, buttons, socials, landing }: PageData, op
     novedades_url: s.novedades_activo === '1' ? s.novedades_url : '',
     botones_html,
     redes_html,
+    redes_titulo_html: redesTituloHtml(s.redes_titulo),
   });
 
   const head: string[] = [];

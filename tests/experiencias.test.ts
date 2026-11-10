@@ -1,6 +1,6 @@
 // Plantilla pública "experiencias" (templates/experiencias.html).
 import { describe, expect, it } from 'vitest';
-import { layoutValues, renderPage } from '../src/render.js';
+import { layoutValues, redesTituloHtml, renderPage } from '../src/render.js';
 import { defaultSettingsFor, type Settings } from '../src/validation.js';
 import type { Button, Social } from '../src/repo.js';
 
@@ -63,7 +63,7 @@ describe('plantilla "experiencias"', () => {
 
   it('muestra las redes con su texto y las oculta si no hay', () => {
     const html = render({ redes_titulo: 'Síguenos en / Follow us on' });
-    expect(html).toContain('<footer class="redes"><span class="redes-texto">Síguenos en / Follow us on</span><span class="iconos">');
+    expect(html).toContain('<footer class="redes"><span class="redes-texto"><span class="l">Síguenos en /</span> <span class="l">Follow us on</span></span><span class="iconos">');
     expect(html).toContain(`href="/go/social/${SOCIALS[0].id}" aria-label="Facebook"`);
     expect(html).toContain('<i class="fa-brands fa-instagram"></i>');
 
@@ -104,7 +104,7 @@ describe('plantilla "experiencias"', () => {
     // Una sola regla para el hero, fuera de toda media query (vale para celular y PC).
     const fotoRule = '  .hero {\n    background: var(--fondo) url("/uploads/f.jpg") 30% 70% / cover no-repeat;\n  }';
     expect(html).toContain(fotoRule);
-    expect(html.indexOf(fotoRule)).toBeGreaterThan(html.indexOf('.redes-texto { max-width: none; }'));
+    expect(html.indexOf(fotoRule)).toBeGreaterThan(html.indexOf('.iconos { gap: calc(var(--u) * 12); }'));
     // Separador flexible de siempre, entre el título y los botones.
     expect(html).toContain('</header>\n\n  <div class="espacio" aria-hidden="true"></div>\n\n  <nav class="botones"');
     expect(html).toMatch(/\.espacio \{\s*flex: 1 1 auto;\s*min-height: calc\(var\(--u\) \* 20\);\s*\}/);
@@ -128,7 +128,6 @@ describe('plantilla "experiencias"', () => {
     expect(html).not.toContain('::after');
     expect(html).not.toContain('mask-image');
     expect(html).not.toContain('mask-composite');
-    expect(html).not.toContain('max-width: 767.98px');
     expect(html).not.toContain('rgba(9, 30, 62');
     expect(html).not.toContain('rgba(6, 16, 34');
     expect(html).not.toContain('rgba(72, 68, 64');
@@ -155,7 +154,6 @@ describe('plantilla "experiencias"', () => {
       expect(html, label).not.toContain('rgba(6, 16, 34');
       expect(html, label).not.toContain('rgba(9, 30, 62');
       expect(html, label).not.toContain('rgba(72, 68, 64');
-      expect(html, label).not.toContain('max-width: 767.98px');
       expect(html, label).not.toContain('linear-gradient');
     }
   });
@@ -208,5 +206,45 @@ describe('plantilla "experiencias"', () => {
     const html = render({ titulo_linea1: '<script>alert(1)</script>' });
     expect(html).toContain('<span class="t1">&lt;script&gt;alert(1)&lt;/script&gt;</span>');
     expect(html).not.toContain('<script>');
+  });
+  it('celular: relleno superior del hero 60u; PC sigue en 30u', () => {
+    const html = render();
+    expect(html).toMatch(/\.hero \{[^}]*padding:\s*calc\(var\(--u\) \* 30 \+ env\(safe-area-inset-top, 0px\)\)/);
+    expect(html).toMatch(/@media \(max-width: 767\.98px\) \{\s*\.hero \{\s*padding-top: calc\(var\(--u\) \* 60 \+ env\(safe-area-inset-top, 0px\)\);\s*\}\s*\}/);
+    // Lados e inferior no cambian.
+    expect(html).toContain('calc(var(--u) * 24 + env(safe-area-inset-bottom, 0px))');
+  });
+
+  it('redes_titulo_html: reparte en la primera barra y escapa todo', () => {
+    const L = (a: string, b: string) => `<span class="l">${a}</span> <span class="l">${b}</span>`;
+    expect(redesTituloHtml('Síguenos en / Follow us on')).toBe(L('Síguenos en /', 'Follow us on'));
+    expect(redesTituloHtml('Síguenos / Follow us')).toBe(L('Síguenos /', 'Follow us'));
+    expect(redesTituloHtml('  Síguenos/Follow  ')).toBe(L('Síguenos /', 'Follow'));
+    expect(redesTituloHtml('Síguenos en')).toBe('<span>Síguenos en</span>');
+    expect(redesTituloHtml('')).toBe('');
+    expect(redesTituloHtml('   ')).toBe('');
+    expect(redesTituloHtml(undefined)).toBe('');
+    expect(redesTituloHtml('/ Follow us')).toBe('<span>/ Follow us</span>');
+    expect(redesTituloHtml('Síguenos /')).toBe('<span>Síguenos /</span>');
+    expect(redesTituloHtml('a / b / c')).toBe(L('a /', 'b / c'));
+    expect(redesTituloHtml('<img onerror=x> / "q" & \'z\'')).toBe(L('&lt;img onerror=x&gt; /', '&quot;q&quot; &amp; &#39;z&#39;'));
+    expect(redesTituloHtml('<script>alert(1)')).toBe('<span>&lt;script&gt;alert(1)</span>');
+    expect(redesTituloHtml('<img onerror=x>')).not.toContain('<img');
+  });
+
+  it('la plantilla usa redes_titulo_html, escapado, y el CSS reparte el texto', () => {
+    const html = render({ redes_titulo: '<b>x / "y" & z' });
+    expect(html).toContain('<span class="redes-texto"><span class="l">&lt;b&gt;x /</span> <span class="l">&quot;y&quot; &amp; z</span></span>');
+    expect(html).not.toContain('<b>');
+    expect(html).toMatch(/@media \(max-width: 767\.98px\) \{[^@]*\.redes \{ gap: calc\(var\(--u\) \* 18\); \}[^@]*\.redes-texto \{ text-align: left; \}[^@]*\.redes-texto \.l \{ display: block; white-space: nowrap; \}[^@]*text-wrap: balance[^@]*\.iconos \{ gap: calc\(var\(--u\) \* 12\); \}/);
+    expect(html).toContain('.redes-texto .l { display: inline; white-space: normal; }');
+    expect(html).not.toContain('7.6em');
+    expect(render({ redes_titulo: '' })).toContain('<span class="redes-texto"></span>');
+  });
+
+  it('cartas (pagina.html) sigue con redes_titulo sin partir', () => {
+    const html = renderPage({ settings: { ...defaultSettingsFor('cartas'), redes_titulo: 'Síguenos / Follow' }, buttons: [], socials: SOCIALS, landing: { template: 'cartas' } });
+    expect(html).toContain('Síguenos / Follow');
+    expect(html).not.toContain('class="l"');
   });
 });

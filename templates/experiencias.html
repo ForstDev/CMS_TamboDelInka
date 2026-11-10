@@ -76,6 +76,13 @@
     background: var(--fondo);
   }
 
+  /* Celular: más aire arriba para que el logo no quede pegado al borde (o al notch). */
+  @media (max-width: 767.98px) {
+    .hero {
+      padding-top: calc(var(--u) * 60 + env(safe-area-inset-top, 0px));
+    }
+  }
+
   .marca {
     width: 100%;
     max-width: calc(var(--u) * 1100);
@@ -192,10 +199,12 @@
     font-size: max(11.5px, calc(var(--u) * 13));
     line-height: 1.25;
     font-weight: 400;
-    max-width: 7.6em;
     text-align: right;
     text-shadow: 0 1px 8px rgba(0, 0, 0, .45);
   }
+
+  /* PC: el texto va en una sola línea junto a los íconos. */
+  .redes-texto .l { display: inline; white-space: normal; }
 
   .iconos {
     display: flex;
@@ -238,7 +247,16 @@
       min-height: calc(var(--u) * 60);
     }
 
-    .redes-texto { max-width: none; }
+  }
+
+  /* Celular: el texto en dos líneas fijas alineadas a la izquierda (una por idioma),
+     centrado junto con los íconos. Sin barra, un solo bloque que se parte en hasta 2 líneas equilibradas. */
+  @media (max-width: 767.98px) {
+    .redes { gap: calc(var(--u) * 18); }
+    .redes-texto { text-align: left; }
+    .redes-texto .l { display: block; white-space: nowrap; }
+    .redes-texto > span:not(.l) { display: block; max-width: 9em; text-wrap: balance; }
+    .iconos { gap: calc(var(--u) * 12); }
   }
 {{#if fondo_imagen_css}}
   /* ================= Con foto (diseño fijo, no editable) ================= */
@@ -272,7 +290,7 @@
     {{{botones_html}}}
   </nav>
 
-  {{#if redes_html}}<footer class="redes"><span class="redes-texto">{{redes_titulo}}</span><span class="iconos">{{{redes_html}}}</span></footer>{{/if}}
+  {{#if redes_html}}<footer class="redes"><span class="redes-texto">{{{redes_titulo_html}}}</span><span class="iconos">{{{redes_html}}}</span></footer>{{/if}}
 </main>
 
 </body>
