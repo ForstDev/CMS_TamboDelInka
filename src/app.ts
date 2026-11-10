@@ -10,6 +10,7 @@ import { deviceType, shouldCount } from './tracking.js';
 import { clearSessionCookie, createSessionCookie, getSession, hashPassword, login, requireApiSession, sameOrigin } from './auth.js';
 import { getStorage, isValidObjectPath, localUploadsDir, objectPathFor, UPLOAD_RULES } from './storage.js';
 import { NETWORKS } from './networks.js';
+import { fondosHtml, loginFondos } from './loginConfig.js';
 import { landingUrl, runWithLanding, type Landing } from './context.js';
 import bcrypt from 'bcryptjs';
 import {
@@ -155,9 +156,9 @@ export function createApp() {
 
   app.get('/cms_login', async (req, res) => {
     if (await getSession(req)) return res.redirect(302, '/cms');
-    const s = await repo.getSettings();
     res.setHeader('Cache-Control', 'no-store');
-    res.type('html').send(renderTemplate(loadTemplate('login.html'), { cms_nombre: s.cms_nombre, logo_url: s.logo_url, asset_v: ASSET_V }));
+    // Login único del panel: no depende de la landing ni del cliente (marca fija; fotos de fondo en loginConfig.ts).
+    res.type('html').send(renderTemplate(loadTemplate('login.html'), { fondos_html: fondosHtml(loginFondos()), asset_v: ASSET_V }));
   });
 
   app.post('/api/login', express.json({ limit: '10kb' }), async (req, res) => {

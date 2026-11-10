@@ -691,13 +691,24 @@ function renderDesign() {
   });
 
   // Tamaño (deslizador con data-setting="logo_ancho", se guarda solo) y posición del logo
-  state._syncLogoPos = wireSegmented($('#logo-pos'), state.settings.logo_posicion || 'center', (v) => saveSetting('logo_posicion', v, { immediate: true }));
+  // En "experiencias", al elegir un preajuste el ajuste fino vuelve a 0 (misma petición); en las demás plantillas no existe.
+  state._syncLogoPos = wireSegmented($('#logo-pos'), state.settings.logo_posicion || 'center', (v) => {
+    if (hasLogoX()) applyLogoLayout({ logo_posicion: v, logo_x: '0' });
+    else saveSetting('logo_posicion', v, { immediate: true });
+  });
   $('#logo-reset').addEventListener('click', () => {
     const before = { logo_ancho: state.settings.logo_ancho, logo_posicion: state.settings.logo_posicion };
     const defaults = { logo_ancho: state.defaults.logo_ancho || '260', logo_posicion: state.defaults.logo_posicion || 'center' };
+    if (hasLogoX()) {
+      before.logo_x = state.settings.logo_x ?? '0';
+      defaults.logo_x = '0';
+    }
     applyLogoLayout(defaults);
     toast('Tamaño y posición restablecidos', 'ok', { action: 'Deshacer', onAction: () => applyLogoLayout(before), duration: 6000 });
   });
+
+  // Ajuste fino horizontal (solo "experiencias"): el deslizador (data-setting="logo_x") se guarda solo.
+  $('#logo-x-center').addEventListener('click', () => setLogoX(0));
 
   renderDesignPreview();
 }
@@ -708,15 +719,55 @@ function cancelDebounced(key) {
   timers.delete(key);
 }
 
+/** Aplica y guarda (en una sola petición) las claves de diseño del logo que vengan en `values`. */
 function applyLogoLayout(values) {
-  cancelDebounced('setting:logo_ancho');
-  cancelDebounced('setting:logo_posicion');
+  for (const key of Object.keys(values)) cancelDebounced(`setting:${key}`);
   Object.assign(state.settings, values);
-  $('#logo-size').value = values.logo_ancho;
-  state._syncLogoPos?.(values.logo_posicion);
-  applyBindings();
+  if (values.logo_ancho !== undefined) $('#logo-size').value = values.logo_ancho;
+  if (values.logo_posicion !== undefined) state._syncLogoPos?.(values.logo_posicion);
+  applyBindings(); // también refresca el control del ajuste fino (renderDesignPreview)
   save(() => api('PATCH', '/api/cms/settings', values)).catch(() => {});
 }
+
+// ---------- Ajuste fino horizontal del logo (plantilla "experiencias") ----------
+
+const LOGO_X_MIN = -50;
+const LOGO_X_MAX = 50;
+/** Solo la plantilla "experiencias" tiene ajuste fino horizontal. */
+const hasLogoX = () => state.landing?.template === 'experiencias';
+
+/** Entero −50…50 (basura → 0). */
+function clampLogoX(n) {
+  const v = Math.round(Number(n));
+  return Number.isFinite(v) ? Math.min(LOGO_X_MAX, Math.max(LOGO_X_MIN, v)) + 0 : 0;
+}
+
+/** "+12 %", "−8 %", "0 %". */
+function fmtLogoX(n) {
+  const v = clampLogoX(n);
+  return v === 0 ? '0 %' : `${v > 0 ? '+' : '−'}${Math.abs(v)} %`;
+}
+
+/** Guarda al instante un nuevo desplazamiento (botón «Centrar» o arrastre en la vista previa). */
+function setLogoX(value) {
+  if (!hasLogoX()) return;
+  cancelDebounced('setting:logo_x'); // un guardado pendiente del deslizador mandaría un valor viejo después
+  saveSetting('logo_x', String(clampLogoX(value)), { immediate: true });
+}
+
+/** Iframes de vista previa conocidos: panel lateral, hoja (celular/tablet) y diálogo «Ampliar». */
+const previewFrames = () => ['#preview-frame', '#preview-frame-mobile', '#preview-frame-full'].map((sel) => $(sel)).filter(Boolean);
+
+// El logo se arrastra dentro de la vista previa (preview-drag.js) y avisa aquí al soltarlo.
+window.addEventListener('message', (event) => {
+  if (event.origin !== location.origin) return;
+  const data = event.data;
+  if (!data || typeof data !== 'object' || data.type !== 'cms-logo-x') return;
+  if (!event.source || !previewFrames().some((f) => f.contentWindow === event.source)) return;
+  const v = data.value;
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < LOGO_X_MIN || v > LOGO_X_MAX) return;
+  setLogoX(v); // no dispara eventos del control: no hay bucle de guardado
+});
 
 /** Entero 0–100 (los valores del encuadre). */
 function clampPct(n) {
@@ -793,6 +844,12 @@ function renderDesignPreview() {
     logo.style.width = `${(ancho / 400) * 100}%`;
     $('#logo-stage').style.justifyItems = { left: 'start', right: 'end' }[s.logo_posicion] || 'center';
     $('#logo-size-value').textContent = `${ancho} px`;
+    // Ajuste fino horizontal (solo se ve en "experiencias"; si la clave falta, 0).
+    const lx = clampLogoX(s.logo_x ?? 0);
+    const lxInput = $('#logo-x');
+    if (lxInput.value !== String(lx)) lxInput.value = String(lx);
+    lxInput.setAttribute('aria-valuetext', lx === 0 ? 'Sin ajuste' : `${Math.abs(lx)} % a la ${lx > 0 ? 'derecha' : 'izquierda'}`);
+    $('#logo-x-value').textContent = fmtLogoX(lx);
   }
   const focusStage = $('#focus-stage');
   if (focusStage) {

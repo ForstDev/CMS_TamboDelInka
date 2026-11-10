@@ -4,57 +4,133 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#1d4b49">
-<title>Ingresar · {{cms_nombre}}</title>
+<meta name="theme-color" content="#0b1622">
+<title>Ingresar · Panel de administración</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-<link rel="stylesheet" href="/assets/cms/cms.css?v={{asset_v}}">
+<link rel="stylesheet" href="/assets/cms/login.css?v={{asset_v}}">
 </head>
 <body class="login-body">
 
-<main class="login">
-  <section class="login-brand" aria-hidden="true">
-    {{#if logo_url}}<img src="{{logo_url}}" alt="">{{/if}}
-    <p class="login-brand-text">Administra tu página, tus cartas y mira qué es lo que más busca tu gente.</p>
-  </section>
+<div class="fondo" id="fondo" aria-hidden="true">{{{fondos_html}}}</div>
 
+<main class="login">
   <section class="login-card">
+    <img class="login-logo" src="/assets/login/logo-blanco.png" alt="Intursa Grupo Hotelero" width="1000" height="324">
+
     <div class="login-head">
-      <span class="login-badge"><i class="fa-solid fa-lock"></i> Panel de administración</span>
-      <h1>Hola de nuevo</h1>
-      <p>Ingresa para editar <strong>{{cms_nombre}}</strong>.</p>
+      <span class="login-badge"><i class="fa-solid fa-lock" aria-hidden="true"></i> Panel de administración</span>
+      <h1>Bienvenido</h1>
+      <p class="login-sub">Ingresa para administrar tus páginas.</p>
     </div>
 
     <form id="login-form" novalidate>
-      <div class="alert alert-error" id="login-error" role="alert" hidden></div>
+      <div class="login-alert" id="login-error" role="alert" hidden></div>
 
-      <label class="field">
-        <span class="field-label">Usuario</span>
-        <span class="input-icon">
-          <i class="fa-regular fa-user"></i>
-          <input type="text" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" required autofocus>
-        </span>
-      </label>
+      <div class="field">
+        <label class="field-label" for="login-username">Usuario</label>
+        <div class="input-icon">
+          <i class="fa-regular fa-user" aria-hidden="true"></i>
+          <input type="text" id="login-username" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" required autofocus>
+        </div>
+      </div>
 
-      <label class="field">
-        <span class="field-label">Contraseña</span>
-        <span class="input-icon">
-          <i class="fa-solid fa-key"></i>
-          <input type="password" name="password" autocomplete="current-password" required>
-          <button type="button" class="input-action" id="toggle-password" aria-label="Mostrar contraseña"><i class="fa-regular fa-eye"></i></button>
-        </span>
-      </label>
+      <div class="field">
+        <label class="field-label" for="login-password">Contraseña</label>
+        <div class="input-icon">
+          <i class="fa-solid fa-key" aria-hidden="true"></i>
+          <input type="password" id="login-password" name="password" autocomplete="current-password" required>
+          <button type="button" class="input-action" id="toggle-password" aria-label="Mostrar contraseña"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
+        </div>
+      </div>
 
-      <button type="submit" class="btn btn-primary btn-block btn-lg" id="login-submit">
-        <span>Ingresar</span> <i class="fa-solid fa-arrow-right"></i>
+      <button type="submit" class="login-btn" id="login-submit">
+        <span>Ingresar</span> <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
       </button>
     </form>
 
-    <p class="login-foot"><i class="fa-solid fa-shield-halved"></i> Acceso solo para administradores autorizados.</p>
+    <p class="login-foot"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Acceso solo para administradores autorizados.</p>
   </section>
 </main>
+
+{{#if fondos_html}}<script>
+  // Fondo de fotos: carga cada imagen antes de mostrarla, ignora las que fallan y rota con fundido cruzado.
+  (function () {
+    var wrap = document.getElementById('fondo');
+    var slides = Array.prototype.slice.call(wrap.querySelectorAll('.fondo-slide'));
+    var n = slides.length;
+    if (!n) return;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var state = [];   // 0 sin cargar · 1 cargando · 2 lista · 3 falló
+    var waiting = []; // llamadas pendientes de cada imagen que se está cargando
+    var cur = -1, timer = 0;
+    for (var k = 0; k < n; k++) { state.push(0); waiting.push([]); }
+    if (n > 1 && !reduce) wrap.classList.add('is-anim');
+
+    function cssUrl(s) {
+      return 'url("' + s.replace(/["'()\\\s]/g, function (c) { return '%' + ('0' + c.charCodeAt(0).toString(16)).slice(-2); }) + '")';
+    }
+    function done(i, ok) {
+      state[i] = ok ? 2 : 3;
+      var list = waiting[i]; waiting[i] = [];
+      for (var j = 0; j < list.length; j++) list[j](ok);
+    }
+    function load(i, cb) {
+      if (state[i] === 2) return cb(true);
+      if (state[i] === 3) return cb(false);
+      waiting[i].push(cb);
+      if (state[i] === 1) return;
+      state[i] = 1;
+      var src = slides[i].getAttribute('data-src') || '';
+      var img = new Image();
+      img.onload = function () { slides[i].style.backgroundImage = cssUrl(src); done(i, true); };
+      img.onerror = function () { done(i, false); };
+      img.src = src;
+    }
+    // Siguiente foto que cargue bien después de `from` (distinta de la actual)
+    function pick(from, tries, cb) {
+      if (tries >= n) return cb(-1);
+      var i = (from + 1) % n;
+      if (i === cur) return cb(-1);
+      load(i, function (ok) { if (ok) cb(i); else pick(i, tries + 1, cb); });
+    }
+    function show(i) {
+      if (cur >= 0) {
+        var old = slides[cur];
+        old.classList.remove('is-on');
+        old.classList.add('is-prev');
+        setTimeout(function () { old.classList.remove('is-prev'); }, 1800);
+      }
+      void slides[i].offsetWidth; // fuerza el cálculo de estilos para que el fundido arranque siempre
+      slides[i].classList.add('is-on');
+      cur = i;
+    }
+    function schedule() {
+      clearTimeout(timer);
+      if (reduce || n < 2 || document.hidden) return;
+      timer = setTimeout(tick, 8000);
+    }
+    function tick() {
+      pick(cur, 0, function (i) {
+        if (i < 0) return;
+        show(i);
+        schedule();
+      });
+    }
+
+    pick(-1, 0, function (i) {
+      if (i < 0) return;
+      show(i);
+      schedule();
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) clearTimeout(timer);
+      else if (cur >= 0) schedule();
+    });
+  })();
+</script>{{/if}}
 
 <script>
   const form = document.getElementById('login-form');
@@ -66,7 +142,7 @@
     const show = pwd.type === 'password';
     pwd.type = show ? 'text' : 'password';
     e.currentTarget.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
-    e.currentTarget.innerHTML = show ? '<i class="fa-regular fa-eye-slash"></i>' : '<i class="fa-regular fa-eye"></i>';
+    e.currentTarget.innerHTML = show ? '<i class="fa-regular fa-eye-slash" aria-hidden="true"></i>' : '<i class="fa-regular fa-eye" aria-hidden="true"></i>';
   });
 
   form.addEventListener('submit', async (e) => {

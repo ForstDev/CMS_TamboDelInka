@@ -299,6 +299,53 @@ describe('varias landings: API, rutas y aislamiento', () => {
     }
   });
 
+  it('logo_x (ajuste fino horizontal): estado, PATCH, aislamiento y compatibilidad con landings sin la clave', async () => {
+    const db = await getDb();
+    // Landing sin la clave guardada (como las existentes): vale 0, sin migración.
+    expect(await db.query(`select 1 from landing_settings where key = 'logo_x' and landing_id = $1`, [B.id])).toEqual([]);
+    const before = (await asB(agent.get('/api/cms/state'))).body;
+    expect(before.settings.logo_x).toBe('0');
+    expect(before.defaults.logo_x).toBe('0');
+    expect((await agent.get('/api/cms/state')).body.settings.logo_x).toBe('0');
+    expect((await asB(agent.get('/api/cms/preview'))).text).toContain('--logo-x: 0;');
+
+    const ok = await asB(agent.patch('/api/cms/settings')).send({ logo_x: '-12' });
+    expect(ok.status).toBe(200);
+    expect(ok.body.settings.logo_x).toBe('-12');
+    expect((await asB(agent.get('/api/cms/state'))).body.settings.logo_x).toBe('-12');
+    expect((await agent.get('/api/cms/state')).body.settings.logo_x).toBe('0'); // otra landing: intacta
+
+    // Los dos extremos y un preajuste con logo_x en la misma petición.
+    for (const v of ['-50', '50', '0', '12']) {
+      const r = await asB(agent.patch('/api/cms/settings')).send({ logo_x: v });
+      expect(r.status, v).toBe(200);
+      expect(r.body.settings.logo_x).toBe(v);
+    }
+    const both = await asB(agent.patch('/api/cms/settings')).send({ logo_posicion: 'right', logo_x: '0' });
+    expect(both.status).toBe(200);
+    expect(both.body.settings).toMatchObject({ logo_posicion: 'right', logo_x: '0' });
+
+    for (const bad of ['51', '-51', '1.5', 'x', '', '5%', '+5', '-0', ' ', '012', '1e1']) {
+      const r = await asB(agent.patch('/api/cms/settings')).send({ logo_x: bad });
+      expect(r.status, JSON.stringify(bad)).toBe(400);
+      expect(r.body.error).toBe('La posición horizontal debe ser un número entre −50 y 50');
+    }
+    expect((await asB(agent.patch('/api/cms/settings')).send({ logo_x: 5 })).status).toBe(400); // debe ser texto
+    expect((await asB(agent.get('/api/cms/state'))).body.settings.logo_x).toBe('0'); // los rechazos no cambian nada
+
+    // Sale en el CSS de Experiencias; el script de arrastre solo en la vista previa de Experiencias.
+    await asB(agent.patch('/api/cms/settings')).send({ logo_x: '33' });
+    const preview = await asB(agent.get('/api/cms/preview'));
+    expect(preview.text).toContain('--logo-x: 33;');
+    expect(preview.text).toContain('<script src="/assets/cms/preview-drag.js" defer></script>');
+    const pub = await request(app).get('/exp-demo');
+    expect(pub.text).toContain('--logo-x: 33;');
+    expect(pub.text).not.toContain('preview-drag');
+    expect(pub.text).not.toContain('<script');
+    expect((await agent.get('/api/cms/preview')).text).not.toContain('preview-drag'); // "cartas"
+    await asB(agent.patch('/api/cms/settings')).send({ logo_posicion: 'left', logo_x: '0' }); // como lo dejó la prueba anterior
+  });
+
   it('filas antiguas fondo_oscurecer / fondo_oscurecer_arriba (como en producción): se ignoran sin romper nada', async () => {
     const db = await getDb();
     // El seed ya no las crea; se insertan a mano como las tiene la base de producción.
@@ -530,13 +577,15 @@ describe('plantillas', () => {
     expect(html).not.toContain('class="foto"');
     expect(html).not.toContain('.foto');
     expect(html).toContain('background: var(--fondo) url("/uploads/f.jpg") center / cover no-repeat;');
-    expect(html).not.toContain('.hero::before');
+    // Con foto: una sola capa .hero::before (degradado negro fijo solo en celular), nada más.
+    expect(html.match(/::before/g)).toHaveLength(1);
+    expect(html).toMatch(/@media \(max-width: 767\.98px\) \{\s*\.hero::before \{/);
+    expect(html).toContain('rgba(0, 0, 0, 0.7) 100%');
     expect(html).not.toContain('.hero::after');
     expect(html).not.toContain('mask-image');
     expect(html).not.toContain('mask-composite');
     expect(html).not.toContain('rgba(9, 30, 62');
     expect(html).not.toContain('rgba(6, 16, 34');
-    expect(html).not.toContain('rgba(72, 68, 64');
     expect(html).toContain('filter: drop-shadow(0 1px 8px rgba(0, 0, 0, .5));');
     expect(html).toContain('text-shadow: 0 2px 14px rgba(0, 0, 0, .42)');
     expect(html).toContain('--logo-n: 150;');
@@ -559,6 +608,8 @@ describe('validación de los ajustes nuevos', () => {
       { logo_ancho: '999' }, { logo_ancho: '59' }, { logo_ancho: '401' }, { logo_ancho: '060' }, { logo_ancho: '200px' }, { logo_ancho: '' }, { logo_ancho: 200 },
       { logo_posicion: 'x' }, { logo_posicion: 'LEFT' }, { logo_posicion: 'center;}' },
       { fondo_foco_x: '50%; }' }, { fondo_foco_x: '101' }, { fondo_foco_x: '-1' }, { fondo_foco_y: '1e2' }, { fondo_foco_y: '50.5' },
+      // logo_x: −50…50 en texto; el signo solo vale ahí (los demás enteros siguen sin admitir negativos).
+      { logo_x: '51' }, { logo_x: '-51' }, { logo_x: '1.5' }, { logo_x: 'x' }, { logo_x: '' }, { logo_x: '5%' }, { logo_x: '+5' }, { logo_x: '-0' }, { logo_x: '1000' }, { logo_x: 5 }, { logo_x: '50; }' },
       // Ajustes de oscurecido retirados (diseño fijo): ahora son claves desconocidas, incluso con valores que antes valían.
       { fondo_oscurecer: '85' }, { fondo_oscurecer: '0' }, { fondo_oscurecer_arriba: '60' }, { fondo_oscurecer_arriba: '100' },
       { titulo_linea1: 'x'.repeat(61) }, { titulo_linea2: 'x'.repeat(61) },
@@ -571,6 +622,7 @@ describe('validación de los ajustes nuevos', () => {
       { logo_ancho: '60' }, { logo_ancho: '400' }, { logo_ancho: ' 150 ' },
       { logo_posicion: 'left' }, { logo_posicion: 'center' }, { logo_posicion: 'right' },
       { fondo_foco_x: '0', fondo_foco_y: '100' },
+      { logo_x: '-50' }, { logo_x: '0' }, { logo_x: '50' }, { logo_x: '12' }, { logo_x: '-12' }, { logo_x: ' -7 ' },
       { titulo_linea1: 'x'.repeat(60), titulo_linea2: '' },
     ];
     for (const body of good) expect(settingsPatch.safeParse(body).success, JSON.stringify(body)).toBe(true);
@@ -578,7 +630,9 @@ describe('validación de los ajustes nuevos', () => {
 
   it('valores por defecto por plantilla', () => {
     expect(defaultSettingsFor('cartas')).toEqual({ ...DEFAULT_SETTINGS, logo_ancho: '260' });
-    expect(defaultSettingsFor('cartas')).toMatchObject({ logo_posicion: 'center', fondo_foco_x: '50', fondo_foco_y: '50' });
+    expect(defaultSettingsFor('cartas')).toMatchObject({ logo_posicion: 'center', logo_x: '0', fondo_foco_x: '50', fondo_foco_y: '50' });
+    expect(defaultSettingsFor('experiencias').logo_x).toBe('0');
+    expect(DEFAULT_SETTINGS.logo_x).toBe('0');
     for (const t of ['cartas', 'experiencias'] as const) {
       expect(defaultSettingsFor(t), t).not.toHaveProperty('fondo_oscurecer');
       expect(defaultSettingsFor(t), t).not.toHaveProperty('fondo_oscurecer_arriba');

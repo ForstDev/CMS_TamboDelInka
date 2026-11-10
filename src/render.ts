@@ -55,10 +55,14 @@ const TEMPLATE_FILES: Record<Template, string> = {
   experiencias: 'experiencias.html',
 };
 
+/** Script de la vista previa (arrastrar el logo). Mismo origen; el panel lo permite con sandbox="allow-scripts". */
+const PREVIEW_DRAG_SCRIPT = '<script src="/assets/cms/preview-drag.js" defer></script>';
+
 /** Entero acotado a partir del ajuste (ya validado al guardar; se vuelve a acotar por seguridad). */
 function intSetting(value: unknown, min: number, max: number, fallback: number): number {
-  const n = /^\d{1,3}$/.test(String(value ?? '')) ? Number(value) : NaN;
-  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+  // El signo "-" solo se admite cuando el rango incluye negativos (p. ej. logo_x: −50…50).
+  const n = (min < 0 ? /^-?\d{1,3}$/ : /^\d{1,3}$/).test(String(value ?? '')) ? Number(value) : NaN;
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) + 0 : fallback; // "+ 0" evita "-0"
 }
 
 const LOGO_POSITIONS = {
@@ -75,6 +79,8 @@ export function layoutValues(s: Settings, template: Template) {
   const y = intSetting(s.fondo_foco_y, 0, 100, 50);
   return {
     logo_ancho: String(intSetting(s.logo_ancho, 60, 400, Number(d.logo_ancho))),
+    // Desplazamiento horizontal fino del logo (% de .marca), solo lo usa "experiencias". Basura → 0.
+    logo_x_css: String(intSetting(s.logo_x, -50, 50, 0)),
     logo_align: pos.align,
     logo_text_align: pos.text,
     logo_margin: pos.margin,
@@ -136,6 +142,8 @@ export function renderPage({ settings, buttons, socials, landing }: PageData, op
     botones_html,
     redes_html,
     redes_titulo_html: redesTituloHtml(s.redes_titulo),
+    // Arrastre del logo: solo en la vista previa del panel y solo en "experiencias" (nunca en la página pública).
+    preview_script_html: opts.preview && template === 'experiencias' ? PREVIEW_DRAG_SCRIPT : '',
   });
 
   const head: string[] = [];

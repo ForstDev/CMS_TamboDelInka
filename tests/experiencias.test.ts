@@ -1,4 +1,7 @@
 // Plantilla pública "experiencias" (templates/experiencias.html).
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { layoutValues, redesTituloHtml, renderPage } from '../src/render.js';
 import { defaultSettingsFor, type Settings } from '../src/validation.js';
@@ -90,7 +93,7 @@ describe('plantilla "experiencias"', () => {
     expect(html).toContain('background: var(--fondo) url("/uploads/f.jpg") 30% 70% / cover no-repeat;');
     expect(html.match(/url\("\/uploads\/f\.jpg"\)/g)).toHaveLength(1);
     expect(html).toContain('--logo-n: 180;');
-    expect(html).toContain('<img class="logo" src="/uploads/l.png" alt="Hotel">');
+    expect(html).toContain('<img class="logo" src="/uploads/l.png" alt="Hotel" draggable="false">');
 
     const centro = render({ fondo_tipo: 'imagen', fondo_imagen_url: '/uploads/f.jpg' });
     expect(centro).toContain('background: var(--fondo) url("/uploads/f.jpg") center / cover no-repeat;');
@@ -118,19 +121,42 @@ describe('plantilla "experiencias"', () => {
     expect(html).not.toContain('62vw');
   });
 
-  it('con foto: sin oscurecido añadido (ni capa móvil ni reloj de arena); la foto, el halo y los text-shadow siguen', () => {
+  it('con foto: degradado negro fijo solo abajo en celular (una capa .hero::before), nada en PC; la foto, el halo y los text-shadow siguen', () => {
     const html = render({ ...IMG, fondo_foco_x: '30', fondo_foco_y: '70' });
     expect(html).toContain('background: var(--fondo) url("/uploads/f.jpg") 30% 70% / cover no-repeat;');
     expect(html).toMatch(/\.hero \{[^}]*background: var\(--fondo\) url\("\/uploads\/f\.jpg"\) 30% 70% \/ cover no-repeat;/);
-    expect(html).not.toContain('.hero::before');
+    // Exactamente una capa ::before, dentro de la media query móvil, con las paradas indicadas.
+    expect(html.match(/::before/g)).toHaveLength(1);
+    expect(html.match(/\.hero::before/g)).toHaveLength(1);
+    expect(html.match(/linear-gradient\(/g)).toHaveLength(1);
+    expect(html.match(/rgba\(0, 0, 0, (?:0|0\.35|0\.6|0\.7)\) /g)).toHaveLength(4);
+    expect(html).not.toContain('rgba(72, 68, 64');
+    const movil = html.match(/@media \(max-width: 767\.98px\) \{\s*\.hero::before \{([^}]*)\}\s*\}/);
+    expect(movil).not.toBeNull();
+    const capa = movil![1];
+    expect(capa).toContain('content: "";');
+    expect(capa).toContain('position: absolute;');
+    expect(capa).toContain('inset: 0;');
+    expect(capa).toContain('z-index: -1;');
+    expect(capa).toContain('pointer-events: none;');
+    expect(capa).toContain('linear-gradient(to bottom');
+    expect(capa).toContain('rgba(0, 0, 0, 0) calc(100% - var(--u) * 420)');
+    expect(capa).toContain('rgba(0, 0, 0, 0.35) calc(100% - var(--u) * 290)');
+    expect(capa).toContain('rgba(0, 0, 0, 0.6) calc(100% - var(--u) * 150)');
+    expect(capa).toContain('rgba(0, 0, 0, 0.7) 100%');
+    // El .hero aísla el apilamiento: la capa queda sobre la foto y bajo el contenido.
+    expect(html).toMatch(/\.hero \{[^}]*position: relative;\s*isolation: isolate;/);
+    // PC: ninguna capa ni degradado en el bloque min-width: 768px.
+    const pc = html.match(/@media \(min-width: 768px\) \{\s*\.t1[\s\S]*?\n  \}\n/);
+    expect(pc).not.toBeNull();
+    expect(pc![0]).not.toContain('::before');
+    expect(pc![0]).not.toContain('gradient');
     expect(html).not.toContain('.hero::after');
-    expect(html).not.toContain('::before');
     expect(html).not.toContain('::after');
     expect(html).not.toContain('mask-image');
     expect(html).not.toContain('mask-composite');
     expect(html).not.toContain('rgba(9, 30, 62');
     expect(html).not.toContain('rgba(6, 16, 34');
-    expect(html).not.toContain('rgba(72, 68, 64');
     // Legibilidad propia de los elementos: halo del logo y sombras de texto.
     expect(html).toContain('filter: drop-shadow(0 1px 8px rgba(0, 0, 0, .5));');
     expect(html).toMatch(/\.titulo \{[^}]*text-shadow: 0 2px 14px rgba\(0, 0, 0, \.42\), 0 1px 3px rgba\(0, 0, 0, \.28\);/);
@@ -146,7 +172,7 @@ describe('plantilla "experiencias"', () => {
       expect(html, label).toContain('<div class="espacio" aria-hidden="true"></div>');
       expect(html, label).not.toContain('class="foto"');
       expect(html, label).not.toContain('.foto');
-      expect(html, label).not.toContain('url(');
+      expect(html.replace(/url\("\/assets\/fonts\/[^)]*\)/g, ''), label).not.toContain('url(');
       expect(html, label).not.toContain('.hero::before');
       expect(html, label).not.toContain('.hero::after');
       expect(html, label).not.toContain('mask-image');
@@ -165,7 +191,7 @@ describe('plantilla "experiencias"', () => {
     }
     for (const t of ['experiencias', 'cartas'] as const) {
       const v = layoutValues({ ...defaultSettingsFor(t), fondo_oscurecer: '85' } as Settings, t);
-      expect(Object.keys(v).sort(), t).toEqual(['fondo_foco_css', 'logo_align', 'logo_ancho', 'logo_margin', 'logo_text_align']);
+      expect(Object.keys(v).sort(), t).toEqual(['fondo_foco_css', 'logo_align', 'logo_ancho', 'logo_margin', 'logo_text_align', 'logo_x_css']);
     }
     // Un ajuste antiguo con la clave (fila de producción) no cambia nada.
     expect(render({ ...IMG, fondo_oscurecer: '85' } as any)).toBe(render(IMG));
@@ -246,5 +272,215 @@ describe('plantilla "experiencias"', () => {
     const html = renderPage({ settings: { ...defaultSettingsFor('cartas'), redes_titulo: 'Síguenos / Follow' }, buttons: [], socials: SOCIALS, landing: { template: 'cartas' } });
     expect(html).toContain('Síguenos / Follow');
     expect(html).not.toContain('class="l"');
+  });
+
+  it('fuente oficial Sofia Pro autoalojada: 3 WOFF2 en disco, 3 @font-face, 2 preload y sin Sofia Sans en Google Fonts', () => {
+    for (const w of [300, 400, 700]) {
+      const buf = readFileSync(join(process.cwd(), 'public', 'assets', 'fonts', 'sofia-pro', `sofia-pro-${w}.woff2`));
+      expect(buf.subarray(0, 4).toString('latin1'), `peso ${w}`).toBe('wOF2');
+    }
+    const html = render();
+    for (const w of [300, 400, 700]) {
+      expect(html).toMatch(new RegExp(String.raw`@font-face \{\s*font-family: "Sofia Pro";\s*font-weight: ${w};\s*font-style: normal;\s*font-display: swap;\s*src: url\("/assets/fonts/sofia-pro/sofia-pro-${w}\.woff2"\) format\("woff2"\);`));
+    }
+    expect(html.match(/@font-face/g)).toHaveLength(3);
+    expect(html.match(/<link rel="preload" as="font" type="font\/woff2" crossorigin href="\/assets\/fonts\/sofia-pro\/sofia-pro-(300|700)\.woff2">/g)).toHaveLength(2);
+    expect(html).toContain('--sans: "Sofia Pro", "Sofia Sans", "Helvetica Neue", Arial, sans-serif;');
+    const google = html.match(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>/)![0];
+    expect(google).not.toContain('Sofia');
+    expect(google).toContain('Cormorant+Garamond');
+  });
+
+  it('el panel declara el @font-face de Sofia Pro 300 y ya no pide Sofia Sans a Google', () => {
+    const css = readFileSync(join(process.cwd(), 'public', 'assets', 'cms', 'cms.css'), 'utf8');
+    expect(css).toContain('@font-face { font-family: "Sofia Pro"; font-weight: 300;');
+    expect(css).toContain('url("/assets/fonts/sofia-pro/sofia-pro-300.woff2")');
+    expect(css).toMatch(/\.tp-1 \{ font-family: "Sofia Pro", "Sofia Sans"/);
+    const cms = readFileSync(join(process.cwd(), 'templates', 'cms.html'), 'utf8');
+    expect(cms).not.toContain('Sofia+Sans');
+    expect(cms).toContain('Plus+Jakarta+Sans');
+    expect(cms).toContain('Cormorant+Garamond');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Ajuste fino horizontal del logo (logo_x) y arrastre en la vista previa
+
+describe('experiencias: logo_x (desplazamiento horizontal del logo)', () => {
+  it('--logo-x en el CSS: por defecto 0, valores válidos tal cual y basura → 0', () => {
+    expect(render()).toContain('--logo-x: 0;');
+    expect(render({ logo_x: '-12' })).toContain('--logo-x: -12;');
+    expect(render({ logo_x: '12' })).toContain('--logo-x: 12;');
+    expect(render({ logo_x: '-50' })).toContain('--logo-x: -50;');
+    expect(render({ logo_x: '50' })).toContain('--logo-x: 50;');
+    // Fuera de rango (no debería llegar a la base): se acota. Basura o inyección: 0.
+    expect(render({ logo_x: '99' })).toContain('--logo-x: 50;');
+    expect(render({ logo_x: '-99' })).toContain('--logo-x: -50;');
+    for (const bad of ['x', '', '1.5', '5%', '50; }', '1000', '-0', '--5', '1e1', 'calc(1)', '<script>'] as const) {
+      const html = render({ logo_x: bad } as Partial<Settings>);
+      expect(html, JSON.stringify(bad)).toContain('--logo-x: 0;');
+      expect(html, JSON.stringify(bad)).not.toContain('<script>');
+    }
+    // Landing existente sin la clave: igual que 0.
+    const { logo_x: _omit, ...sinClave } = settings();
+    expect(renderPage({ settings: sinClave as Settings, buttons: BUTTONS, socials: SOCIALS, landing }, {}).replace(/\r\n/g, '\n')).toContain('--logo-x: 0;');
+    expect(render({ logo_x: undefined } as any)).toContain('--logo-x: 0;');
+  });
+
+  it('layoutValues.logo_x_css: entero acotado −50…50', () => {
+    const v = (logo_x: unknown) => layoutValues({ ...defaultSettingsFor('experiencias'), logo_x } as Settings, 'experiencias').logo_x_css;
+    expect([v('0'), v('7'), v('-7'), v('50'), v('-50'), v('51'), v('-51')]).toEqual(['0', '7', '-7', '50', '-50', '50', '-50']);
+    expect([v(''), v('x'), v(undefined), v(null), v('1.5'), v('-0'), v(12)]).toEqual(['0', '0', '0', '0', '0', '0', '12']);
+  });
+
+  it('el logo se desplaza con left en % de .marca; .hero recorta el desborde horizontal; el <img> no es arrastrable', () => {
+    const html = render({ logo_url: '/uploads/l.png', logo_alt: 'Hotel' });
+    expect(html).toMatch(/\.logo \{[^}]*position: relative;\s*left: calc\(var\(--logo-x\) \* 1%\);/);
+    expect(html).toMatch(/\.hero \{[^}]*overflow-x: clip;/);
+    expect(html).toContain('<img class="logo" src="/uploads/l.png" alt="Hotel" draggable="false">');
+    // El ancho del logo y su preajuste siguen igual.
+    expect(html).toContain('width: min(calc(var(--u) * var(--logo-n)), 80vw);');
+    expect(html).toContain('align-items: center;');
+    expect(render({ logo_posicion: 'right', logo_x: '-8' })).toContain('align-items: flex-end;');
+  });
+
+  it('el script de arrastre solo está en la vista previa de "experiencias"', () => {
+    const tag = '<script src="/assets/cms/preview-drag.js" defer></script>';
+    const preview = render({}, { preview: true });
+    expect(preview).toContain(tag);
+    expect(preview.match(/<script/g)).toHaveLength(1);
+    expect(preview.indexOf(tag)).toBeGreaterThan(preview.indexOf('</main>'));
+    expect(preview.indexOf(tag)).toBeLessThan(preview.indexOf('</body>'));
+    // Página pública (con y sin noindex) y vista previa sin plantilla experiencias: nada.
+    for (const html of [render(), render({ logo_x: '20' }), renderPage({ settings: settings(), buttons: BUTTONS, socials: SOCIALS, landing }, { noindex: true })]) {
+      expect(html).not.toContain('preview-drag');
+      expect(html).not.toContain('<script');
+    }
+    const cartas = (opts: { preview?: boolean }) =>
+      renderPage({ settings: defaultSettingsFor('cartas'), buttons: [], socials: [], landing: { template: 'cartas' } }, opts);
+    expect(cartas({ preview: true })).not.toContain('preview-drag');
+    expect(cartas({})).not.toContain('preview-drag');
+    expect(renderPage({ settings: defaultSettingsFor('cartas'), buttons: [], socials: [] }, { preview: true })).not.toContain('preview-drag');
+    expect(preview).not.toContain('{{');
+  });
+});
+
+describe('preview-drag.js: computeLogoX (función pura)', () => {
+  const code = readFileSync(join(process.cwd(), 'public', 'assets', 'cms', 'preview-drag.js'), 'utf8');
+  const sandbox: { module: { exports: { computeLogoX?: (...a: unknown[]) => number } } } = { module: { exports: {} } };
+  vm.runInNewContext(code, sandbox); // sin window ni document: solo define y exporta la función
+  const f = sandbox.module.exports.computeLogoX!;
+  // Contenedor .marca de 350 px y logo de 150 px: centro (borde izq. a 100 px), izquierda (0) y derecha (200).
+  const W = 350;
+  const LOGO = 150;
+  const CENTRO = 100;
+  const DER = W - LOGO;
+
+  it('se exporta y no toca el DOM al cargarse fuera del navegador', () => {
+    expect(typeof f).toBe('function');
+  });
+
+  it('centro: mueve en % de .marca, redondea a entero y respeta los bordes de .marca', () => {
+    expect(f(0, 0, W, CENTRO, LOGO)).toBe(0);
+    expect(f(0, 35, W, CENTRO, LOGO)).toBe(10);
+    expect(f(0, -35, W, CENTRO, LOGO)).toBe(-10);
+    // Límites: a la izquierda ceil(−100/350·100) = −28; a la derecha floor(100/350·100) = 28.
+    expect(f(0, -1000, W, CENTRO, LOGO)).toBe(-28);
+    expect(f(0, 1000, W, CENTRO, LOGO)).toBe(28);
+    expect(f(0, 98, W, CENTRO, LOGO)).toBe(28); // justo en el borde (28 %)
+    expect(f(0, 105, W, CENTRO, LOGO)).toBe(28); // pasado de borde: se queda
+  });
+
+  it('preajuste izquierda: solo hacia la derecha (tope 50 %); derecha: solo hacia la izquierda (tope −50 %)', () => {
+    expect(f(0, -200, W, 0, LOGO)).toBe(0);
+    expect(f(0, 70, W, 0, LOGO)).toBe(20);
+    expect(f(0, 1000, W, 0, LOGO)).toBe(50);
+    expect(f(0, 200, W, DER, LOGO)).toBe(0);
+    expect(f(0, -70, W, DER, LOGO)).toBe(-20);
+    expect(f(0, -1000, W, DER, LOGO)).toBe(-50);
+    // Con el logo más ancho que la mitad el tope lo pone .marca, no ±50.
+    expect(f(0, 1000, 400, 0, 300)).toBe(25);
+    expect(f(0, -1000, 400, 100, 300)).toBe(-25);
+  });
+
+  it('parte del desplazamiento actual (startPct) y lo acota si ya estaba fuera', () => {
+    expect(f(10, 0, W, CENTRO, LOGO)).toBe(10);
+    expect(f(10, -35, W, CENTRO, LOGO)).toBe(0);
+    expect(f(10, 35, W, CENTRO, LOGO)).toBe(20);
+    expect(f(40, 0, W, CENTRO, LOGO)).toBe(28);
+    expect(f(-40, 0, W, CENTRO, LOGO)).toBe(-28);
+    expect(f(-30, 0, W, 0, LOGO)).toBe(0);
+  });
+
+  it('redondeo al entero más cercano', () => {
+    expect(f(0, 1.7, W, CENTRO, LOGO)).toBe(0); // 0.49 %
+    expect(f(0, 1.8, W, CENTRO, LOGO)).toBe(1); // 0.51 %
+    expect(f(0, -1.8, W, CENTRO, LOGO)).toBe(-1);
+    expect(f(0, 17.4, W, CENTRO, LOGO)).toBe(5); // 4.97 %
+    expect(f(2.4, 0, W, CENTRO, LOGO)).toBe(2);
+    expect(f(2.6, 0, W, CENTRO, LOGO)).toBe(3);
+  });
+
+  it('casos degenerados: sin medidas no se mueve; logo a todo el ancho → 0; nunca NaN ni -0', () => {
+    expect(f(5, 100, 0, 0, 100)).toBe(5);
+    expect(f(5, 100, NaN, 0, 100)).toBe(5);
+    expect(f(0, 100, W, 0, W)).toBe(0);
+    expect(f(0, -100, W, 0, W)).toBe(0);
+    expect(f(NaN, NaN, W, CENTRO, LOGO)).toBe(0);
+    expect(f(0, -1, W, 0, LOGO)).toBe(0);
+    expect(Object.is(f(0, -1, W, 0, LOGO), 0)).toBe(true);
+    expect(f(99, 0, 0, 0, 0)).toBe(50);
+  });
+
+  it('siempre entero, dentro de −50…50 y con el logo dentro de .marca (barrido)', () => {
+    for (const [left0, w, mw] of [[0, 150, 350], [100, 150, 350], [200, 150, 350], [0, 60, 1100], [520, 60, 1100], [1040, 60, 1100]] as const) {
+      for (let start = -50; start <= 50; start += 7) {
+        for (let dx = -1500; dx <= 1500; dx += 37) {
+          const v = f(start, dx, mw, left0, w);
+          expect(Number.isInteger(v)).toBe(true);
+          expect(v).toBeGreaterThanOrEqual(-50);
+          expect(v).toBeLessThanOrEqual(50);
+          const l = left0 + (v / 100) * mw;
+          expect(l).toBeGreaterThanOrEqual(-mw * 0.01 - 1e-6); // tolerancia de redondeo a entero (≤ 1 %)
+          expect(l + w).toBeLessThanOrEqual(mw + mw * 0.01 + 1e-6);
+        }
+      }
+    }
+  });
+});
+
+describe('panel: ajuste fino del logo y mensajes de la vista previa', () => {
+  const cms = readFileSync(join(process.cwd(), 'templates', 'cms.html'), 'utf8');
+  const js = readFileSync(join(process.cwd(), 'public', 'assets', 'cms', 'cms.js'), 'utf8');
+
+  it('tarjeta Logo: control solo para experiencias, accesible', () => {
+    const block = cms.match(/<div class="logo-x" data-only="experiencias">[\s\S]*?<\/div>\s*<\/div>/)![0];
+    expect(block).toContain('<input type="range" id="logo-x" min="-50" max="50" step="1" data-setting="logo_x" aria-describedby="logo-x-value logo-x-hint">');
+    expect(block).toContain('<output class="range-value" id="logo-x-value" for="logo-x">');
+    expect(block).toContain('Ajuste fino horizontal');
+    expect(block).toContain('id="logo-x-center"');
+    expect(block).toContain('id="logo-x-hint">También puedes arrastrar el logo en la vista previa.');
+    expect(cms.indexOf('id="logo-pos"')).toBeLessThan(cms.indexOf('id="logo-x"'));
+    expect(cms.indexOf('id="logo-x"')).toBeLessThan(cms.indexOf('id="logo-reset"'));
+  });
+
+  it('los tres iframes de vista previa permiten scripts del mismo origen; las miniaturas no', () => {
+    for (const id of ['preview-frame', 'preview-frame-mobile', 'preview-frame-full']) {
+      expect(cms, id).toMatch(new RegExp(`<iframe id="${id}"[^>]*sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"`));
+    }
+    expect(js).toContain("sandbox: 'allow-same-origin',"); // miniaturas del selector: sin scripts
+  });
+
+  it('cms.js: el mensaje solo se acepta del mismo origen, de un iframe de vista previa y con un entero −50…50', () => {
+    const handler = js.match(/window\.addEventListener\('message', \(event\) => \{[\s\S]*?\n\}\);/)![0];
+    expect(handler).toContain('event.origin !== location.origin');
+    expect(handler).toContain("data.type !== 'cms-logo-x'");
+    expect(handler).toContain('f.contentWindow === event.source');
+    expect(handler).toContain('Number.isInteger(v)');
+    expect(handler).toContain('v < LOGO_X_MIN || v > LOGO_X_MAX');
+    expect(js).toContain("['#preview-frame', '#preview-frame-mobile', '#preview-frame-full']");
+    // Un preajuste y «Restablecer» también devuelven logo_x a 0.
+    expect(js).toContain("applyLogoLayout({ logo_posicion: v, logo_x: '0' })");
+    expect(js).toContain("defaults.logo_x = '0'");
   });
 });

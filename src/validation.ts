@@ -25,12 +25,15 @@ export const socialUrl = z
 const text = (max: number) => z.string().trim().max(max);
 const flag = z.enum(['0', '1']);
 
-/** Entero sin signo en texto dentro de [min, max] (sin espacios, unidades ni ceros a la izquierda). */
+/**
+ * Entero en texto dentro de [min, max] (sin espacios, unidades ni ceros a la izquierda).
+ * Solo admite el signo "-" cuando el mínimo es negativo; "-0" y "+5" nunca valen.
+ */
 function intText(min: number, max: number, message: string) {
   return z
     .string()
     .trim()
-    .regex(/^(0|[1-9][0-9]{0,2})$/, message)
+    .regex(min < 0 ? /^(0|-?[1-9][0-9]{0,2})$/ : /^(0|[1-9][0-9]{0,2})$/, message)
     .refine((v) => Number(v) >= min && Number(v) <= max, { message });
 }
 
@@ -75,6 +78,8 @@ export const settingsSchema = z.object({
   // Logo y fondo (valores que terminan en el CSS: solo enteros acotados o una lista cerrada).
   logo_ancho: intText(60, 400, 'El ancho del logo debe ser un número entre 60 y 400'),
   logo_posicion: z.enum(['left', 'center', 'right']),
+  // Solo "experiencias": desplazamiento horizontal fino del logo, en % del ancho de .marca (relativo al preajuste).
+  logo_x: intText(-50, 50, 'La posición horizontal debe ser un número entre −50 y 50'),
   fondo_foco_x: intText(0, 100, 'El encuadre debe ser un número entre 0 y 100'),
   fondo_foco_y: intText(0, 100, 'El encuadre debe ser un número entre 0 y 100'),
   // El oscurecido de "experiencias" es de diseño fijo (no editable). Las filas antiguas
@@ -109,6 +114,7 @@ export const DEFAULT_SETTINGS: Settings = {
   redes_titulo: 'Síguenos',
   logo_ancho: '260',
   logo_posicion: 'center',
+  logo_x: '0',
   fondo_foco_x: '50',
   fondo_foco_y: '50',
   titulo_linea1: 'Experiences',

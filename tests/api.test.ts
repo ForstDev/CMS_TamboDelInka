@@ -1,5 +1,7 @@
 // Pruebas de punta a punta de la API con una base Postgres embebida en memoria (PGlite).
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
@@ -99,6 +101,62 @@ describe('acceso al CMS', () => {
     expect(res.status).toBe(200);
     expect(res.text).toContain('login-form');
     expect(res.headers['x-robots-tag']).toContain('noindex');
+  });
+
+  it('el login es único del panel: marca Intursa, sin rastro de Tambo ni de la landing', async () => {
+    const res = await request(app).get('/cms_login');
+    expect(res.status).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.text).toContain('/assets/login/logo-blanco.png');
+    expect(res.text).toContain('alt="Intursa Grupo Hotelero"');
+    expect(res.text).not.toMatch(/tdi|tambo/i);
+    expect(res.text).not.toContain('cms_nombre');
+    expect(res.text).not.toContain('Hola de nuevo');
+    expect(res.text).not.toContain('Ingresa para editar');
+    expect(res.text).toContain('<title>Ingresar · Panel de administración</title>');
+    expect(res.text).toContain('Bienvenido');
+    expect(res.text).toContain('Acceso solo para administradores autorizados.');
+    for (const id of ['login-form', 'login-error', 'login-submit', 'toggle-password', 'name="username"', 'name="password"']) {
+      expect(res.text).toContain(id);
+    }
+    expect(res.text).toMatch(/<link rel="stylesheet" href="\/assets\/cms\/login\.css\?v=[^"]+">/);
+    expect(res.text).not.toContain('cms.css');
+    expect(res.text).not.toContain('{{'); // no quedan marcadores sin reemplazar
+    expect((res.text.match(/<h1[ >]/g) ?? []).length).toBe(1);
+  });
+
+  it('sin fotos configuradas no hay capas de fondo ni script de rotación', async () => {
+    const res = await request(app).get('/cms_login');
+    expect(res.text).not.toContain('fondo-slide"');
+    expect(res.text).not.toContain('new Image()');
+  });
+
+  it('con LOGIN_FONDOS las capas se generan con el enlace escapado y aparece el script de rotación', async () => {
+    process.env.LOGIN_FONDOS = 'https://cdn.example.com/a.jpg?x=1&y=2, https://cdn.example.com/b.jpg, javascript:alert(1)';
+    try {
+      const res = await request(app).get('/cms_login');
+      expect(res.status).toBe(200);
+      expect((res.text.match(/class="fondo-slide"/g) ?? []).length).toBe(2);
+      expect(res.text).toContain('data-src="https://cdn.example.com/a.jpg?x=1&amp;y=2"');
+      expect(res.text).not.toContain('javascript:alert');
+      expect(res.text).toContain('new Image()');
+    } finally {
+      delete process.env.LOGIN_FONDOS;
+    }
+  });
+
+  it('los archivos del login existen (logo PNG y hoja de estilos propia)', () => {
+    const logo = fs.readFileSync(path.join(process.cwd(), 'public/assets/login/logo-blanco.png'));
+    expect([...logo.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const css = fs.readFileSync(path.join(process.cwd(), 'public/assets/cms/login.css'), 'utf8');
+    expect(css).toContain('backdrop-filter');
+    expect(css).toContain('prefers-reduced-motion');
+    expect(css).toContain('-webkit-autofill');
+  });
+
+  it('cms.css ya no lleva reglas del login', () => {
+    const css = fs.readFileSync(path.join(process.cwd(), 'public/assets/cms/cms.css'), 'utf8');
+    expect(css).not.toMatch(/\.login|#login-form|\.shake/);
   });
 
   it('rechaza contraseña incorrecta', async () => {

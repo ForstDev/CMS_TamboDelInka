@@ -9,10 +9,34 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500&family=Sofia+Sans:wght@300;400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500&display=swap" rel="stylesheet">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/fonts/sofia-pro/sofia-pro-300.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/fonts/sofia-pro/sofia-pro-700.woff2">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
 <style>
+  @font-face {
+    font-family: "Sofia Pro";
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+    src: url("/assets/fonts/sofia-pro/sofia-pro-300.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Sofia Pro";
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+    src: url("/assets/fonts/sofia-pro/sofia-pro-400.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Sofia Pro";
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+    src: url("/assets/fonts/sofia-pro/sofia-pro-700.woff2") format("woff2");
+  }
+
   :root {
     --fondo: {{color_fondo}};
     --texto: {{color_texto}};
@@ -21,7 +45,8 @@
     --boton-hover: {{color_boton_hover}};
     --texto-boton: {{color_texto_boton_hover}};
     --logo-n: {{logo_ancho}};
-    --sans: "Sofia Sans", "Helvetica Neue", Arial, sans-serif;
+    --logo-x: {{logo_x_css}};
+    --sans: "Sofia Pro", "Sofia Sans", "Helvetica Neue", Arial, sans-serif;
     --serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
   }
 
@@ -57,7 +82,7 @@
   }
 
   /* Página a pantalla completa. Sin imagen (color sólido): color plano. Con imagen, ver el bloque
-     "Con foto" al final (foto a pantalla completa, sin oscurecido añadido).
+     "Con foto" al final (foto a pantalla completa; en celular, degradado negro fijo solo abajo).
      Si el contenido no cabe (zoom extremo), la página crece y hace scroll vertical. */
   .hero {
     position: relative;
@@ -68,6 +93,8 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
+    /* Si el logo se desplaza (--logo-x), nunca crea scroll horizontal. */
+    overflow-x: clip;
     padding:
       calc(var(--u) * 30 + env(safe-area-inset-top, 0px))
       max(calc(var(--u) * 20), env(safe-area-inset-right, 0px))
@@ -96,6 +123,9 @@
     max-width: 100%;
     height: auto;
     display: block;
+    /* Ajuste fino horizontal: % del ancho de .marca, relativo a la posición del preajuste (izquierda/centro/derecha). */
+    position: relative;
+    left: calc(var(--logo-x) * 1%);
     /* Halo sutil: el logo blanco se lee también sobre cielos claros. */
     filter: drop-shadow(0 1px 8px rgba(0, 0, 0, .5));
   }
@@ -261,9 +291,27 @@
 {{#if fondo_imagen_css}}
   /* ================= Con foto (diseño fijo, no editable) ================= */
 
-  /* Celular y PC: foto a pantalla completa, recortada con cover y el punto de encuadre. Sin oscurecido añadido. */
+  /* Celular y PC: foto a pantalla completa, recortada con cover y el punto de encuadre. */
   .hero {
     background: var(--fondo) {{{fondo_imagen_css}}} {{fondo_foco_css}} / cover no-repeat;
+  }
+
+  /* Solo celular: degradado negro fijo, solo abajo, que se desvanece hacia la foto. Va anclado a la altura
+     de la zona de botones y redes (en u) para quedar siempre detrás de ellos. z-index -1 dentro del
+     .hero (isolation: isolate): sobre la foto y bajo el contenido. En PC no hay ninguna capa. */
+  @media (max-width: 767.98px) {
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background: linear-gradient(to bottom,
+        rgba(0, 0, 0, 0) calc(100% - var(--u) * 420),
+        rgba(0, 0, 0, 0.35) calc(100% - var(--u) * 290),
+        rgba(0, 0, 0, 0.6) calc(100% - var(--u) * 150),
+        rgba(0, 0, 0, 0.7) 100%);
+    }
   }
 {{/if}}
   @media (prefers-reduced-motion: reduce) {
@@ -279,7 +327,7 @@
 
 <main class="hero">
   <header class="marca">
-    {{#if logo_url}}<img class="logo" src="{{logo_url}}" alt="{{logo_alt}}">{{/if}}
+    {{#if logo_url}}<img class="logo" src="{{logo_url}}" alt="{{logo_alt}}" draggable="false">{{/if}}
     <span class="divisor" aria-hidden="true"></span>
     <h1 class="titulo"><span class="t1">{{titulo_linea1}}</span><span class="t2">{{titulo_linea2}}</span></h1>
   </header>
@@ -293,5 +341,6 @@
   {{#if redes_html}}<footer class="redes"><span class="redes-texto">{{{redes_titulo_html}}}</span><span class="iconos">{{{redes_html}}}</span></footer>{{/if}}
 </main>
 
+{{{preview_script_html}}}
 </body>
 </html>

@@ -8,7 +8,7 @@
 <title>Panel · {{cms_nombre}}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sofia+Sans:wght@300&family=Cormorant+Garamond:ital,wght@1,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="/assets/cms/cms.css?v={{asset_v}}">
 </head>
@@ -161,6 +161,16 @@
               <button type="button" role="radio" data-value="left"><i class="fa-solid fa-align-left" aria-hidden="true"></i> Izquierda</button>
               <button type="button" role="radio" data-value="center"><i class="fa-solid fa-align-center" aria-hidden="true"></i> Centro</button>
               <button type="button" role="radio" data-value="right"><i class="fa-solid fa-align-right" aria-hidden="true"></i> Derecha</button>
+            </div>
+          </div>
+          <div class="logo-x" data-only="experiencias">
+            <label class="field range-field">
+              <span class="field-label">Ajuste fino horizontal <output class="range-value" id="logo-x-value" for="logo-x"></output></span>
+              <input type="range" id="logo-x" min="-50" max="50" step="1" data-setting="logo_x" aria-describedby="logo-x-value logo-x-hint">
+            </label>
+            <div class="focus-foot">
+              <p class="hint" id="logo-x-hint">También puedes arrastrar el logo en la vista previa.</p>
+              <button type="button" class="btn btn-ghost btn-sm" id="logo-x-center" title="Quita el ajuste fino (0 %)"><i class="fa-solid fa-crosshairs" aria-hidden="true"></i> Centrar</button>
             </div>
           </div>
           <button type="button" class="btn btn-ghost btn-sm logo-reset" id="logo-reset"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Restablecer tamaño y posición</button>
@@ -395,7 +405,7 @@
     <!-- El JS escala el marco (celular 390×844 lógicos o PC 1366×768) al tamaño de #preview-fit. -->
     <div class="preview-fit" id="preview-fit">
       <div class="phone-box" id="preview-box">
-        <div class="phone"><div class="phone-notch" aria-hidden="true"></div><iframe id="preview-frame" title="Vista previa de la página" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe></div>
+        <div class="phone"><div class="phone-notch" aria-hidden="true"></div><iframe id="preview-frame" title="Vista previa de la página" sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"></iframe></div>
       </div>
     </div>
     <p class="hint center">En la vista previa los clics no se cuentan en las estadísticas.</p>
@@ -428,7 +438,7 @@
     <div class="phone-box" id="sheet-box">
       <div class="phone sheet-screen" id="sheet-screen">
         <div class="phone-notch" aria-hidden="true"></div>
-        <iframe id="preview-frame-mobile" title="Vista previa de la página" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
+        <iframe id="preview-frame-mobile" title="Vista previa de la página" sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"></iframe>
       </div>
     </div>
   </div>
@@ -453,7 +463,7 @@
     <div class="pv-stage" id="dlg-preview-stage">
       <span class="pv-notch" aria-hidden="true"></span>
       <div class="pv-screen">
-        <iframe id="preview-frame-full" title="Vista previa ampliada de la página" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
+        <iframe id="preview-frame-full" title="Vista previa ampliada de la página" sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"></iframe>
       </div>
     </div>
   </div>
