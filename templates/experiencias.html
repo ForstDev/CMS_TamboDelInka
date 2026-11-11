@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500&display=swap" rel="stylesheet">
 <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/fonts/sofia-pro/sofia-pro-300.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/fonts/sofia-pro/sofia-pro-400.woff2">
 <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/fonts/sofia-pro/sofia-pro-700.woff2">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
@@ -31,10 +32,31 @@
   }
   @font-face {
     font-family: "Sofia Pro";
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+    src: url("/assets/fonts/sofia-pro/sofia-pro-500.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Sofia Pro";
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+    src: url("/assets/fonts/sofia-pro/sofia-pro-600.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Sofia Pro";
     font-weight: 700;
     font-style: normal;
     font-display: swap;
     src: url("/assets/fonts/sofia-pro/sofia-pro-700.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Sofia Pro";
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+    src: url("/assets/fonts/sofia-pro/sofia-pro-900.woff2") format("woff2");
   }
 
   :root {
@@ -46,6 +68,16 @@
     --texto-boton: {{color_texto_boton_hover}};
     --logo-n: {{logo_ancho}};
     --logo-x: {{logo_x_css}};
+    /* Escalas editables de los textos (1.00 = tamaño original) y opacidad máxima del degradado de celular. */
+    --s-titulo: {{texto_titulo_escala_css}};
+    --s-botones: {{texto_botones_escala_css}};
+    --s-redes: {{texto_redes_escala_css}};
+    --grad: {{degradado_celular_css}};
+    /* Texto de los botones: peso en reposo y al pasar el mouse, y letter-spacing extra de la capa de reposo
+       que compensa el ancho de la letra más gruesa (así el texto no salta ni se parte distinto al cambiar). */
+    --bt-reposo: {{boton_peso_reposo_css}};
+    --bt-hover: {{boton_peso_hover_css}};
+    --bt-ls: {{boton_ls_reposo_css}};
     --sans: "Sofia Pro", "Sofia Sans", "Helvetica Neue", Arial, sans-serif;
     --serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
   }
@@ -82,7 +114,7 @@
   }
 
   /* Página a pantalla completa. Sin imagen (color sólido): color plano. Con imagen, ver el bloque
-     "Con foto" al final (foto a pantalla completa; en celular, degradado negro fijo solo abajo).
+     "Con foto" al final (foto a pantalla completa; en celular, degradado negro solo abajo, con intensidad editable).
      Si el contenido no cabe (zoom extremo), la página crece y hace scroll vertical. */
   .hero {
     position: relative;
@@ -154,7 +186,7 @@
     display: block;
     font-family: var(--sans);
     font-weight: 300;
-    font-size: calc(var(--u) * 36);
+    font-size: calc(var(--u) * 36 * var(--s-titulo));
     letter-spacing: .005em;
   }
 
@@ -163,7 +195,7 @@
     font-family: var(--serif);
     font-style: italic;
     font-weight: 500;
-    font-size: calc(var(--u) * 30);
+    font-size: calc(var(--u) * 30 * var(--s-titulo));
     margin-top: calc(var(--u) * 4);
   }
 
@@ -181,9 +213,8 @@
   }
 
   .boton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    place-items: center;
     min-height: calc(var(--u) * 52);
     padding: calc(var(--u) * 10) calc(var(--u) * 18);
     border-radius: calc(var(--u) * 8);
@@ -191,8 +222,7 @@
     border: 1px solid rgba(255, 255, 255, .16);
     color: var(--boton-texto);
     font-family: var(--sans);
-    font-weight: 700;
-    font-size: max(12px, calc(var(--u) * 15));
+    font-size: max(12px, calc(var(--u) * 15 * var(--s-botones)));
     line-height: 1.15;
     overflow-wrap: anywhere;
     letter-spacing: .05em;
@@ -216,6 +246,42 @@
     outline-offset: 2px;
   }
 
+  /* Texto del botón en dos capas, una sobre otra en la misma celda: reposo (.b-r) y hover (.b-h).
+     Sofia Pro no es variable, así que el grosor no se anima: se funde (opacity) de una capa a la otra.
+     La capa de hover es solo visual (aria-hidden); el lector de pantalla lee la de reposo. */
+  .b-r,
+  .b-h {
+    grid-area: 1 / 1;
+    width: 100%;
+    text-align: center;
+    transition: opacity .24s ease;
+  }
+
+  .b-r {
+    font-weight: var(--bt-reposo);
+    letter-spacing: calc(.05em + var(--bt-ls));
+  }
+
+  .b-h {
+    font-weight: var(--bt-hover);
+    letter-spacing: .05em;
+    opacity: 0;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Con teclado (foco) y al presionar (también en táctil) se ve la capa de hover; el mouse, solo donde hay hover real. */
+  .boton:focus-visible .b-r,
+  .boton:active .b-r { opacity: 0; }
+
+  .boton:focus-visible .b-h,
+  .boton:active .b-h { opacity: 1; }
+
+  @media (hover: hover) and (pointer: fine) {
+    .boton:hover .b-r { opacity: 0; }
+    .boton:hover .b-h { opacity: 1; }
+  }
+
   .redes {
     margin-top: calc(var(--u) * 26);
     max-width: 100%;
@@ -226,7 +292,7 @@
   }
 
   .redes-texto {
-    font-size: max(11.5px, calc(var(--u) * 13));
+    font-size: max(11.5px, calc(var(--u) * 13 * var(--s-redes)));
     line-height: 1.25;
     font-weight: 400;
     text-align: right;
@@ -245,7 +311,7 @@
 
   .iconos a {
     color: var(--texto);
-    font-size: max(22px, calc(var(--u) * 26));
+    font-size: max(22px, calc(var(--u) * 26 * var(--s-redes)));
     line-height: 1;
     text-decoration: none;
     text-shadow: 0 1px 8px rgba(0, 0, 0, .45);
@@ -261,8 +327,8 @@
   }
 
   @media (min-width: 768px) {
-    .t1 { font-size: calc(var(--u) * 60); }
-    .t2 { font-size: calc(var(--u) * 48); }
+    .t1 { font-size: calc(var(--u) * 60 * var(--s-titulo)); }
+    .t2 { font-size: calc(var(--u) * 48 * var(--s-titulo)); }
 
     .botones {
       flex-direction: row;
@@ -296,7 +362,8 @@
     background: var(--fondo) {{{fondo_imagen_css}}} {{fondo_foco_css}} / cover no-repeat;
   }
 
-  /* Solo celular: degradado negro fijo, solo abajo, que se desvanece hacia la foto. Va anclado a la altura
+  /* Solo celular: degradado negro, solo abajo, que se desvanece hacia la foto. Su opacidad máxima es --grad
+     (editable; 0.70 = el degradado original) y las demás paradas son proporcionales. Va anclado a la altura
      de la zona de botones y redes (en u) para quedar siempre detrás de ellos. z-index -1 dentro del
      .hero (isolation: isolate): sobre la foto y bajo el contenido. En PC no hay ninguna capa. */
   @media (max-width: 767.98px) {
@@ -308,14 +375,16 @@
       pointer-events: none;
       background: linear-gradient(to bottom,
         rgba(0, 0, 0, 0) calc(100% - var(--u) * 420),
-        rgba(0, 0, 0, 0.35) calc(100% - var(--u) * 290),
-        rgba(0, 0, 0, 0.6) calc(100% - var(--u) * 150),
-        rgba(0, 0, 0, 0.7) 100%);
+        rgba(0, 0, 0, calc(var(--grad) * 0.5)) calc(100% - var(--u) * 290),
+        rgba(0, 0, 0, calc(var(--grad) * 0.857)) calc(100% - var(--u) * 150),
+        rgba(0, 0, 0, var(--grad)) 100%);
     }
   }
 {{/if}}
   @media (prefers-reduced-motion: reduce) {
     .boton,
+    .b-r,
+    .b-h,
     .iconos a { transition: none; }
 
     .boton:hover,

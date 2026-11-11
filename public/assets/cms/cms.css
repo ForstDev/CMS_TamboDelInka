@@ -303,6 +303,11 @@ img { max-width: 100%; }
 /* Deslizadores */
 .range-field input[type="range"] { width: 100%; height: 30px; margin: 0; accent-color: var(--brand); cursor: pointer; }
 .range-value { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.txt-sizes .card-head { flex-wrap: wrap; }
+.txt-sizes .range-field input[type="range"]:focus-visible,
+.grad-field .range-field input[type="range"]:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
+.grad-field { min-width: 0; }
+.grad-field .hint { margin-top: 2px; }
 
 /* Punto focal del fondo */
 .focus-block { display: grid; gap: 8px; min-width: 0; }
@@ -423,6 +428,11 @@ body:not(.tpl-experiencias) [data-only="experiencias"] { display: none !importan
 .color-input input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 9px; }
 .color-input input[type="color"]::-moz-color-swatch { border: 0; border-radius: 9px; }
 .color-input .input { width: 104px; min-height: 44px; font-family: ui-monospace, Consolas, monospace; font-size: 14px; text-transform: uppercase; }
+
+.peso-field { min-width: 0; padding: 2px 0 14px; border-top: 1px solid var(--line); }
+.peso-field .field { min-width: 0; }
+.peso-field .field select { min-width: 0; max-width: 100%; }
+.peso-field .hint { margin-top: 8px; }
 
 .btn-sample { margin-top: 14px; padding: 16px; border-radius: var(--radius); background: #4a5a58 center / cover no-repeat; position: relative; overflow: hidden; }
 .btn-sample::before { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.2); }

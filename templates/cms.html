@@ -213,6 +213,13 @@
         <div class="color-row" data-color="color_fondo">
           <div><strong>Color de fondo</strong><small>Se ve mientras carga la imagen o si eliges color sólido.</small></div>
         </div>
+        <div class="grad-field" data-only="experiencias">
+          <label class="field range-field">
+            <span class="field-label">Degradado de abajo (solo celular) <output class="range-value" id="grad-celular-value" for="grad-celular"></output></span>
+            <input type="range" id="grad-celular" min="0" max="100" step="5" data-setting="degradado_celular" aria-describedby="grad-celular-value grad-celular-hint">
+          </label>
+          <p class="hint" id="grad-celular-hint">Sombra negra detrás de los botones, solo en celular. 0 % = sin degradado.</p>
+        </div>
       </article>
 
       <article class="card">
@@ -223,6 +230,31 @@
         <div class="color-row" data-color="color_texto"><div><strong>Textos de la página</strong><small>Novedades, "Síguenos" e íconos.</small></div></div>
         <div class="color-row" data-color="color_boton"><div><strong>Fondo del botón</strong></div></div>
         <div class="color-row" data-color="color_boton_texto"><div><strong>Texto del botón</strong></div></div>
+        <div class="peso-field" data-only="experiencias">
+          <div class="field">
+            <label class="field-label" for="btn-peso-reposo">Texto del botón en reposo</label>
+            <select id="btn-peso-reposo" data-setting="boton_peso_reposo" aria-describedby="btn-peso-hint">
+              <option value="300">Fino (300)</option>
+              <option value="400">Normal (400)</option>
+              <option value="500">Medio (500)</option>
+              <option value="600">Seminegrita (600)</option>
+              <option value="700">Negrita (700)</option>
+              <option value="900">Extranegrita (900)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="btn-peso-hover">Texto al pasar el mouse</label>
+            <select id="btn-peso-hover" data-setting="boton_peso_hover" aria-describedby="btn-peso-hint">
+              <option value="300">Fino (300)</option>
+              <option value="400">Normal (400)</option>
+              <option value="500">Medio (500)</option>
+              <option value="600">Seminegrita (600)</option>
+              <option value="700">Negrita (700)</option>
+              <option value="900">Extranegrita (900)</option>
+            </select>
+          </div>
+          <p class="hint" id="btn-peso-hint">La letra cambia suavemente de un grosor al otro al pasar el mouse. Si eliges el mismo, no cambia.</p>
+        </div>
         <div class="color-row" data-color="color_boton_hover"><div><strong>Botón al pasar el mouse</strong><small>Fondo al tocar o pasar el cursor.</small></div></div>
         <div class="color-row" data-color="color_texto_boton_hover"><div><strong>Texto al pasar el mouse</strong></div></div>
 
@@ -257,6 +289,26 @@
           <span class="tp-1" data-bind="titulo_linea1"></span>
           <span class="tp-2" data-bind="titulo_linea2"></span>
         </div>
+      </article>
+
+      <article class="card txt-sizes" data-only="experiencias">
+        <header class="card-head">
+          <h3><i class="fa-solid fa-text-height"></i> Tamaño de los textos</h3>
+          <button type="button" class="btn btn-ghost btn-sm" id="txt-reset" title="Vuelve los tres tamaños a 100 %"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Restablecer</button>
+        </header>
+        <p class="hint card-hint" id="txt-hint">100 % es el tamaño original. Se ve en celular y en PC.</p>
+        <label class="field range-field">
+          <span class="field-label">Título <output class="range-value" id="txt-titulo-value" for="txt-titulo"></output></span>
+          <input type="range" id="txt-titulo" min="70" max="140" step="5" data-setting="texto_titulo_escala" aria-describedby="txt-titulo-value txt-hint">
+        </label>
+        <label class="field range-field">
+          <span class="field-label">Texto de los botones <output class="range-value" id="txt-botones-value" for="txt-botones"></output></span>
+          <input type="range" id="txt-botones" min="70" max="140" step="5" data-setting="texto_botones_escala" aria-describedby="txt-botones-value txt-hint">
+        </label>
+        <label class="field range-field">
+          <span class="field-label">Texto de redes (con íconos) <output class="range-value" id="txt-redes-value" for="txt-redes"></output></span>
+          <input type="range" id="txt-redes" min="70" max="140" step="5" data-setting="texto_redes_escala" aria-describedby="txt-redes-value txt-hint">
+        </label>
       </article>
 
       <article class="card" data-only="cartas">

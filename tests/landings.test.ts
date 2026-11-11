@@ -346,6 +346,124 @@ describe('varias landings: API, rutas y aislamiento', () => {
     await asB(agent.patch('/api/cms/settings')).send({ logo_posicion: 'left', logo_x: '0' }); // como lo dejó la prueba anterior
   });
 
+  it('tamaño de los textos y degradado de celular: estado, PATCH, aislamiento y landings sin las claves', async () => {
+    const db = await getDb();
+    const keys = ['texto_titulo_escala', 'texto_botones_escala', 'texto_redes_escala', 'degradado_celular'];
+    const defaults = { texto_titulo_escala: '100', texto_botones_escala: '100', texto_redes_escala: '100', degradado_celular: '70' };
+    // Landing sin las claves guardadas (como las existentes): valen los valores por defecto, sin migración.
+    for (const k of keys) expect(await db.query(`select 1 from landing_settings where key = $1 and landing_id = $2`, [k, B.id]), k).toEqual([]);
+    const before = (await asB(agent.get('/api/cms/state'))).body;
+    expect(before.settings).toMatchObject(defaults);
+    expect(before.defaults).toMatchObject(defaults);
+    expect((await agent.get('/api/cms/state')).body.settings).toMatchObject(defaults);
+    const prev0 = (await asB(agent.get('/api/cms/preview'))).text;
+    expect(prev0).toContain('--s-titulo: 1.00;');
+    expect(prev0).toContain('--grad: 0.70;');
+
+    // PATCH en una sola petición, con los extremos; otra landing intacta.
+    const ok = await asB(agent.patch('/api/cms/settings')).send({ texto_titulo_escala: '70', texto_botones_escala: '140', texto_redes_escala: '85', degradado_celular: '0' });
+    expect(ok.status).toBe(200);
+    expect(ok.body.settings).toMatchObject({ texto_titulo_escala: '70', texto_botones_escala: '140', texto_redes_escala: '85', degradado_celular: '0' });
+    expect((await asB(agent.get('/api/cms/state'))).body.settings).toMatchObject({ texto_titulo_escala: '70', texto_botones_escala: '140', texto_redes_escala: '85', degradado_celular: '0' });
+    expect((await agent.get('/api/cms/state')).body.settings).toMatchObject(defaults);
+
+    // Se ve en la vista previa y en la página pública de Experiencias.
+    for (const html of [(await asB(agent.get('/api/cms/preview'))).text, (await request(app).get('/exp-demo')).text]) {
+      expect(html).toContain('--s-titulo: 0.70;');
+      expect(html).toContain('--s-botones: 1.40;');
+      expect(html).toContain('--s-redes: 0.85;');
+      expect(html).toContain('--grad: 0.00;');
+    }
+    // La landing de cartas no usa ninguno.
+    const cartas = (await agent.get('/api/cms/preview')).text;
+    for (const marca of ['--s-titulo', '--s-botones', '--s-redes', '--grad']) expect(cartas).not.toContain(marca);
+
+    // Rechazos: no cambian nada.
+    const mensajes: Record<string, string> = {
+      texto_titulo_escala: 'El tamaño del título debe ser un número entre 70 y 140',
+      texto_botones_escala: 'El tamaño del texto de los botones debe ser un número entre 70 y 140',
+      texto_redes_escala: 'El tamaño del texto de redes debe ser un número entre 70 y 140',
+    };
+    for (const [k, msg] of Object.entries(mensajes)) {
+      for (const bad of ['69', '141', '-1', '1.5', 'x', '', '90%']) {
+        const r = await asB(agent.patch('/api/cms/settings')).send({ [k]: bad });
+        expect(r.status, `${k} ${JSON.stringify(bad)}`).toBe(400);
+        expect(r.body.error).toBe(msg);
+      }
+      expect((await asB(agent.patch('/api/cms/settings')).send({ [k]: 100 })).status).toBe(400); // debe ser texto
+    }
+    for (const bad of ['-1', '101', '1.5', 'x', '', '90%']) {
+      const r = await asB(agent.patch('/api/cms/settings')).send({ degradado_celular: bad });
+      expect(r.status, JSON.stringify(bad)).toBe(400);
+      expect(r.body.error).toBe('El degradado debe ser un número entre 0 y 100');
+    }
+    expect((await asB(agent.get('/api/cms/state'))).body.settings).toMatchObject({ texto_titulo_escala: '70', texto_botones_escala: '140', texto_redes_escala: '85', degradado_celular: '0' });
+
+    // Restablecer: los cuatro (o los tres de texto) vuelven a su valor en una petición.
+    const reset = await asB(agent.patch('/api/cms/settings')).send(defaults);
+    expect(reset.status).toBe(200);
+    expect(reset.body.settings).toMatchObject(defaults);
+    expect((await asB(agent.get('/api/cms/preview'))).text).toBe(prev0);
+  });
+
+  it('peso del texto de los botones (reposo / hover): estado, PATCH, aislamiento y landings sin las claves', async () => {
+    const db = await getDb();
+    const defaults = { boton_peso_reposo: '400', boton_peso_hover: '700' };
+    // Landing sin las claves guardadas (como las existentes): valen los valores por defecto, sin migración.
+    for (const k of Object.keys(defaults)) expect(await db.query(`select 1 from landing_settings where key = $1 and landing_id = $2`, [k, B.id]), k).toEqual([]);
+    const before = (await asB(agent.get('/api/cms/state'))).body;
+    expect(before.settings).toMatchObject(defaults);
+    expect(before.defaults).toMatchObject(defaults);
+    expect((await agent.get('/api/cms/state')).body.settings).toMatchObject(defaults);
+    const prev0 = (await asB(agent.get('/api/cms/preview'))).text;
+    expect(prev0).toContain('--bt-reposo: 400;');
+    expect(prev0).toContain('--bt-hover: 700;');
+    expect(prev0).toContain('--bt-ls: 0.0109em;');
+    expect(prev0).toContain('<span class="b-r">Tour al valle</span><span class="b-h" aria-hidden="true">Tour al valle</span>');
+
+    // PATCH con cada peso permitido; otra landing intacta.
+    for (const w of ['300', '400', '500', '600', '700', '900']) {
+      const r = await asB(agent.patch('/api/cms/settings')).send({ boton_peso_reposo: w, boton_peso_hover: w });
+      expect(r.status, w).toBe(200);
+      expect(r.body.settings).toMatchObject({ boton_peso_reposo: w, boton_peso_hover: w });
+    }
+    const ok = await asB(agent.patch('/api/cms/settings')).send({ boton_peso_reposo: '300', boton_peso_hover: '900' });
+    expect(ok.status).toBe(200);
+    expect((await asB(agent.get('/api/cms/state'))).body.settings).toMatchObject({ boton_peso_reposo: '300', boton_peso_hover: '900' });
+    expect((await agent.get('/api/cms/state')).body.settings).toMatchObject(defaults);
+
+    // Se ve en la vista previa y en la página pública de Experiencias (con su compensación de ancho 300 → 900 = 0.0220em).
+    for (const html of [(await asB(agent.get('/api/cms/preview'))).text, (await request(app).get('/exp-demo')).text]) {
+      expect(html).toContain('--bt-reposo: 300;');
+      expect(html).toContain('--bt-hover: 900;');
+      expect(html).toContain('--bt-ls: 0.0220em;');
+    }
+    // La landing de cartas no usa ninguno.
+    const cartas = (await agent.get('/api/cms/preview')).text;
+    for (const marca of ['--bt-reposo', '--bt-hover', '--bt-ls', 'class="b-r"', 'class="b-h"']) expect(cartas).not.toContain(marca);
+
+    // Rechazos: no cambian nada.
+    const mensajes: Record<string, string> = {
+      boton_peso_reposo: 'El grosor del texto del botón en reposo debe ser 300, 400, 500, 600, 700 o 900',
+      boton_peso_hover: 'El grosor del texto del botón al pasar el mouse debe ser 300, 400, 500, 600, 700 o 900',
+    };
+    for (const [k, msg] of Object.entries(mensajes)) {
+      for (const bad of ['350', '800', '100', '', 'bold', '400px', ' 400 ', '0400', '400; }']) {
+        const r = await asB(agent.patch('/api/cms/settings')).send({ [k]: bad });
+        expect(r.status, `${k} ${JSON.stringify(bad)}`).toBe(400);
+        expect(r.body.error).toBe(msg);
+      }
+      expect((await asB(agent.patch('/api/cms/settings')).send({ [k]: 400 })).status).toBe(400); // debe ser texto
+    }
+    expect((await asB(agent.get('/api/cms/state'))).body.settings).toMatchObject({ boton_peso_reposo: '300', boton_peso_hover: '900' });
+
+    // Vuelven a su valor en una petición.
+    const reset = await asB(agent.patch('/api/cms/settings')).send(defaults);
+    expect(reset.status).toBe(200);
+    expect(reset.body.settings).toMatchObject(defaults);
+    expect((await asB(agent.get('/api/cms/preview'))).text).toBe(prev0);
+  });
+
   it('filas antiguas fondo_oscurecer / fondo_oscurecer_arriba (como en producción): se ignoran sin romper nada', async () => {
     const db = await getDb();
     // El seed ya no las crea; se insertan a mano como las tiene la base de producción.
@@ -398,7 +516,7 @@ describe('varias landings: API, rutas y aislamiento', () => {
     expect(res.status).toBe(200);
     expect(res.headers['cache-control']).toBe('no-store');
     expect(res.text).toContain('<span class="t1">Hola mundo</span><span class="t2">Experiencias</span>');
-    expect(res.text).toContain(`<a class="boton" href="/go/${bButton}">Tour al valle</a>`);
+    expect(res.text).toContain(`<a class="boton" href="/go/${bButton}"><span class="b-r">Tour al valle</span><span class="b-h" aria-hidden="true">Tour al valle</span></a>`);
     expect(res.text).toContain('<span class="redes-texto"><span class="l">Síguenos en /</span> <span class="l">Follow us on</span></span>');
     expect(res.text).toContain(`href="/go/social/${bSocial}" aria-label="Instagram" target="_blank" rel="noopener"`);
     expect(res.text).toContain('align-items: flex-start;');
@@ -565,7 +683,7 @@ describe('plantillas', () => {
     const settings = { ...defaultSettingsFor('experiencias'), logo_url: '/uploads/l.png', fondo_tipo: 'imagen', fondo_imagen_url: '/uploads/f.jpg', titulo_linea1: 'Viví <Cusco>' };
     const html = renderPage({ settings: settings as any, buttons: CARTAS_BUTTONS as any, socials: CARTAS_SOCIALS as any, landing: { template: 'experiencias' } }, { noindex: true });
     expect(html).toContain('<span class="t1">Viví &lt;Cusco&gt;</span><span class="t2">Experiencias</span>');
-    expect(html).toContain('<a class="boton" href="/go/11111111-1111-4111-8111-111111111101">Desayuno Breakfast</a>');
+    expect(html).toContain('<a class="boton" href="/go/11111111-1111-4111-8111-111111111101"><span class="b-r">Desayuno Breakfast</span><span class="b-h" aria-hidden="true">Desayuno Breakfast</span></a>');
     expect(html).toContain('<a class="boton" href="/go/11111111-1111-4111-8111-111111111103" target="_blank" rel="noopener">');
     expect(html).not.toContain('Oculto');
     expect(html).not.toContain('Sin destino');
@@ -580,7 +698,8 @@ describe('plantillas', () => {
     // Con foto: una sola capa .hero::before (degradado negro fijo solo en celular), nada más.
     expect(html.match(/::before/g)).toHaveLength(1);
     expect(html).toMatch(/@media \(max-width: 767\.98px\) \{\s*\.hero::before \{/);
-    expect(html).toContain('rgba(0, 0, 0, 0.7) 100%');
+    expect(html).toContain('rgba(0, 0, 0, var(--grad)) 100%');
+    expect(html).toContain('--grad: 0.70;');
     expect(html).not.toContain('.hero::after');
     expect(html).not.toContain('mask-image');
     expect(html).not.toContain('mask-composite');
@@ -613,6 +732,14 @@ describe('validación de los ajustes nuevos', () => {
       // Ajustes de oscurecido retirados (diseño fijo): ahora son claves desconocidas, incluso con valores que antes valían.
       { fondo_oscurecer: '85' }, { fondo_oscurecer: '0' }, { fondo_oscurecer_arriba: '60' }, { fondo_oscurecer_arriba: '100' },
       { titulo_linea1: 'x'.repeat(61) }, { titulo_linea2: 'x'.repeat(61) },
+      // Escalas de texto 70…140 y degradado de celular 0…100 (enteros en texto, sin signo, unidades ni decimales).
+      ...(['texto_titulo_escala', 'texto_botones_escala', 'texto_redes_escala'] as const).flatMap((k) =>
+        ['69', '141', '-1', '1.5', 'x', '', '90%', '+90', '090', '1000', ' ', '100; }'].map((v) => ({ [k]: v })).concat([{ [k]: 100 as unknown as string }])),
+      ...['-1', '101', '1.5', 'x', '', '90%', '+5', '070', '1000', ' ', '70; }'].map((v) => ({ degradado_celular: v })),
+      { degradado_celular: 70 },
+      // Peso del texto de los botones: solo '300', '400', '500', '600', '700' o '900' (en texto).
+      ...(['boton_peso_reposo', 'boton_peso_hover'] as const).flatMap((k) =>
+        ['350', '800', '100', '', 'bold', '400px', ' ', '0400', '1000', '400; }', 'normal'].map((v) => ({ [k]: v })).concat([{ [k]: 400 as unknown as string }])),
     ];
     for (const body of bad) expect(settingsPatch.safeParse(body).success, JSON.stringify(body)).toBe(false);
   });
@@ -624,6 +751,9 @@ describe('validación de los ajustes nuevos', () => {
       { fondo_foco_x: '0', fondo_foco_y: '100' },
       { logo_x: '-50' }, { logo_x: '0' }, { logo_x: '50' }, { logo_x: '12' }, { logo_x: '-12' }, { logo_x: ' -7 ' },
       { titulo_linea1: 'x'.repeat(60), titulo_linea2: '' },
+      { texto_titulo_escala: '70', texto_botones_escala: '140', texto_redes_escala: '100' }, { texto_titulo_escala: ' 85 ' },
+      { degradado_celular: '0' }, { degradado_celular: '100' }, { degradado_celular: '70' }, { degradado_celular: '5' },
+      ...['300', '400', '500', '600', '700', '900'].flatMap((w) => [{ boton_peso_reposo: w }, { boton_peso_hover: w }, { boton_peso_reposo: w, boton_peso_hover: '700' }]),
     ];
     for (const body of good) expect(settingsPatch.safeParse(body).success, JSON.stringify(body)).toBe(true);
   });
@@ -633,6 +763,10 @@ describe('validación de los ajustes nuevos', () => {
     expect(defaultSettingsFor('cartas')).toMatchObject({ logo_posicion: 'center', logo_x: '0', fondo_foco_x: '50', fondo_foco_y: '50' });
     expect(defaultSettingsFor('experiencias').logo_x).toBe('0');
     expect(DEFAULT_SETTINGS.logo_x).toBe('0');
+    for (const t of ['cartas', 'experiencias'] as const) {
+      expect(defaultSettingsFor(t), t).toMatchObject({ texto_titulo_escala: '100', texto_botones_escala: '100', texto_redes_escala: '100', degradado_celular: '70' });
+      expect(defaultSettingsFor(t), t).toMatchObject({ boton_peso_reposo: '400', boton_peso_hover: '700' });
+    }
     for (const t of ['cartas', 'experiencias'] as const) {
       expect(defaultSettingsFor(t), t).not.toHaveProperty('fondo_oscurecer');
       expect(defaultSettingsFor(t), t).not.toHaveProperty('fondo_oscurecer_arriba');

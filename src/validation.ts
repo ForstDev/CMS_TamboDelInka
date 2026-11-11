@@ -37,6 +37,10 @@ function intText(min: number, max: number, message: string) {
     .refine((v) => Number(v) >= min && Number(v) <= max, { message });
 }
 
+/** Pesos de Sofia Pro disponibles para el texto de los botones de "experiencias" (en texto, como en CSS). */
+export const BOTON_PESOS = ['300', '400', '500', '600', '700', '900'] as const;
+export type BotonPeso = (typeof BOTON_PESOS)[number];
+
 export const TEMPLATES = ['cartas', 'experiencias'] as const;
 export type Template = (typeof TEMPLATES)[number];
 
@@ -82,6 +86,15 @@ export const settingsSchema = z.object({
   logo_x: intText(-50, 50, 'La posición horizontal debe ser un número entre −50 y 50'),
   fondo_foco_x: intText(0, 100, 'El encuadre debe ser un número entre 0 y 100'),
   fondo_foco_y: intText(0, 100, 'El encuadre debe ser un número entre 0 y 100'),
+  // Solo "experiencias": tamaño de los textos (% del tamaño original, 100 = igual) e intensidad del
+  // degradado negro de abajo (% de opacidad máxima, solo en celular).
+  texto_titulo_escala: intText(70, 140, 'El tamaño del título debe ser un número entre 70 y 140'),
+  texto_botones_escala: intText(70, 140, 'El tamaño del texto de los botones debe ser un número entre 70 y 140'),
+  texto_redes_escala: intText(70, 140, 'El tamaño del texto de redes debe ser un número entre 70 y 140'),
+  degradado_celular: intText(0, 100, 'El degradado debe ser un número entre 0 y 100'),
+  // Solo "experiencias": grosor del texto de los botones en reposo y al pasar el mouse (lista cerrada de pesos de Sofia Pro).
+  boton_peso_reposo: z.enum(BOTON_PESOS, { error: 'El grosor del texto del botón en reposo debe ser 300, 400, 500, 600, 700 o 900' }),
+  boton_peso_hover: z.enum(BOTON_PESOS, { error: 'El grosor del texto del botón al pasar el mouse debe ser 300, 400, 500, 600, 700 o 900' }),
   // El oscurecido de "experiencias" es de diseño fijo (no editable). Las filas antiguas
   // fondo_oscurecer / fondo_oscurecer_arriba de landing_settings se ignoran al leer (repo.getSettings).
   // Títulos de la plantilla "experiencias".
@@ -117,6 +130,12 @@ export const DEFAULT_SETTINGS: Settings = {
   logo_x: '0',
   fondo_foco_x: '50',
   fondo_foco_y: '50',
+  texto_titulo_escala: '100',
+  texto_botones_escala: '100',
+  texto_redes_escala: '100',
+  degradado_celular: '70',
+  boton_peso_reposo: '400',
+  boton_peso_hover: '700',
   titulo_linea1: 'Experiences',
   titulo_linea2: 'Experiencias',
 };

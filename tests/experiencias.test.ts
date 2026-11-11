@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
-import { layoutValues, redesTituloHtml, renderPage } from '../src/render.js';
+import { botonLsReposo, layoutValues, redesTituloHtml, renderPage, SOFIA_ANCHO_EM } from '../src/render.js';
 import { defaultSettingsFor, type Settings } from '../src/validation.js';
 import type { Button, Social } from '../src/repo.js';
 
@@ -51,7 +51,7 @@ describe('plantilla "experiencias"', () => {
 
   it('arma los 3 botones con /go/<id>', () => {
     const html = render();
-    for (const b of BUTTONS) expect(html).toContain(`<a class="boton" href="/go/${b.id}">${b.label}</a>`);
+    for (const b of BUTTONS) expect(html).toContain(`<a class="boton" href="/go/${b.id}"><span class="b-r">${b.label}</span><span class="b-h" aria-hidden="true">${b.label}</span></a>`);
     expect(html.match(/<a class="boton"/g)).toHaveLength(3);
     expect(html).toContain('<nav class="botones" aria-label="Experiencias">');
     expect(html).not.toContain('<base target="_blank">');
@@ -129,7 +129,7 @@ describe('plantilla "experiencias"', () => {
     expect(html.match(/::before/g)).toHaveLength(1);
     expect(html.match(/\.hero::before/g)).toHaveLength(1);
     expect(html.match(/linear-gradient\(/g)).toHaveLength(1);
-    expect(html.match(/rgba\(0, 0, 0, (?:0|0\.35|0\.6|0\.7)\) /g)).toHaveLength(4);
+    expect(html.match(/rgba\(0, 0, 0, (?:0|calc\(var\(--grad\) \* 0\.5\)|calc\(var\(--grad\) \* 0\.857\)|var\(--grad\))\) /g)).toHaveLength(4);
     expect(html).not.toContain('rgba(72, 68, 64');
     const movil = html.match(/@media \(max-width: 767\.98px\) \{\s*\.hero::before \{([^}]*)\}\s*\}/);
     expect(movil).not.toBeNull();
@@ -141,9 +141,11 @@ describe('plantilla "experiencias"', () => {
     expect(capa).toContain('pointer-events: none;');
     expect(capa).toContain('linear-gradient(to bottom');
     expect(capa).toContain('rgba(0, 0, 0, 0) calc(100% - var(--u) * 420)');
-    expect(capa).toContain('rgba(0, 0, 0, 0.35) calc(100% - var(--u) * 290)');
-    expect(capa).toContain('rgba(0, 0, 0, 0.6) calc(100% - var(--u) * 150)');
-    expect(capa).toContain('rgba(0, 0, 0, 0.7) 100%');
+    // Mismas posiciones; opacidades proporcionales a --grad (0.70 por defecto = 0.35 / 0.6 / 0.7 de siempre).
+    expect(capa).toContain('rgba(0, 0, 0, calc(var(--grad) * 0.5)) calc(100% - var(--u) * 290)');
+    expect(capa).toContain('rgba(0, 0, 0, calc(var(--grad) * 0.857)) calc(100% - var(--u) * 150)');
+    expect(capa).toContain('rgba(0, 0, 0, var(--grad)) 100%');
+    expect(html).toContain('--grad: 0.70;');
     // El .hero aísla el apilamiento: la capa queda sobre la foto y bajo el contenido.
     expect(html).toMatch(/\.hero \{[^}]*position: relative;\s*isolation: isolate;/);
     // PC: ninguna capa ni degradado en el bloque min-width: 768px.
@@ -191,7 +193,10 @@ describe('plantilla "experiencias"', () => {
     }
     for (const t of ['experiencias', 'cartas'] as const) {
       const v = layoutValues({ ...defaultSettingsFor(t), fondo_oscurecer: '85' } as Settings, t);
-      expect(Object.keys(v).sort(), t).toEqual(['fondo_foco_css', 'logo_align', 'logo_ancho', 'logo_margin', 'logo_text_align', 'logo_x_css']);
+      expect(Object.keys(v).sort(), t).toEqual([
+        'boton_ls_reposo_css', 'boton_peso_hover_css', 'boton_peso_reposo_css', 'degradado_celular_css', 'fondo_foco_css', 'logo_align', 'logo_ancho', 'logo_margin', 'logo_text_align', 'logo_x_css',
+        'texto_botones_escala_css', 'texto_redes_escala_css', 'texto_titulo_escala_css',
+      ]);
     }
     // Un ajuste antiguo con la clave (fila de producción) no cambia nada.
     expect(render({ ...IMG, fondo_oscurecer: '85' } as any)).toBe(render(IMG));
@@ -223,9 +228,10 @@ describe('plantilla "experiencias"', () => {
     expect(html).not.toContain('max-height: 640px');
     expect(html).not.toContain('--logo-w');
     // Suelo de legibilidad para textos e iconos pequeños.
-    expect(html).toContain('font-size: max(12px, calc(var(--u) * 15));');
-    expect(html).toContain('font-size: max(11.5px, calc(var(--u) * 13));');
-    expect(html).toContain('font-size: max(22px, calc(var(--u) * 26));');
+    // (con escala 1.00 valen lo de siempre: 15, 13 y 26 u)
+    expect(html).toContain('font-size: max(12px, calc(var(--u) * 15 * var(--s-botones)));');
+    expect(html).toContain('font-size: max(11.5px, calc(var(--u) * 13 * var(--s-redes)));');
+    expect(html).toContain('font-size: max(22px, calc(var(--u) * 26 * var(--s-redes)));');
   });
 
   it('escapa el título', () => {
@@ -274,17 +280,20 @@ describe('plantilla "experiencias"', () => {
     expect(html).not.toContain('class="l"');
   });
 
-  it('fuente oficial Sofia Pro autoalojada: 3 WOFF2 en disco, 3 @font-face, 2 preload y sin Sofia Sans en Google Fonts', () => {
-    for (const w of [300, 400, 700]) {
+  it('fuente oficial Sofia Pro autoalojada: 6 WOFF2 en disco, 6 @font-face, 3 preload (300, 400 y 700) y sin Sofia Sans en Google Fonts', () => {
+    for (const w of [300, 400, 500, 600, 700, 900]) {
       const buf = readFileSync(join(process.cwd(), 'public', 'assets', 'fonts', 'sofia-pro', `sofia-pro-${w}.woff2`));
       expect(buf.subarray(0, 4).toString('latin1'), `peso ${w}`).toBe('wOF2');
     }
     const html = render();
-    for (const w of [300, 400, 700]) {
+    for (const w of [300, 400, 500, 600, 700, 900]) {
       expect(html).toMatch(new RegExp(String.raw`@font-face \{\s*font-family: "Sofia Pro";\s*font-weight: ${w};\s*font-style: normal;\s*font-display: swap;\s*src: url\("/assets/fonts/sofia-pro/sofia-pro-${w}\.woff2"\) format\("woff2"\);`));
     }
-    expect(html.match(/@font-face/g)).toHaveLength(3);
-    expect(html.match(/<link rel="preload" as="font" type="font\/woff2" crossorigin href="\/assets\/fonts\/sofia-pro\/sofia-pro-(300|700)\.woff2">/g)).toHaveLength(2);
+    expect(html.match(/@font-face/g)).toHaveLength(6);
+    // Solo se precargan los pesos de uso común (título 300, reposo 400, negrita 700); 500, 600 y 900 se bajan si se usan.
+    const pre = [...html.matchAll(/<link rel="preload" as="font" type="font\/woff2" crossorigin href="\/assets\/fonts\/sofia-pro\/sofia-pro-(\d+)\.woff2">/g)].map((m) => m[1]);
+    expect(pre).toEqual(['300', '400', '700']);
+    expect(html.match(/rel="preload"/g)).toHaveLength(3);
     expect(html).toContain('--sans: "Sofia Pro", "Sofia Sans", "Helvetica Neue", Arial, sans-serif;');
     const google = html.match(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>/)![0];
     expect(google).not.toContain('Sofia');
@@ -482,5 +491,312 @@ describe('panel: ajuste fino del logo y mensajes de la vista previa', () => {
     // Un preajuste y «Restablecer» también devuelven logo_x a 0.
     expect(js).toContain("applyLogoLayout({ logo_posicion: v, logo_x: '0' })");
     expect(js).toContain("defaults.logo_x = '0'");
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Tamaño de los textos (texto_*_escala) e intensidad del degradado de celular (degradado_celular)
+
+describe('experiencias: escalas de texto y degradado de celular', () => {
+  const css = (over: Partial<Settings>) => render(over);
+  const IMG = { fondo_tipo: 'imagen', fondo_imagen_url: '/uploads/f.jpg' } as const;
+
+  it('por defecto: escalas 1.00 y degradado 0.70 (el aspecto de siempre)', () => {
+    const html = render();
+    expect(html).toContain('--s-titulo: 1.00;');
+    expect(html).toContain('--s-botones: 1.00;');
+    expect(html).toContain('--s-redes: 1.00;');
+    expect(html).toContain('--grad: 0.70;');
+    expect(html).not.toContain('{{');
+    // Los tamaños multiplican las medidas originales (36/30 móvil, 60/48 PC, 15, 13, 26) por la escala.
+    expect(html).toMatch(/\.t1 \{[^}]*font-size: calc\(var\(--u\) \* 36 \* var\(--s-titulo\)\);/);
+    expect(html).toMatch(/\.t2 \{[^}]*font-size: calc\(var\(--u\) \* 30 \* var\(--s-titulo\)\);/);
+    expect(html).toMatch(/@media \(min-width: 768px\) \{\s*\.t1 \{ font-size: calc\(var\(--u\) \* 60 \* var\(--s-titulo\)\); \}\s*\.t2 \{ font-size: calc\(var\(--u\) \* 48 \* var\(--s-titulo\)\); \}/);
+    expect(html).toMatch(/\.boton \{[^}]*min-height: calc\(var\(--u\) \* 52\);/); // los botones conservan su alto mínimo
+    expect(html).toMatch(/\.boton \{[^}]*font-size: max\(12px, calc\(var\(--u\) \* 15 \* var\(--s-botones\)\)\);/);
+    expect(html).toMatch(/\.redes-texto \{[^}]*font-size: max\(11\.5px, calc\(var\(--u\) \* 13 \* var\(--s-redes\)\)\);/);
+    expect(html).toMatch(/\.iconos a \{[^}]*font-size: max\(22px, calc\(var\(--u\) \* 26 \* var\(--s-redes\)\)\);/);
+    // Con 0.70 el degradado equivale al original: 0.35, 0.6 (0.7 × 0.857 = 0.5999) y 0.7.
+    expect(0.7 * 0.5).toBeCloseTo(0.35, 10);
+    expect(0.7 * 0.857).toBeCloseTo(0.6, 3);
+  });
+
+  it('valores del CSS: porcentaje / 100 con 2 decimales y acotado', () => {
+    expect(css({ texto_titulo_escala: '85' })).toContain('--s-titulo: 0.85;');
+    expect(css({ texto_botones_escala: '140' })).toContain('--s-botones: 1.40;');
+    expect(css({ texto_redes_escala: '70' })).toContain('--s-redes: 0.70;');
+    expect(css({ degradado_celular: '0' })).toContain('--grad: 0.00;');
+    expect(css({ degradado_celular: '100' })).toContain('--grad: 1.00;');
+    expect(css({ degradado_celular: '35' })).toContain('--grad: 0.35;');
+    // Fuera de rango: se acota.
+    expect(css({ texto_titulo_escala: '10' })).toContain('--s-titulo: 0.70;');
+    expect(css({ texto_titulo_escala: '999' })).toContain('--s-titulo: 1.40;');
+    expect(css({ degradado_celular: '500' })).toContain('--grad: 1.00;');
+    // Basura o inyección: valor por defecto.
+    for (const bad of ['x', '', '1.5', '5%', '90; }', '-5', '1e2', 'calc(1)', '<script>', null, undefined] as const) {
+      const html = css({ texto_titulo_escala: bad, texto_botones_escala: bad, texto_redes_escala: bad, degradado_celular: bad } as unknown as Partial<Settings>);
+      const label = JSON.stringify(bad);
+      expect(html, label).toContain('--s-titulo: 1.00;');
+      expect(html, label).toContain('--s-botones: 1.00;');
+      expect(html, label).toContain('--s-redes: 1.00;');
+      expect(html, label).toContain('--grad: 0.70;');
+      expect(html, label).not.toContain('<script>');
+    }
+    // Landing existente sin las claves: valen los valores por defecto.
+    const { texto_titulo_escala: _a, texto_botones_escala: _b, texto_redes_escala: _c, degradado_celular: _d, ...sinClaves } = settings();
+    const viejo = renderPage({ settings: sinClaves as Settings, buttons: BUTTONS, socials: SOCIALS, landing }, {}).replace(/\r\n/g, '\n');
+    expect(viejo).toContain('--s-titulo: 1.00;');
+    expect(viejo).toContain('--grad: 0.70;');
+    expect(viejo).toBe(render());
+  });
+
+  it('layoutValues: *_css con 2 decimales; cartas recibe los mismos valores pero su plantilla no los usa', () => {
+    const v = (over: Record<string, unknown>, t: 'experiencias' | 'cartas' = 'experiencias') => layoutValues({ ...defaultSettingsFor(t), ...over } as Settings, t);
+    expect(v({})).toMatchObject({ texto_titulo_escala_css: '1.00', texto_botones_escala_css: '1.00', texto_redes_escala_css: '1.00', degradado_celular_css: '0.70' });
+    expect(v({ texto_titulo_escala: '85', degradado_celular: '5' })).toMatchObject({ texto_titulo_escala_css: '0.85', degradado_celular_css: '0.05' });
+    expect(v({ texto_redes_escala: 'x' }).texto_redes_escala_css).toBe('1.00');
+    expect(v({ degradado_celular: '' }).degradado_celular_css).toBe('0.70');
+    expect(v({ degradado_celular: 40 }).degradado_celular_css).toBe('0.40');
+
+    const cartas = (over: Partial<Settings>) =>
+      renderPage({ settings: { ...defaultSettingsFor('cartas'), ...over }, buttons: BUTTONS, socials: SOCIALS, landing: { template: 'cartas' } }, {});
+    const base = cartas({});
+    expect(cartas({ texto_titulo_escala: '120', texto_botones_escala: '80', texto_redes_escala: '140', degradado_celular: '0' })).toBe(base);
+    for (const marca of ['--s-titulo', '--s-botones', '--s-redes', '--grad', 'escala_css', 'degradado']) expect(base).not.toContain(marca);
+  });
+
+  it('el degradado sigue solo en celular: en PC no hay capa ni --grad en las reglas de escritorio', () => {
+    const html = render({ ...IMG, degradado_celular: '100' });
+    expect(html).toContain('--grad: 1.00;');
+    expect(html.match(/var\(--grad\)/g)).toHaveLength(3);
+    const pc = html.match(/@media \(min-width: 768px\) \{\s*\.t1[\s\S]*?\n  \}\n/)![0];
+    expect(pc).not.toContain('--grad');
+    expect(pc).not.toContain('::before');
+    // Con 0 % el CSS sigue siendo válido (opacidad 0.00 = sin degradado visible).
+    expect(render({ ...IMG, degradado_celular: '0' })).toContain('--grad: 0.00;');
+  });
+});
+
+describe('panel: tamaño de los textos y degradado de celular', () => {
+  const cms = readFileSync(join(process.cwd(), 'templates', 'cms.html'), 'utf8');
+  const js = readFileSync(join(process.cwd(), 'public', 'assets', 'cms', 'cms.js'), 'utf8');
+
+  it('pestaña Textos: tarjeta solo para experiencias con tres rangos 70–140 paso 5, etiquetas y pista', () => {
+    const card = cms.match(/<article class="card txt-sizes" data-only="experiencias">[\s\S]*?<\/article>/)![0];
+    const rangos: [string, string, string][] = [
+      ['txt-titulo', 'texto_titulo_escala', 'Título'],
+      ['txt-botones', 'texto_botones_escala', 'Texto de los botones'],
+      ['txt-redes', 'texto_redes_escala', 'Texto de redes (con íconos)'],
+    ];
+    for (const [id, key, label] of rangos) {
+      expect(card, id).toContain(`<input type="range" id="${id}" min="70" max="140" step="5" data-setting="${key}" aria-describedby="${id}-value txt-hint">`);
+      expect(card, id).toContain(`<output class="range-value" id="${id}-value" for="${id}">`);
+      expect(card, id).toContain(`${label} <output`);
+    }
+    expect(card).toContain('id="txt-hint">100 % es el tamaño original. Se ve en celular y en PC.');
+    expect(card).toContain('Tamaño de los textos');
+    expect(card).toContain('id="txt-reset"');
+    expect(card).toContain('Restablecer');
+    // Va dentro de la pestaña Textos.
+    const textos = cms.indexOf('data-panel="textos"');
+    expect(cms.indexOf('class="card txt-sizes"')).toBeGreaterThan(textos);
+    expect(cms.indexOf('class="card txt-sizes"')).toBeLessThan(cms.indexOf('data-panel="redes"'));
+  });
+
+  it('pestaña Diseño, tarjeta Fondo: rango del degradado 0–100 paso 5 solo para experiencias', () => {
+    const block = cms.match(/<div class="grad-field" data-only="experiencias">[\s\S]*?<\/div>/)![0];
+    expect(block).toContain('<input type="range" id="grad-celular" min="0" max="100" step="5" data-setting="degradado_celular" aria-describedby="grad-celular-value grad-celular-hint">');
+    expect(block).toContain('<output class="range-value" id="grad-celular-value" for="grad-celular">');
+    expect(block).toContain('Degradado de abajo (solo celular)');
+    expect(block).toContain('id="grad-celular-hint">Sombra negra detrás de los botones, solo en celular. 0 % = sin degradado.');
+    const fondo = cms.indexOf('fa-fill-drip');
+    expect(cms.indexOf('id="grad-celular"')).toBeGreaterThan(fondo);
+    expect(cms.indexOf('id="grad-celular"')).toBeLessThan(cms.indexOf('fa-swatchbook')); // dentro de la tarjeta Fondo
+    expect(cms.indexOf('id="grad-celular"')).toBeGreaterThan(cms.indexOf('data-color="color_fondo"'));
+  });
+
+  it('cms.js: se rellenan desde state.settings (con default), formato "N %" y Restablecer en una sola petición con Deshacer', () => {
+    for (const id of ['txt-titulo', 'txt-botones', 'txt-redes', 'grad-celular']) expect(js).toContain(`'${id}'`);
+    expect(js).toContain("texto_titulo_escala: ['txt-titulo', 70, 140, 100]");
+    expect(js).toContain("degradado_celular: ['grad-celular', 0, 100, 70]");
+    expect(js).toContain('out.textContent = `${v} %`;');
+    expect(js).toContain('state.settings[key] ?? state.defaults?.[key]');
+    expect(js).toContain("api('PATCH', '/api/cms/settings', values)");
+    expect(js).toContain("toast('Tamaños de texto restablecidos', 'ok', { action: 'Deshacer'");
+    expect(js).toContain("TEXT_SCALE_KEYS.map((k) => [k, '100'])");
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Peso del texto de los botones: fino en reposo, negrita al pasar el mouse (fundido entre dos capas)
+
+describe('experiencias: peso del texto de los botones (reposo / hover)', () => {
+  const PESOS = ['300', '400', '500', '600', '700', '900'] as const;
+  const w = (k: keyof typeof SOFIA_ANCHO_EM) => SOFIA_ANCHO_EM[k];
+
+  it('por defecto 400 en reposo y 700 al pasar el mouse, con su compensación de ancho', () => {
+    const html = render();
+    expect(html).toContain('--bt-reposo: 400;');
+    expect(html).toContain('--bt-hover: 700;');
+    expect(html).toContain('--bt-ls: 0.0109em;');
+    expect(html).not.toContain('{{');
+    expect(defaultSettingsFor('experiencias')).toMatchObject({ boton_peso_reposo: '400', boton_peso_hover: '700' });
+  });
+
+  it('los 6 pesos llegan al CSS; basura o inyección → los de por defecto; sin las claves = por defecto', () => {
+    for (const r of PESOS) {
+      for (const h of PESOS) {
+        const html = render({ boton_peso_reposo: r, boton_peso_hover: h });
+        expect(html, `${r}/${h}`).toContain(`--bt-reposo: ${r};`);
+        expect(html, `${r}/${h}`).toContain(`--bt-hover: ${h};`);
+        expect(html, `${r}/${h}`).toContain(`--bt-ls: ${botonLsReposo(r, h)};`);
+      }
+    }
+    for (const bad of ['350', '800', '100', '', 'bold', '400px', ' 400 ', '400; }', '<script>', null, undefined] as const) {
+      const html = render({ boton_peso_reposo: bad, boton_peso_hover: bad } as unknown as Partial<Settings>);
+      const label = JSON.stringify(bad);
+      expect(html, label).toContain('--bt-reposo: 400;');
+      expect(html, label).toContain('--bt-hover: 700;');
+      expect(html, label).toContain('--bt-ls: 0.0109em;');
+      expect(html, label).not.toContain('<script>');
+    }
+    const { boton_peso_reposo: _a, boton_peso_hover: _b, ...sinClaves } = settings();
+    const viejo = renderPage({ settings: sinClaves as Settings, buttons: BUTTONS, socials: SOCIALS, landing }, {}).replace(/\r\n/g, '\n');
+    expect(viejo).toBe(render());
+    expect(layoutValues({ ...settings(), boton_peso_reposo: 400 } as unknown as Settings, 'experiencias').boton_peso_reposo_css).toBe('400');
+  });
+
+  it('cada botón lleva dos capas con la etiqueta escapada; la de hover es aria-hidden', () => {
+    const label = '<b>"Spa" & Más</b>';
+    const esc = '&lt;b&gt;&quot;Spa&quot; &amp; Más&lt;/b&gt;';
+    const html = renderPage({ settings: settings(), buttons: [button(1, label, 'https://ejemplo.com/x')], socials: [], landing }, {}).replace(/\r\n/g, '\n');
+    expect(html).toContain(`<span class="b-r">${esc}</span><span class="b-h" aria-hidden="true">${esc}</span></a>`);
+    expect(html).not.toContain('<b>');
+    expect(html).not.toContain(label);
+    const normal = render();
+    expect(normal.match(/<span class="b-r">/g)).toHaveLength(3);
+    expect(normal.match(/<span class="b-h" aria-hidden="true">/g)).toHaveLength(3);
+    expect(render({}, { preview: true }).match(/<span class="b-h" aria-hidden="true">/g)).toHaveLength(3);
+  });
+
+  it('cartas (pagina.html) sigue con el botón de siempre: sin capas ni variables de peso', () => {
+    const html = renderPage({ settings: defaultSettingsFor('cartas'), buttons: BUTTONS, socials: [], landing: { template: 'cartas' } }, {}).replace(/\r\n/g, '\n');
+    for (const b of BUTTONS) expect(html).toContain(`<a class="boton" href="/go/${b.id}">${b.label}</a>`);
+    for (const marca of ['class="b-r"', 'class="b-h"', '--bt-reposo', '--bt-hover', '--bt-ls']) expect(html).not.toContain(marca);
+    // Sin plantilla indicada también es "cartas".
+    expect(renderPage({ settings: defaultSettingsFor('cartas'), buttons: BUTTONS, socials: [] }, {})).not.toContain('class="b-r"');
+  });
+
+  it('CSS: capas en la misma celda, fundido con opacity y estados :hover (solo con hover real), foco y :active', () => {
+    const html = render();
+    const boton = html.match(/\.boton \{[^}]*\}/)![0];
+    expect(boton).toContain('display: grid;');
+    expect(boton).toContain('place-items: center;');
+    expect(boton).not.toContain('font-weight'); // el peso lo ponen las capas
+    // Lo que ya tenía el botón sigue igual.
+    expect(boton).toContain('min-height: calc(var(--u) * 52);');
+    expect(boton).toContain('padding: calc(var(--u) * 10) calc(var(--u) * 18);');
+    expect(boton).toContain('border-radius: calc(var(--u) * 8);');
+    expect(boton).toContain('box-shadow: 0 8px 22px -12px rgba(0, 0, 0, .7);');
+    expect(boton).toContain('font-size: max(12px, calc(var(--u) * 15 * var(--s-botones)));');
+    expect(boton).toContain('overflow-wrap: anywhere;');
+    expect(boton).toContain('letter-spacing: .05em;');
+    expect(boton).toContain('transition: background .2s, color .2s, transform .15s;');
+    expect(html).toMatch(/\.boton:hover,\s*\.boton:focus-visible \{\s*background: var\(--boton-hover\);\s*color: var\(--texto-boton\);\s*transform: translateY\(-1px\);\s*\}/);
+
+    expect(html).toMatch(/\.b-r,\s*\.b-h \{[^}]*grid-area: 1 \/ 1;[^}]*width: 100%;[^}]*text-align: center;[^}]*transition: opacity \.24s ease;[^}]*\}/);
+    expect(html).toMatch(/\.b-r \{[^}]*font-weight: var\(--bt-reposo\);[^}]*letter-spacing: calc\(\.05em \+ var\(--bt-ls\)\);[^}]*\}/);
+    expect(html).toMatch(/\.b-h \{[^}]*font-weight: var\(--bt-hover\);[^}]*letter-spacing: \.05em;[^}]*opacity: 0;[^}]*\}/);
+    // Foco con teclado y al presionar (también en táctil).
+    expect(html).toMatch(/\.boton:focus-visible \.b-r,\s*\.boton:active \.b-r \{ opacity: 0; \}/);
+    expect(html).toMatch(/\.boton:focus-visible \.b-h,\s*\.boton:active \.b-h \{ opacity: 1; \}/);
+    // :hover solo donde hay hover real (mouse); nunca fuera de esa media query.
+    const media = '@media (hover: hover) and (pointer: fine) {\n    .boton:hover .b-r { opacity: 0; }\n    .boton:hover .b-h { opacity: 1; }\n  }';
+    expect(html).toContain(media);
+    expect(html.match(/\.boton:hover \.b-/g)).toHaveLength(2);
+    expect(html.indexOf('.boton:hover .b-r')).toBeGreaterThan(html.indexOf('@media (hover: hover) and (pointer: fine)'));
+    // Sin transición cuando el usuario pide menos movimiento.
+    const reducido = html.match(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n  \}/)![0];
+    expect(reducido).toMatch(/\.boton,\s*\.b-r,\s*\.b-h,\s*\.iconos a \{ transition: none; \}/);
+    expect(reducido).toContain('.boton:focus-visible { transform: none; }');
+    expect(html).not.toMatch(/\.boton \{[^}]*font-weight: 700/);
+  });
+
+  it('SOFIA_ANCHO_EM: 6 pesos, valores finitos y crecientes con el peso', () => {
+    expect(Object.keys(SOFIA_ANCHO_EM).sort()).toEqual([...PESOS]);
+    let prev = 0;
+    for (const p of PESOS) {
+      const v = SOFIA_ANCHO_EM[p];
+      expect(Number.isFinite(v), p).toBe(true);
+      expect(v, p).toBeGreaterThan(0.4);
+      expect(v, p).toBeLessThan(0.8);
+      expect(v, p).toBeGreaterThan(prev);
+      prev = v;
+    }
+  });
+
+  it('boton_ls_reposo_css: ancho[hover] − ancho[reposo] en em; 400→700 positivo y deja < 1 % de diferencia; iguales → 0em', () => {
+    const ls = botonLsReposo('400', '700');
+    expect(ls).toBe('0.0109em');
+    expect(Number.parseFloat(ls)).toBeCloseTo(w('700') - w('400'), 4);
+    // Ancho medio por carácter (avance + .05em de letter-spacing): reposo con compensación vs hover.
+    const hover = w('700') + 0.05;
+    const sinComp = Math.abs(w('400') + 0.05 - hover) / hover;
+    const conComp = Math.abs(w('400') + 0.05 + Number.parseFloat(ls) - hover) / hover;
+    expect(sinComp).toBeGreaterThan(0.01); // sin compensar el salto de ancho es > 1 %
+    expect(conComp).toBeLessThan(0.01); // compensado, < 1 %
+    // Iguales → 0em (nunca "-0.0000em"); hover más fino que reposo → negativo.
+    for (const p of PESOS) expect(botonLsReposo(p, p), p).toBe('0em');
+    expect(botonLsReposo('700', '400')).toBe('-0.0109em');
+    expect(botonLsReposo('300', '900')).toBe('0.0220em');
+    for (const r of PESOS) {
+      for (const h of PESOS) {
+        expect(botonLsReposo(r, h), `${r}→${h}`).toMatch(/^(0em|-?0\.\d{4}em)$/);
+        expect(Math.sign(Number.parseFloat(botonLsReposo(r, h))), `${r}→${h}`).toBe(Math.sign(Number(h) - Number(r)));
+      }
+    }
+    expect(layoutValues(settings({ boton_peso_reposo: '400', boton_peso_hover: '700' }), 'experiencias')).toMatchObject({
+      boton_peso_reposo_css: '400', boton_peso_hover_css: '700', boton_ls_reposo_css: '0.0109em',
+    });
+    expect(layoutValues(settings({ boton_peso_reposo: '700', boton_peso_hover: '700' }), 'experiencias').boton_ls_reposo_css).toBe('0em');
+    expect(render({ boton_peso_reposo: '700', boton_peso_hover: '700' })).toContain('--bt-ls: 0em;');
+  });
+});
+
+describe('panel: peso del texto de los botones', () => {
+  const cms = readFileSync(join(process.cwd(), 'templates', 'cms.html'), 'utf8');
+  const js = readFileSync(join(process.cwd(), 'public', 'assets', 'cms', 'cms.js'), 'utf8');
+  const opciones = ['300', 'Fino (300)', '400', 'Normal (400)', '500', 'Medio (500)', '600', 'Seminegrita (600)', '700', 'Negrita (700)', '900', 'Extranegrita (900)'];
+
+  it('Diseño → Colores: dos selectores solo para experiencias, con etiqueta, opciones y pista, tras «Texto del botón»', () => {
+    const block = cms.match(/<div class="peso-field" data-only="experiencias">[\s\S]*?<p class="hint" id="btn-peso-hint">[\s\S]*?<\/p>\s*<\/div>/)![0];
+    for (const [id, key, label] of [
+      ['btn-peso-reposo', 'boton_peso_reposo', 'Texto del botón en reposo'],
+      ['btn-peso-hover', 'boton_peso_hover', 'Texto al pasar el mouse'],
+    ]) {
+      expect(block, id).toContain(`<label class="field-label" for="${id}">${label}</label>`);
+      expect(block, id).toContain(`<select id="${id}" data-setting="${key}" aria-describedby="btn-peso-hint">`);
+      const sel = block.match(new RegExp(`<select id="${id}"[\\s\\S]*?</select>`))![0];
+      const opts = [...sel.matchAll(/<option value="(\d+)">([^<]+)<\/option>/g)].flatMap((m) => [m[1], m[2]]);
+      expect(opts, id).toEqual(opciones);
+    }
+    expect(block).toContain('La letra cambia suavemente de un grosor al otro al pasar el mouse. Si eliges el mismo, no cambia.');
+    // Va justo después de «Texto del botón» (color_boton_texto), dentro de la tarjeta Colores, y antes del botón al pasar el mouse.
+    const i = cms.indexOf('id="btn-peso-reposo"');
+    expect(i).toBeGreaterThan(cms.indexOf('data-color="color_boton_texto"'));
+    expect(i).toBeLessThan(cms.indexOf('data-color="color_boton_hover"'));
+    expect(i).toBeGreaterThan(cms.indexOf('fa-swatchbook'));
+    expect(cms.indexOf('id="btn-peso-hover"')).toBeLessThan(cms.indexOf('data-color="color_boton_hover"'));
+    // Ids únicos.
+    for (const id of ['btn-peso-reposo', 'btn-peso-hover', 'btn-peso-hint']) expect(cms.match(new RegExp(`id="${id}"`, 'g')), id).toHaveLength(1);
+  });
+
+  it('cms.js: los selectores usan el cableado de data-setting (con default de state) y «Restablecer» de la tarjeta solo toca colores', () => {
+    expect(js).toContain("$$('[data-setting]').forEach((input) => {");
+    expect(js).toContain("input.value = state.settings[key] ?? state.defaults?.[key] ?? '';");
+    expect(js).toContain("const COLOR_KEYS = ['color_fondo', 'color_texto', 'color_boton', 'color_boton_texto', 'color_boton_hover', 'color_texto_boton_hover'];");
+    expect(js).not.toContain('boton_peso');
+    const css = readFileSync(join(process.cwd(), 'public', 'assets', 'cms', 'cms.css'), 'utf8');
+    expect(css).toMatch(/\.peso-field \.field select \{[^}]*min-width: 0;[^}]*max-width: 100%;/);
   });
 });

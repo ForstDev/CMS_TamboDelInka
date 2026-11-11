@@ -582,7 +582,7 @@ function applyBindings() {
 function bindSettings() {
   $$('[data-setting]').forEach((input) => {
     const key = input.dataset.setting;
-    input.value = state.settings[key] ?? '';
+    input.value = state.settings[key] ?? state.defaults?.[key] ?? '';
     const field = input.closest('.field');
     const isUrl = input.type === 'url';
     input.addEventListener('input', () => {
@@ -710,6 +710,13 @@ function renderDesign() {
   // Ajuste fino horizontal (solo "experiencias"): el deslizador (data-setting="logo_x") se guarda solo.
   $('#logo-x-center').addEventListener('click', () => setLogoX(0));
 
+  // Tamaño de los textos (solo "experiencias"): los tres deslizadores (data-setting) se guardan solos.
+  $('#txt-reset').addEventListener('click', () => {
+    const before = Object.fromEntries(TEXT_SCALE_KEYS.map((k) => [k, state.settings[k] ?? '100']));
+    applyTextScales(Object.fromEntries(TEXT_SCALE_KEYS.map((k) => [k, '100'])));
+    toast('Tamaños de texto restablecidos', 'ok', { action: 'Deshacer', onAction: () => applyTextScales(before), duration: 6000 });
+  });
+
   renderDesignPreview();
 }
 
@@ -727,6 +734,49 @@ function applyLogoLayout(values) {
   if (values.logo_posicion !== undefined) state._syncLogoPos?.(values.logo_posicion);
   applyBindings(); // también refresca el control del ajuste fino (renderDesignPreview)
   save(() => api('PATCH', '/api/cms/settings', values)).catch(() => {});
+}
+
+// ---------- Tamaño de los textos y degradado de celular (plantilla "experiencias") ----------
+
+const TEXT_SCALE_KEYS = ['texto_titulo_escala', 'texto_botones_escala', 'texto_redes_escala'];
+/** Deslizadores con salida en %: clave del ajuste → [id del deslizador, mínimo, máximo, valor por defecto]. */
+const PCT_SLIDERS = {
+  texto_titulo_escala: ['txt-titulo', 70, 140, 100],
+  texto_botones_escala: ['txt-botones', 70, 140, 100],
+  texto_redes_escala: ['txt-redes', 70, 140, 100],
+  degradado_celular: ['grad-celular', 0, 100, 70],
+};
+
+/** Entero acotado (basura → por defecto). */
+function clampInt(n, min, max, fallback) {
+  if (n === '' || n == null) return fallback;
+  const v = Math.round(Number(n));
+  return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
+}
+
+/** Aplica y guarda (en una sola petición) los tamaños de texto que vengan en `values`. */
+function applyTextScales(values) {
+  for (const key of Object.keys(values)) cancelDebounced(`setting:${key}`);
+  Object.assign(state.settings, values);
+  for (const key of Object.keys(values)) {
+    const spec = PCT_SLIDERS[key];
+    if (spec) $(`#${spec[0]}`).value = values[key];
+  }
+  applyBindings(); // también refresca las salidas (renderDesignPreview)
+  save(() => api('PATCH', '/api/cms/settings', values)).catch(() => {});
+}
+
+/** Salida «100 %» y texto accesible de cada deslizador en %. */
+function renderPctSliders() {
+  for (const [key, [id, min, max, def]] of Object.entries(PCT_SLIDERS)) {
+    const input = $(`#${id}`);
+    const out = $(`#${id}-value`);
+    if (!input || !out) continue;
+    const v = clampInt(state.settings[key] ?? state.defaults?.[key], min, max, def);
+    if (input.value !== String(v)) input.value = String(v);
+    out.textContent = `${v} %`;
+    input.setAttribute('aria-valuetext', `${v} %`);
+  }
 }
 
 // ---------- Ajuste fino horizontal del logo (plantilla "experiencias") ----------
@@ -829,6 +879,7 @@ async function handleImage(file, purpose, progressEl, onDone) {
 
 function renderDesignPreview() {
   const s = state.settings;
+  renderPctSliders();
   const bgImage = s.fondo_tipo === 'imagen' && s.fondo_imagen_url ? `url("${s.fondo_imagen_url}")` : 'none';
   const logo = $('#logo-img');
   if (logo) {
