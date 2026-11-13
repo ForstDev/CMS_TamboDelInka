@@ -132,11 +132,23 @@ export function createApp() {
   // El botón (o el ícono de la red) apunta aquí; se registra el clic y se redirige al destino real.
   // Sirve para los botones de todas las landings; el clic se guarda en la landing del botón.
 
+  /** Página de la landing a la que pertenece un elemento que existe pero no se puede abrir; ante cualquier fallo, '/'. */
+  async function ownLandingUrl(landingId: string | null | undefined): Promise<string> {
+    try {
+      if (!landingId) return '/';
+      const landing = await repo.getLandingById(landingId);
+      return landing ? landingUrl(landing) : '/';
+    } catch {
+      return '/';
+    }
+  }
+
   app.get('/go/social/:id', async (req, res) => {
     const id = req.params.id;
     const social = UUID.test(id) ? await repo.findSocialForTracking(id) : null;
     res.setHeader('Cache-Control', 'no-store');
-    if (!social || !social.active || !social.url || !socialUrl.safeParse(social.url).success) return res.redirect(302, '/');
+    if (!social) return res.redirect(302, '/');
+    if (!social.active || !social.url || !socialUrl.safeParse(social.url).success) return res.redirect(302, await ownLandingUrl(social.landing_id));
 
     // El correo no se cuenta (la página lo enlaza directo, ver render.ts).
     if (!/^mailto:/i.test(social.url) && shouldCount(req)) {
@@ -150,7 +162,8 @@ export function createApp() {
     const id = req.params.id;
     const button = UUID.test(id) ? await repo.findButtonForTracking(id) : null;
     res.setHeader('Cache-Control', 'no-store');
-    if (!button || !button.active || !button.url) return res.redirect(302, '/');
+    if (!button) return res.redirect(302, '/');
+    if (!button.active || !button.url) return res.redirect(302, await ownLandingUrl(button.landing_id));
 
     if (shouldCount(req)) {
       const device = deviceType(String(req.headers['user-agent'] ?? ''), String(req.headers['sec-ch-ua-mobile'] ?? ''));

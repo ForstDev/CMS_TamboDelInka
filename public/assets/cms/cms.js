@@ -1219,7 +1219,7 @@ function qrSection(b) {
     return `/api/cms/buttons/${encodeURIComponent(b.id)}/qr.${ext}${q ? `?${q}` : ''}`;
   };
 
-  const warn = h('p', { class: 'qr-warn' }, icon('fa-solid fa-triangle-exclamation'), h('span', { text: 'Este botón está oculto o no tiene carta: el QR llevaría a la página principal.' }));
+  const warn = h('p', { class: 'qr-warn' }, icon('fa-solid fa-triangle-exclamation'), h('span', { text: 'Este botón está oculto o no tiene carta: el QR llevaría a la página de esta landing.' }));
   const img = h('img', { class: 'qr-img', width: 176, height: 176, alt: '' });
   const imgError = h('p', { class: 'field-error', hidden: true, text: 'No se pudo cargar el QR. Cierra y vuelve a abrir este bloque.' });
   img.addEventListener('error', () => {
@@ -1263,7 +1263,7 @@ function qrSection(b) {
         h('a', { class: 'btn btn-secondary btn-sm', href: url('svg', 'download=1'), download: '' }, icon('fa-solid fa-download'), 'Descargar SVG'),
         h('a', { class: 'btn btn-secondary btn-sm', href: url('png', 'download=1'), download: '' }, icon('fa-solid fa-download'), 'Descargar PNG'),
       ),
-      h('p', { class: 'hint', text: 'Este QR siempre abre la carta actual de este botón: cuando cambies el PDF, el QR no cambia. Si ocultas o borras el botón, llevará a la página principal.' }),
+      h('p', { class: 'hint', text: 'Este QR siempre abre la carta actual de este botón: cuando cambies el PDF, el QR no cambia. Si ocultas el botón o le quitas la carta, llevará a la página de esta landing; si borras el botón, llevará a la página principal.' }),
       h('p', { class: 'hint', text: 'Útil para botones cuyo PDF cambia seguido (por ejemplo, un cronograma semanal).' }),
     ),
   );

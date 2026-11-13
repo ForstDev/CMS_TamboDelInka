@@ -633,6 +633,68 @@ describe('varias landings: API, rutas y aislamiento', () => {
     expect([sA2.total, sA2.socials.total]).toEqual([1, 1]);
   });
 
+  it('/go/:id y /go/social/:id: oculto o sin destino lleva a la landing propia; inexistente o no UUID, a /; sin contar', async () => {
+    const db = await getDb();
+    const clicks = async () => Number((await db.query('select count(*)::int as n from clicks'))[0]!.n);
+    const before = await clicks();
+    const go = async (url: string) => {
+      const r = await request(app).get(url).set('User-Agent', DESKTOP);
+      expect(r.headers['cache-control'], url).toBe('no-store');
+      return [r.status, r.headers.location];
+    };
+
+    const hawa = (await agent.get('/api/cms/state')).body.buttons.find((x: any) => x.label === 'Hawa');
+    const fbA = (await agent.get('/api/cms/state')).body.socials.find((x: any) => x.network === 'facebook');
+
+    try {
+      // Landing no por defecto (B, /exp-demo): botón oculto, activo sin carta/enlace; red oculta y con URL inválida.
+      await db.query('update buttons set active = false where id = $1', [bButton]);
+      expect(await go(`/go/${bButton}`)).toEqual([302, '/exp-demo']);
+      await db.query('update buttons set active = true, url = \'\' where id = $1', [bButton]);
+      expect(await go(`/go/${bButton}`)).toEqual([302, '/exp-demo']);
+      await db.query(`update buttons set url = 'https://example.com/tour' where id = $1`, [bButton]);
+
+      await db.query('update socials set active = false where id = $1', [bSocial]);
+      expect(await go(`/go/social/${bSocial}`)).toEqual([302, '/exp-demo']);
+      await db.query(`update socials set active = true, url = 'javascript:alert(1)' where id = $1`, [bSocial]);
+      expect(await go(`/go/social/${bSocial}`)).toEqual([302, '/exp-demo']);
+      await db.query(`update socials set url = 'https://instagram.com/exp' where id = $1`, [bSocial]);
+
+      // Landing por defecto (A): oculto -> '/'.
+      await db.query('update buttons set active = false where id = $1', [hawa.id]);
+      expect(await go(`/go/${hawa.id}`)).toEqual([302, '/']);
+      await db.query('update buttons set active = true where id = $1', [hawa.id]);
+      await db.query('update socials set active = false where id = $1', [fbA.id]);
+      expect(await go(`/go/social/${fbA.id}`)).toEqual([302, '/']);
+      await db.query('update socials set active = true where id = $1', [fbA.id]);
+
+      // No existe o no es UUID: '/'.
+      for (const url of ['/go/123', '/go/00000000-0000-4000-8000-000000000000', '/go/social/abc', '/go/social/00000000-0000-4000-8000-000000000000']) {
+        expect(await go(url), url).toEqual([302, '/']);
+      }
+      // Un botón borrado vuelve a '/'.
+      const tmp = (await asB(agent.post('/api/cms/buttons')).send({ label: 'Temporal' })).body.button.id;
+      await db.query('update buttons set active = false where id = $1', [tmp]);
+      expect(await go(`/go/${tmp}`)).toEqual([302, '/exp-demo']);
+      expect((await asB(agent.delete(`/api/cms/buttons/${tmp}`))).status).toBe(200);
+      expect(await go(`/go/${tmp}`)).toEqual([302, '/']);
+
+      // Ninguno de estos redireccionamientos cuenta clics.
+      expect(await clicks()).toBe(before);
+
+      // El caso normal sigue yendo al destino y contando.
+      expect(await go(`/go/${bButton}`)).toEqual([302, 'https://example.com/tour']);
+      expect(await go(`/go/social/${bSocial}`)).toEqual([302, 'https://instagram.com/exp']);
+      expect(await clicks()).toBe(before + 2);
+    } finally {
+      await db.query('update buttons set active = true where id = $1', [hawa.id]);
+      await db.query('update socials set active = true where id = $1', [fbA.id]);
+      await db.query(`update buttons set active = true, url = 'https://example.com/tour' where id = $1`, [bButton]);
+      await db.query(`update socials set active = true, url = 'https://instagram.com/exp' where id = $1`, [bSocial]);
+      await db.query('delete from clicks where landing_id = $1', [B.id]); // la prueba anterior ya los dejó en cero
+    }
+  });
+
   it('subidas en la carpeta de la landing; la ruta local no sale de la carpeta del cliente', async () => {
     const body = { purpose: 'logo', fileName: 'Logo Exp.png', contentType: 'image/png', size: 100 };
     const tB = (await asB(agent.post('/api/cms/uploads')).send(body)).body;

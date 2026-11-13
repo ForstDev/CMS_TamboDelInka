@@ -403,8 +403,8 @@ describe('QR: panel', () => {
     expect(fn).toContain("download: ''");
     expect(fn).toContain("url('svg', 'download=1')");
     expect(fn).toContain("url('png', 'download=1')");
-    expect(fn).toContain('Este botón está oculto o no tiene carta: el QR llevaría a la página principal.');
-    expect(fn).toContain('Este QR siempre abre la carta actual de este botón: cuando cambies el PDF, el QR no cambia. Si ocultas o borras el botón, llevará a la página principal.');
+    expect(fn).toContain('Este botón está oculto o no tiene carta: el QR llevaría a la página de esta landing.');
+    expect(fn).toContain('Este QR siempre abre la carta actual de este botón: cuando cambies el PDF, el QR no cambia. Si ocultas el botón o le quitas la carta, llevará a la página de esta landing; si borras el botón, llevará a la página principal.');
     expect(fn).toContain('Útil para botones cuyo PDF cambia seguido (por ejemplo, un cronograma semanal).');
   });
 
