@@ -78,6 +78,8 @@
     --bt-reposo: {{boton_peso_reposo_css}};
     --bt-hover: {{boton_peso_hover_css}};
     --bt-ls: {{boton_ls_reposo_css}};
+    /* Botones por fila en PC (1…5; solo se usa a partir de 768 px, en celular van apilados). */
+    --cols: {{botones_por_fila_css}};
     --sans: "Sofia Pro", "Sofia Sans", "Helvetica Neue", Arial, sans-serif;
     --serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
   }
@@ -330,16 +332,20 @@
     .t1 { font-size: calc(var(--u) * 60 * var(--s-titulo)); }
     .t2 { font-size: calc(var(--u) * 48 * var(--s-titulo)); }
 
+    /* Exactamente --cols botones por fila; las filas incompletas quedan centradas (justify-content: center).
+       Contenedor: width = min(100%, u * (240 * cols + 16 * (cols - 1))), es decir cols botones de 240u con huecos de 16u
+       (cols = 3 → 752u). Botón: flex-basis = (100% - (cols - 1) * 16u) / cols, que con el contenedor completo
+       da 240u por botón; si la pantalla no da, el contenedor mide 100% y los botones se angostan por igual. */
     .botones {
       flex-direction: row;
       flex-wrap: wrap;
       justify-content: center;
       gap: calc(var(--u) * 16);
-      width: min(100%, calc(var(--u) * 960));
+      width: min(100%, calc(var(--u) * (240 * var(--cols) + 16 * (var(--cols) - 1))));
     }
 
     .boton {
-      flex: 0 1 calc(var(--u) * 240);
+      flex: 0 0 calc((100% - (var(--cols) - 1) * var(--u) * 16) / var(--cols));
       min-height: calc(var(--u) * 60);
     }
 

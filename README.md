@@ -143,6 +143,7 @@ npm run setup -- --force --borrar-clics
    | `SUPABASE_SECRET_KEY` | la secret key |
    | `NOINDEX` | `1` mientras sea demo (Google no la indexa) |
    | `STATS_TZ` | `America/Lima` |
+   | `PUBLIC_URL` | (opcional) dominio del sitio para los códigos QR, por ejemplo `https://cartas.tudominio.com`; sin ruta |
 
 4. **Deploy**. Al terminar prueba:
    - `https://<tu-proyecto>.vercel.app/` → página pública

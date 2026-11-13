@@ -125,6 +125,8 @@ export function layoutValues(s: Settings, template: Template) {
     texto_botones_escala_css: pctToCss(s.texto_botones_escala, 70, 140, 100),
     texto_redes_escala_css: pctToCss(s.texto_redes_escala, 70, 140, 100),
     degradado_celular_css: pctToCss(s.degradado_celular, 0, 100, 70),
+    // Solo "experiencias": botones por fila en PC (1…5). Basura o ausente → 3.
+    botones_por_fila_css: String(intSetting(s.botones_por_fila, 1, 5, 3)),
     boton_peso_reposo_css: pesoReposo,
     boton_peso_hover_css: pesoHover,
     boton_ls_reposo_css: botonLsReposo(pesoReposo, pesoHover),

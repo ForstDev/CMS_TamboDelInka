@@ -194,7 +194,7 @@ describe('plantilla "experiencias"', () => {
     for (const t of ['experiencias', 'cartas'] as const) {
       const v = layoutValues({ ...defaultSettingsFor(t), fondo_oscurecer: '85' } as Settings, t);
       expect(Object.keys(v).sort(), t).toEqual([
-        'boton_ls_reposo_css', 'boton_peso_hover_css', 'boton_peso_reposo_css', 'degradado_celular_css', 'fondo_foco_css', 'logo_align', 'logo_ancho', 'logo_margin', 'logo_text_align', 'logo_x_css',
+        'boton_ls_reposo_css', 'boton_peso_hover_css', 'boton_peso_reposo_css', 'botones_por_fila_css', 'degradado_celular_css', 'fondo_foco_css', 'logo_align', 'logo_ancho', 'logo_margin', 'logo_text_align', 'logo_x_css',
         'texto_botones_escala_css', 'texto_redes_escala_css', 'texto_titulo_escala_css',
       ]);
     }
@@ -798,5 +798,102 @@ describe('panel: peso del texto de los botones', () => {
     expect(js).not.toContain('boton_peso');
     const css = readFileSync(join(process.cwd(), 'public', 'assets', 'cms', 'cms.css'), 'utf8');
     expect(css).toMatch(/\.peso-field \.field select \{[^}]*min-width: 0;[^}]*max-width: 100%;/);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Botones por fila en PC (botones_por_fila)
+
+describe('experiencias: botones por fila en PC', () => {
+  const PC = (html: string) => html.match(/@media \(min-width: 768px\) \{\s*\.t1[\s\S]*?\n  \}\n/)![0];
+
+  it('validación: de 1 a 5 en texto, por defecto 3', async () => {
+    const { settingsPatch } = await import('../src/validation.js');
+    for (const v of ['1', '2', '3', '4', '5']) expect(settingsPatch.safeParse({ botones_por_fila: v }).success, v).toBe(true);
+    for (const v of ['0', '6', '-1', '1.5', 'x', '', '3 botones']) expect(settingsPatch.safeParse({ botones_por_fila: v }).success, JSON.stringify(v)).toBe(false);
+    expect(defaultSettingsFor('experiencias').botones_por_fila).toBe('3');
+    expect(defaultSettingsFor('cartas').botones_por_fila).toBe('3');
+  });
+
+  it('layoutValues.botones_por_fila_css: entero 1…5; basura o ausente → 3', () => {
+    const v = (botones_por_fila: unknown) => layoutValues({ ...defaultSettingsFor('experiencias'), botones_por_fila } as Settings, 'experiencias').botones_por_fila_css;
+    expect(['1', '2', '3', '4', '5'].map(v)).toEqual(['1', '2', '3', '4', '5']);
+    expect([v(4), v('0'), v('9'), v('99')]).toEqual(['4', '1', '5', '5']); // fuera de rango: se acota
+    expect([v(''), v('x'), v(undefined), v(null), v('1.5'), v('-1'), v('3 botones'), v('3; }')]).toEqual(['3', '3', '3', '3', '3', '3', '3', '3']);
+  });
+
+  it('la plantilla pone --cols en :root y la fórmula solo dentro de la media query de PC', () => {
+    for (const n of ['1', '2', '3', '4', '5']) expect(render({ botones_por_fila: n }), n).toContain(`--cols: ${n};`);
+    expect(render({ botones_por_fila: '9; }' } as unknown as Partial<Settings>)).toContain('--cols: 3;');
+    const html = render();
+    expect(html).not.toContain('{{');
+    expect(html).toContain('--cols: 3;');
+    const pc = PC(html);
+    expect(pc).toMatch(/\.botones \{[^}]*flex-wrap: wrap;[^}]*justify-content: center;[^}]*gap: calc\(var\(--u\) \* 16\);[^}]*width: min\(100%, calc\(var\(--u\) \* \(240 \* var\(--cols\) \+ 16 \* \(var\(--cols\) - 1\)\)\)\);/);
+    expect(pc).toMatch(/\.boton \{[^}]*flex: 0 0 calc\(\(100% - \(var\(--cols\) - 1\) \* var\(--u\) \* 16\) \/ var\(--cols\)\);[^}]*min-height: calc\(var\(--u\) \* 60\);/);
+    // El celular no cambia: la regla base sigue apilada y no usa --cols.
+    const base = html.slice(0, html.indexOf('@media (min-width: 768px) {\n    .t1'));
+    expect(base).toMatch(/\.botones \{\s*display: flex;\s*flex-direction: column;\s*gap: calc\(var\(--u\) \* 12\);\s*width: min\(100%, calc\(var\(--u\) \* 360\)\);\s*\}/);
+    expect(base).toMatch(/\.boton \{[^}]*min-height: calc\(var\(--u\) \* 52\);/);
+    expect(html.match(/var\(--cols\)/g)!.length).toBe(html.slice(html.indexOf('@media (min-width: 768px) {\n    .t1')).match(/var\(--cols\)/g)!.length);
+    expect(html.slice(0, html.indexOf('@media (max-width: 767.98px)'))).not.toMatch(/\.botones \{[^}]*--cols/);
+    // Landing existente sin la clave: igual que con 3.
+    const { botones_por_fila: _a, ...sinClave } = settings();
+    expect(renderPage({ settings: sinClave as Settings, buttons: BUTTONS, socials: SOCIALS, landing }, {}).replace(/\r\n/g, '\n')).toBe(render());
+  });
+
+  it('con 3 por fila el contenedor de PC equivale al de antes (752u con botones de 240u) y las demás cuentas cuadran', () => {
+    const GAP = 16;
+    const BTN = 240;
+    const contenedor = (cols: number, u: number) => u * (BTN * cols + GAP * (cols - 1));
+    const boton = (cols: number, u: number, ancho = contenedor(cols, u)) => (ancho - (cols - 1) * u * GAP) / cols;
+    for (const u of [0.85, 1, 1.4, 1.65, 2.4]) {
+      // Antes: 3 botones de 240u con huecos de 16u dentro de 960u → filas de 752u centradas. Ahora el contenedor mide eso mismo.
+      const antes = 3 * BTN * u + 2 * GAP * u;
+      expect(contenedor(3, u)).toBeCloseTo(antes, 9);
+      expect(contenedor(3, u)).toBeCloseTo(752 * u, 9);
+      expect(boton(3, u)).toBeCloseTo(BTN * u, 9);
+      // Con la caja completa, todas las columnas dan botones de 240u.
+      for (const cols of [1, 2, 3, 4, 5]) expect(boton(cols, u), `${cols} @${u}`).toBeCloseTo(BTN * u, 9);
+    }
+    expect(contenedor(1, 1)).toBe(240);
+    expect(contenedor(4, 1)).toBe(1008);
+    expect(contenedor(5, 1)).toBe(1264);
+    // Si la pantalla no da (contenedor = 100% del ancho), los botones se angostan por igual y siguen entrando `cols` por fila.
+    const ancho = 700;
+    for (const cols of [4, 5]) {
+      const b = boton(cols, 1, ancho);
+      expect(b).toBeLessThan(BTN);
+      expect(cols * b + (cols - 1) * GAP).toBeCloseTo(ancho, 9);
+    }
+  });
+
+  it('cartas ignora el ajuste', () => {
+    const cartas = (over: Partial<Settings>) =>
+      renderPage({ settings: { ...defaultSettingsFor('cartas'), ...over }, buttons: BUTTONS, socials: SOCIALS, landing: { template: 'cartas' } }, {});
+    const base = cartas({});
+    expect(cartas({ botones_por_fila: '5' })).toBe(base);
+    for (const marca of ['--cols', 'botones_por_fila']) expect(base).not.toContain(marca);
+  });
+
+  it('panel: tarjeta solo para experiencias en la pestaña Botones, con grupo de 5 opciones y pista', () => {
+    const cms = readFileSync(join(process.cwd(), 'templates', 'cms.html'), 'utf8').replace(/\r\n/g, '\n');
+    const js = readFileSync(join(process.cwd(), 'public', 'assets', 'cms', 'cms.js'), 'utf8');
+    const card = cms.match(/<article class="card cols-card" data-only="experiencias">[\s\S]*?<\/article>/)![0];
+    expect(card).toContain('Botones por fila en PC');
+    expect(card).toContain('id="btn-cols-label"');
+    expect(card).toContain('role="radiogroup" aria-labelledby="btn-cols-label" aria-describedby="btn-cols-hint" id="btn-cols"');
+    expect([...card.matchAll(/<button type="button" role="radio" data-value="(\d)">(\d)<\/button>/g)].map((m) => [m[1], m[2]])).toEqual([['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5']]);
+    expect(card).toContain('id="btn-cols-hint">Solo se nota en la vista PC (en celular los botones siempre van uno debajo de otro). Con 4 o 5 por fila los botones se angostan en pantallas pequeñas.');
+    for (const id of ['btn-cols', 'btn-cols-label', 'btn-cols-hint']) expect(cms.match(new RegExp(`id="${id}"`, 'g')), id).toHaveLength(1);
+    // Va dentro de la pestaña Botones, junto a la lista.
+    const i = cms.indexOf('class="card cols-card"');
+    expect(i).toBeGreaterThan(cms.indexOf('data-panel="botones"'));
+    expect(i).toBeLessThan(cms.indexOf('id="buttons-list"'));
+    expect(i).toBeLessThan(cms.indexOf('data-panel="diseno"'));
+    // Cableado: se guarda al instante y, si la vista previa está en celular, avisa sin cambiar de dispositivo.
+    expect(js).toContain("wireSegmented($('#btn-cols'), clampInt(state.settings.botones_por_fila ?? state.defaults?.botones_por_fila, 1, 5, 3)");
+    expect(js).toContain("saveSetting('botones_por_fila', String(clampInt(v, 1, 5, 3)), { immediate: true });");
+    expect(js).toContain("if (previewDevice !== 'pc') toast('Cambia a la vista PC para ver el efecto', 'info');");
   });
 });

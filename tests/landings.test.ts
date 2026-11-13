@@ -290,7 +290,9 @@ describe('varias landings: API, rutas y aislamiento', () => {
     const ids = a.buttons.map((x: any) => x.id).reverse();
     await asB(agent.put('/api/cms/buttons/order')).send({ ids });
     const a2 = (await agent.get('/api/cms/state')).body;
-    expect(a2.buttons).toEqual(a.buttons);
+    // `link` lleva el puerto efímero de supertest (cambia en cada petición); no es parte de lo que se compara.
+    const noLink = (list: any[]) => list.map(({ link: _l, ...rest }) => rest);
+    expect(noLink(a2.buttons)).toEqual(noLink(a.buttons));
     expect(a2.socials).toEqual(a.socials);
 
     // Validación estricta de las claves nuevas también en la API.
@@ -461,6 +463,44 @@ describe('varias landings: API, rutas y aislamiento', () => {
     const reset = await asB(agent.patch('/api/cms/settings')).send(defaults);
     expect(reset.status).toBe(200);
     expect(reset.body.settings).toMatchObject(defaults);
+    expect((await asB(agent.get('/api/cms/preview'))).text).toBe(prev0);
+  });
+
+  it('botones por fila en PC: estado, PATCH, aislamiento y landings sin la clave', async () => {
+    const db = await getDb();
+    // Landing sin la clave guardada (como las existentes): vale 3, sin migración.
+    expect(await db.query(`select 1 from landing_settings where key = 'botones_por_fila' and landing_id = $1`, [B.id])).toEqual([]);
+    const before = (await asB(agent.get('/api/cms/state'))).body;
+    expect(before.settings).toMatchObject({ botones_por_fila: '3' });
+    expect(before.defaults).toMatchObject({ botones_por_fila: '3' });
+    expect((await agent.get('/api/cms/state')).body.settings).toMatchObject({ botones_por_fila: '3' });
+    const prev0 = (await asB(agent.get('/api/cms/preview'))).text;
+    expect(prev0).toContain('--cols: 3;');
+
+    for (const n of ['1', '2', '4', '5', '3']) {
+      const r = await asB(agent.patch('/api/cms/settings')).send({ botones_por_fila: n });
+      expect(r.status, n).toBe(200);
+      expect(r.body.settings).toMatchObject({ botones_por_fila: n });
+    }
+    const ok = await asB(agent.patch('/api/cms/settings')).send({ botones_por_fila: '4' });
+    expect(ok.status).toBe(200);
+    expect((await asB(agent.get('/api/cms/state'))).body.settings).toMatchObject({ botones_por_fila: '4' });
+    expect((await agent.get('/api/cms/state')).body.settings).toMatchObject({ botones_por_fila: '3' }); // otra landing intacta
+
+    // Se ve en la vista previa y en la página pública de Experiencias; cartas no lo usa.
+    for (const html of [(await asB(agent.get('/api/cms/preview'))).text, (await request(app).get('/exp-demo')).text]) expect(html).toContain('--cols: 4;');
+    expect((await agent.get('/api/cms/preview')).text).not.toContain('--cols');
+
+    for (const bad of ['0', '6', '-1', '1.5', 'x', '', '3 botones']) {
+      const r = await asB(agent.patch('/api/cms/settings')).send({ botones_por_fila: bad });
+      expect(r.status, JSON.stringify(bad)).toBe(400);
+      expect(r.body.error).toBe('Los botones por fila deben ser un número entre 1 y 5');
+    }
+    expect((await asB(agent.patch('/api/cms/settings')).send({ botones_por_fila: 4 })).status).toBe(400); // debe ser texto
+    expect((await asB(agent.get('/api/cms/state'))).body.settings).toMatchObject({ botones_por_fila: '4' });
+
+    const reset = await asB(agent.patch('/api/cms/settings')).send({ botones_por_fila: '3' });
+    expect(reset.status).toBe(200);
     expect((await asB(agent.get('/api/cms/preview'))).text).toBe(prev0);
   });
 
@@ -740,6 +780,9 @@ describe('validación de los ajustes nuevos', () => {
       // Peso del texto de los botones: solo '300', '400', '500', '600', '700' o '900' (en texto).
       ...(['boton_peso_reposo', 'boton_peso_hover'] as const).flatMap((k) =>
         ['350', '800', '100', '', 'bold', '400px', ' ', '0400', '1000', '400; }', 'normal'].map((v) => ({ [k]: v })).concat([{ [k]: 400 as unknown as string }])),
+      // Botones por fila en PC: solo '1'…'5' en texto.
+      ...['0', '6', '-1', '1.5', 'x', '', '3 botones', '03', '+3', '3; }', ' ', '10'].map((v) => ({ botones_por_fila: v })),
+      { botones_por_fila: 3 },
     ];
     for (const body of bad) expect(settingsPatch.safeParse(body).success, JSON.stringify(body)).toBe(false);
   });
@@ -754,6 +797,7 @@ describe('validación de los ajustes nuevos', () => {
       { texto_titulo_escala: '70', texto_botones_escala: '140', texto_redes_escala: '100' }, { texto_titulo_escala: ' 85 ' },
       { degradado_celular: '0' }, { degradado_celular: '100' }, { degradado_celular: '70' }, { degradado_celular: '5' },
       ...['300', '400', '500', '600', '700', '900'].flatMap((w) => [{ boton_peso_reposo: w }, { boton_peso_hover: w }, { boton_peso_reposo: w, boton_peso_hover: '700' }]),
+      ...['1', '2', '3', '4', '5', ' 4 '].map((v) => ({ botones_por_fila: v })),
     ];
     for (const body of good) expect(settingsPatch.safeParse(body).success, JSON.stringify(body)).toBe(true);
   });
@@ -766,6 +810,7 @@ describe('validación de los ajustes nuevos', () => {
     for (const t of ['cartas', 'experiencias'] as const) {
       expect(defaultSettingsFor(t), t).toMatchObject({ texto_titulo_escala: '100', texto_botones_escala: '100', texto_redes_escala: '100', degradado_celular: '70' });
       expect(defaultSettingsFor(t), t).toMatchObject({ boton_peso_reposo: '400', boton_peso_hover: '700' });
+      expect(defaultSettingsFor(t), t).toMatchObject({ botones_por_fila: '3' });
     }
     for (const t of ['cartas', 'experiencias'] as const) {
       expect(defaultSettingsFor(t), t).not.toHaveProperty('fondo_oscurecer');

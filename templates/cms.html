@@ -121,6 +121,17 @@
         <button class="icon-btn plain" id="welcome-close" aria-label="Cerrar guía"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="summary-strip" id="buttons-summary"></div>
+      <article class="card cols-card" data-only="experiencias">
+        <header class="card-head"><h3><i class="fa-solid fa-table-columns" aria-hidden="true"></i> <span id="btn-cols-label">Botones por fila en PC</span></h3></header>
+        <div class="segmented" role="radiogroup" aria-labelledby="btn-cols-label" aria-describedby="btn-cols-hint" id="btn-cols">
+          <button type="button" role="radio" data-value="1">1</button>
+          <button type="button" role="radio" data-value="2">2</button>
+          <button type="button" role="radio" data-value="3">3</button>
+          <button type="button" role="radio" data-value="4">4</button>
+          <button type="button" role="radio" data-value="5">5</button>
+        </div>
+        <p class="hint" id="btn-cols-hint">Solo se nota en la vista PC (en celular los botones siempre van uno debajo de otro). Con 4 o 5 por fila los botones se angostan en pantallas pequeñas.</p>
+      </article>
       <ul class="card-list" id="buttons-list"></ul>
       <div class="empty" id="buttons-empty" hidden>
         <i class="fa-regular fa-square-plus"></i>

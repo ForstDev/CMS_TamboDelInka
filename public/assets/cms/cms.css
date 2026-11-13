@@ -251,6 +251,27 @@ img { max-width: 100%; }
 .item-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--line); }
 .move-btns { display: flex; gap: 6px; }
 
+/* Código QR del botón (bloque plegable, cerrado por defecto) */
+.qr-box { margin-top: 18px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
+.qr-box > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer; list-style: none; border-radius: var(--radius-sm); }
+.qr-box > summary::-webkit-details-marker { display: none; }
+.qr-box > summary > i:first-child { color: var(--brand); }
+.qr-chev { margin-left: auto; color: var(--muted); transition: transform .2s; }
+.qr-box[open] .qr-chev { transform: rotate(180deg); }
+.qr-inner { display: grid; gap: 14px; padding: 4px 14px 14px; min-width: 0; }
+.qr-warn { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--warn-50); color: var(--warn); font-size: 13px; font-weight: 600; }
+.qr-warn i { margin-top: 2px; }
+.qr-img { display: block; width: 176px; max-width: 100%; height: auto; aspect-ratio: 1; background: #fff; border: 1px solid var(--line-strong); border-radius: 10px; }
+.qr-pic { display: grid; gap: 6px; justify-items: start; min-width: 0; }
+.qr-link { display: grid; gap: 6px; min-width: 0; }
+.qr-link-row { display: flex; gap: 8px; min-width: 0; }
+.qr-link-row input { flex: 1; min-width: 0; min-height: 40px; padding: 8px 12px; font-size: 16px; text-overflow: ellipsis; }
+.qr-copy { flex: none; min-width: 92px; }
+.qr-copied { min-height: 1.2em; font-size: 12.5px; font-weight: 600; color: var(--ok); }
+.qr-copied.bad { color: var(--danger); }
+.qr-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.qr-inner .hint { margin: 0; }
+
 .sortable-ghost { opacity: .35; }
 .sortable-chosen .item, .item.sortable-chosen { box-shadow: var(--shadow-lg); }
 .sortable-drag { transform: rotate(1deg); }
@@ -306,6 +327,10 @@ img { max-width: 100%; }
 .txt-sizes .card-head { flex-wrap: wrap; }
 .txt-sizes .range-field input[type="range"]:focus-visible,
 .grad-field .range-field input[type="range"]:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
+/* Botones por fila en PC (Botones, solo "experiencias"): 5 opciones que caben en 320 px. */
+.cols-card .segmented { display: flex; width: 100%; }
+.cols-card .segmented button { min-width: 0; padding: 0 6px; }
+.cols-card .hint { margin-top: 8px; }
 .grad-field { min-width: 0; }
 .grad-field .hint { margin-top: 2px; }
 

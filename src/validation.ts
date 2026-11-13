@@ -97,6 +97,8 @@ export const settingsSchema = z.object({
   boton_peso_hover: z.enum(BOTON_PESOS, { error: 'El grosor del texto del botón al pasar el mouse debe ser 300, 400, 500, 600, 700 o 900' }),
   // El oscurecido de "experiencias" es de diseño fijo (no editable). Las filas antiguas
   // fondo_oscurecer / fondo_oscurecer_arriba de landing_settings se ignoran al leer (repo.getSettings).
+  // Solo "experiencias": cuántos botones caben por fila en la vista de PC (≥ 768 px; en celular van apilados).
+  botones_por_fila: intText(1, 5, 'Los botones por fila deben ser un número entre 1 y 5'),
   // Títulos de la plantilla "experiencias".
   titulo_linea1: text(60),
   titulo_linea2: text(60),
@@ -136,6 +138,7 @@ export const DEFAULT_SETTINGS: Settings = {
   degradado_celular: '70',
   boton_peso_reposo: '400',
   boton_peso_hover: '700',
+  botones_por_fila: '3',
   titulo_linea1: 'Experiences',
   titulo_linea2: 'Experiencias',
 };
