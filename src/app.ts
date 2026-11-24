@@ -10,7 +10,6 @@ import { deviceType, shouldCount } from './tracking.js';
 import { clearSessionCookie, createSessionCookie, getSession, hashPassword, login, requireApiSession, sameOrigin } from './auth.js';
 import { getStorage, isValidObjectPath, localUploadsDir, objectPathFor, UPLOAD_RULES } from './storage.js';
 import { NETWORKS } from './networks.js';
-import { parseQrSize, publicBase, qrFileName, qrPng, qrSvg, qrTarget } from './qr.js';
 import { fondosHtml, loginFondos } from './loginConfig.js';
 import { landingUrl, runWithLanding, type Landing } from './context.js';
 import bcrypt from 'bcryptjs';
@@ -89,12 +88,6 @@ const landingInfo = (l: Landing) => ({
   active: l.active,
   url: landingUrl(l),
 });
-
-/** Botón para el panel, con su enlace permanente /go/<id> (el que codifica el QR); null si no se pudo deducir el dominio. */
-const withLink = (req: Request, b: repo.Button) => {
-  const base = publicBase(req);
-  return { ...b, link: base ? qrTarget(base, b.id) : null };
-};
 
 export function createApp() {
   const app = express();
@@ -246,7 +239,7 @@ export function createApp() {
       landing: { id: l.id, slug: l.slug, name: l.name, hotel: l.hotel, template: l.template, is_default: l.is_default, url: landingUrl(l) },
       settings,
       defaults: defaultSettingsFor(l.template),
-      buttons: buttons.map((b) => withLink(req, b)),
+      buttons,
       socials,
       networks: Object.entries(NETWORKS).map(([key, n]) => ({ key, ...n })),
       uploadRules: Object.fromEntries(Object.entries(UPLOAD_RULES).map(([k, r]) => [k, { types: r.types, maxBytes: r.maxBytes, label: r.label }])),
@@ -262,7 +255,7 @@ export function createApp() {
   // Botones
   api.post('/buttons', express.json({ limit: '10kb' }), inLanding(async (req, res) => {
     const { label } = parse(buttonCreate, req.body ?? {});
-    res.status(201).json({ button: withLink(req, await repo.createButton({ label })) });
+    res.status(201).json({ button: await repo.createButton({ label }) });
   }));
 
   api.patch('/buttons/:id', express.json({ limit: '20kb' }), inLanding(async (req, res) => {
@@ -281,36 +274,8 @@ export function createApp() {
     if (before.file_path && patch.file_path !== undefined && patch.file_path !== before.file_path) {
       await getStorage().remove(before.file_path).catch(() => {});
     }
-    res.json({ button: button ? withLink(req, button) : button });
+    res.json({ button });
   }));
-
-  // Código QR del botón: codifica <sitio>/go/<id> (enlace permanente; cuenta el clic y abre la carta ACTUAL).
-  // ?download=1 lo entrega como archivo. No se cambia nada en la base.
-  const sendQr = (kind: 'svg' | 'png') =>
-    inLanding(async (req, res) => {
-      const id = String(req.params.id);
-      if (!UUID.test(id)) throw new HttpError(404, 'Botón no encontrado.');
-      const button = await repo.getButton(id);
-      if (!button) throw new HttpError(404, 'Botón no encontrado.');
-      const size = parseQrSize(req.query.size);
-      if (size === null) throw new HttpError(400, 'El tamaño debe ser un número entre 256 y 2048.');
-      const base = publicBase(req);
-      if (!base) throw new HttpError(400, 'No se pudo determinar el dominio del sitio.');
-      const target = qrTarget(base, button.id);
-
-      res.setHeader('Cache-Control', 'no-store');
-      if (req.query.download === '1') {
-        res.setHeader('Content-Disposition', `attachment; filename="${qrFileName(req.landing!.slug, button.label, kind)}"`);
-      }
-      if (kind === 'svg') {
-        res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'");
-        res.type('image/svg+xml').send(qrSvg(target));
-      } else {
-        res.type('image/png').send(qrPng(target, size));
-      }
-    });
-  api.get('/buttons/:id/qr.svg', sendQr('svg'));
-  api.get('/buttons/:id/qr.png', sendQr('png'));
 
   api.delete('/buttons/:id', inLanding(async (req, res) => {
     const id = String(req.params.id);
@@ -324,7 +289,7 @@ export function createApp() {
   api.put('/buttons/order', express.json({ limit: '20kb' }), inLanding(async (req, res) => {
     const { ids } = parse(orderBody, req.body);
     await repo.reorderButtons(ids);
-    res.json({ buttons: (await repo.listButtons()).map((b) => withLink(req, b)) });
+    res.json({ buttons: await repo.listButtons() });
   }));
 
   // Redes sociales

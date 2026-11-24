@@ -76,7 +76,7 @@
       "buttons": [
         { "label": "Be Epicurean",          "pdf": "Be-Epicurean_PALACIO_2026_BI-digital.pdf" },
         { "label": "Destination Discovery", "pdf": "Destination-Discovery_PALACIO_2026_BI-digital.pdf" },
-        { "label": "Andes Spirit Spa",      "pdf": "Brochure-Andes-Spirit-Spa-2026.pdf" }
+        { "label": "Andes Spirit Spa",      "pdf": "Brochure-Andes-Spirit-Spa-2027.pdf" }
       ],
       "socials": [
         { "network": "facebook",  "url": "https://www.facebook.com/palaciodelinka/" },
@@ -108,7 +108,7 @@
         "fondo": "fondo-hotel-paracas.jpg"
       },
       "buttons": [
-        { "label": "Be Epicurean",          "pdf": "Be-Epicurean_PARACAS_2026_BI-digital.pdf" },
+        { "label": "Be Epicurean",          "pdf": "Be-Epicurean_PARACAS_2026_BI-digital-1.pdf" },
         { "label": "Destination Discovery", "pdf": "Destination-Discovery-_PARACAS_2026_BI-digital.pdf" },
         { "label": "Aqu Spa",               "pdf": "AQU-SPA_brochure-2026-1-1.pdf" }
       ],

@@ -290,9 +290,7 @@ describe('varias landings: API, rutas y aislamiento', () => {
     const ids = a.buttons.map((x: any) => x.id).reverse();
     await asB(agent.put('/api/cms/buttons/order')).send({ ids });
     const a2 = (await agent.get('/api/cms/state')).body;
-    // `link` lleva el puerto efímero de supertest (cambia en cada petición); no es parte de lo que se compara.
-    const noLink = (list: any[]) => list.map(({ link: _l, ...rest }) => rest);
-    expect(noLink(a2.buttons)).toEqual(noLink(a.buttons));
+    expect(a2.buttons).toEqual(a.buttons);
     expect(a2.socials).toEqual(a.socials);
 
     // Validación estricta de las claves nuevas también en la API.

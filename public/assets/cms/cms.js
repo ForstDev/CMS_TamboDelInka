@@ -1020,7 +1020,6 @@ function buttonItem(b) {
     const n = clicksFor(b.id);
     badge.hidden = n === null;
     badge.replaceChildren(icon('fa-solid fa-arrow-pointer'), String(n ?? 0), h('span', { class: 'badge-word', text: ` clic${n === 1 ? '' : 's'}` }));
-    $('.qr-box', body)?._sync?.(); // aviso y texto alternativo del QR
   }
 
   function openItem(open) {
@@ -1189,96 +1188,7 @@ function buttonBody(b, refreshHead) {
     h('button', { type: 'button', class: 'btn btn-danger-ghost btn-sm', onclick: () => removeButton(b) }, icon('fa-regular fa-trash-can'), 'Eliminar botón'),
   );
 
-  return [labelField, destLabel, seg, dest, optLabel, newTab, qrSection(b), foot];
-}
-
-/** Copia texto al portapapeles (con respaldo para navegadores sin la API o sin permiso). */
-async function copyText(text, input) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    try {
-      input.focus();
-      input.select();
-      return document.execCommand('copy');
-    } catch {
-      return false;
-    }
-  }
-}
-
-/**
- * «Código QR (opcional)»: bloque plegable, cerrado por defecto. Muestra el QR del enlace permanente
- * /go/<id> (el mismo que cuenta el clic y abre la carta ACTUAL). La imagen se pide recién al abrirlo.
- */
-function qrSection(b) {
-  if (!b.id || !b.link) return null;
-  const url = (ext, extra) => {
-    const q = [landingId ? `landing=${encodeURIComponent(landingId)}` : '', extra].filter(Boolean).join('&');
-    return `/api/cms/buttons/${encodeURIComponent(b.id)}/qr.${ext}${q ? `?${q}` : ''}`;
-  };
-
-  const warn = h('p', { class: 'qr-warn' }, icon('fa-solid fa-triangle-exclamation'), h('span', { text: 'Este botón está oculto o no tiene carta: el QR llevaría a la página de esta landing.' }));
-  const img = h('img', { class: 'qr-img', width: 176, height: 176, alt: '' });
-  const imgError = h('p', { class: 'field-error', hidden: true, text: 'No se pudo cargar el QR. Cierra y vuelve a abrir este bloque.' });
-  img.addEventListener('error', () => {
-    imgError.hidden = false;
-  });
-  img.addEventListener('load', () => {
-    imgError.hidden = true;
-  });
-
-  const linkId = `qr-link-${b.id}`;
-  const linkInput = h('input', { type: 'text', class: 'input', id: linkId, readonly: true, value: b.link, autocomplete: 'off', spellcheck: 'false' });
-  const copyLabel = h('span', { text: 'Copiar' });
-  const copyBtn = h('button', { type: 'button', class: 'btn btn-ghost btn-sm qr-copy' }, icon('fa-regular fa-copy'), copyLabel);
-  const copied = h('span', { class: 'qr-copied', role: 'status', 'aria-live': 'polite' });
-  let copyTimer;
-  copyBtn.addEventListener('click', async () => {
-    const ok = await copyText(b.link, linkInput);
-    clearTimeout(copyTimer);
-    copyLabel.textContent = ok ? 'Copiado' : 'Copiar';
-    copied.textContent = ok ? 'Enlace copiado' : 'No se pudo copiar: selecciónalo y cópialo a mano.';
-    copied.classList.toggle('bad', !ok);
-    copyTimer = setTimeout(() => {
-      copyLabel.textContent = 'Copiar';
-      copied.textContent = '';
-    }, 2200);
-  });
-
-  const box = h(
-    'details',
-    { class: 'qr-box' },
-    h('summary', {}, icon('fa-solid fa-qrcode'), h('span', { text: 'Código QR (opcional)' }), icon('fa-solid fa-chevron-down qr-chev')),
-    h(
-      'div',
-      { class: 'qr-inner' },
-      warn,
-      h('div', { class: 'qr-pic' }, img, imgError),
-      h('div', { class: 'qr-link' }, h('label', { class: 'field-label', for: linkId, text: 'Enlace permanente' }), h('div', { class: 'qr-link-row' }, linkInput, copyBtn), copied),
-      h(
-        'div',
-        { class: 'qr-actions' },
-        h('a', { class: 'btn btn-secondary btn-sm', href: url('svg', 'download=1'), download: '' }, icon('fa-solid fa-download'), 'Descargar SVG'),
-        h('a', { class: 'btn btn-secondary btn-sm', href: url('png', 'download=1'), download: '' }, icon('fa-solid fa-download'), 'Descargar PNG'),
-      ),
-      h('p', { class: 'hint', text: 'Este QR siempre abre la carta actual de este botón: cuando cambies el PDF, el QR no cambia. Si ocultas el botón o le quitas la carta, llevará a la página de esta landing; si borras el botón, llevará a la página principal.' }),
-      h('p', { class: 'hint', text: 'Útil para botones cuyo PDF cambia seguido (por ejemplo, un cronograma semanal).' }),
-    ),
-  );
-
-  // Se llama al cambiar el botón (ver refreshHead de buttonItem).
-  box._sync = () => {
-    warn.hidden = Boolean(b.active && b.url);
-    img.alt = `Código QR del botón «${b.label || 'sin nombre'}»: abre su carta actual`;
-  };
-  box._sync();
-  // La imagen se pide solo la primera vez que se abre el bloque.
-  box.addEventListener('toggle', () => {
-    if (box.open && !img.getAttribute('src')) img.src = url('svg');
-  });
-  return box;
+  return [labelField, destLabel, seg, dest, optLabel, newTab, foot];
 }
 
 function saveButtonOrder() {
