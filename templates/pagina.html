@@ -212,9 +212,19 @@
 
     .linea { max-width: 680px; }
   }
-</style>
+{{#if dist_centrada}}
+  /* ---------- Distribución «centrada» ----------
+     El logo queda arriba; botones + novedades + línea (+ redes) van al medio del espacio que queda debajo.
+     .pagina se estira a todo el alto de body (min-height 100svh, flex con align-items: stretch); el bloque
+     queda entre dos márgenes automáticos, con al menos 48 px libres arriba (bajo el logo) y abajo. Si no cabe,
+     los márgenes automáticos valen 0 y la página crece con scroll vertical normal (nunca se solapan). */
+  .dist-centrada .pagina { align-self: stretch; padding-bottom: 48px; }
+  .dist-centrada .logo { margin-bottom: 48px; }
+  .dist-centrada .menu { margin-top: auto; }
+  .dist-centrada .pagina > :last-child { margin-bottom: auto; }
+{{/if}}</style>
 </head>
-<body>
+<body{{#if dist_centrada}} class="dist-{{cartas_distribucion_css}}"{{/if}}>
 
 <main class="pagina">
 

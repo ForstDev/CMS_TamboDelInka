@@ -194,7 +194,7 @@ describe('plantilla "experiencias"', () => {
     for (const t of ['experiencias', 'cartas'] as const) {
       const v = layoutValues({ ...defaultSettingsFor(t), fondo_oscurecer: '85' } as Settings, t);
       expect(Object.keys(v).sort(), t).toEqual([
-        'boton_ls_reposo_css', 'boton_peso_hover_css', 'boton_peso_reposo_css', 'botones_por_fila_css', 'degradado_celular_css', 'fondo_foco_css', 'logo_align', 'logo_ancho', 'logo_margin', 'logo_text_align', 'logo_x_css',
+        'boton_ls_reposo_css', 'boton_peso_hover_css', 'boton_peso_reposo_css', 'botones_por_fila_css', 'cartas_distribucion_css', 'degradado_celular_css', 'dist_centrada', 'fondo_foco_css', 'logo_align', 'logo_ancho', 'logo_margin', 'logo_text_align', 'logo_x_css',
         'texto_botones_escala_css', 'texto_redes_escala_css', 'texto_titulo_escala_css',
       ]);
     }

@@ -7,7 +7,7 @@
   },
   "landings": [
     {
-      "slug": "tambo-outlets",
+      "slug": "outlets-tambodelinka",
       "name": "Tambo del Inka – Outlets",
       "hotel": "Tambo del Inka",
       "template": "cartas",
@@ -50,7 +50,7 @@
       ]
     },
     {
-      "slug": "experiencias-palacio-del-inka",
+      "slug": "experiencias_palaciodelinka",
       "name": "Palacio del Inka – Experiencias",
       "hotel": "Palacio del Inka",
       "template": "experiencias",
@@ -84,7 +84,7 @@
       ]
     },
     {
-      "slug": "experiencias-hotel-paracas",
+      "slug": "experiencias_hotelparacas",
       "name": "Hotel Paracas – Experiencias",
       "hotel": "Hotel Paracas",
       "template": "experiencias",
@@ -118,7 +118,7 @@
       ]
     },
     {
-      "slug": "experiencias-tambo-del-inka",
+      "slug": "experiencias_tambodelinka",
       "name": "Tambo del Inka – Experiencias",
       "hotel": "Tambo del Inka",
       "template": "experiencias",
@@ -152,7 +152,7 @@
       ]
     },
     {
-      "slug": "outlets-hotel-paracas",
+      "slug": "outlets-hotelparacas",
       "name": "Hotel Paracas – Outlets",
       "hotel": "Hotel Paracas",
       "template": "cartas",
@@ -193,7 +193,7 @@
       ]
     },
     {
-      "slug": "outlets-palacio-del-inka",
+      "slug": "palacio-outlets",
       "name": "Palacio del Inka – Outlets",
       "hotel": "Palacio del Inka",
       "template": "cartas",
@@ -233,7 +233,7 @@
       ]
     },
     {
-      "slug": "spa-hotel-paracas",
+      "slug": "aquspa",
       "name": "Hotel Paracas – Aqu Spa",
       "hotel": "Hotel Paracas",
       "template": "cartas",
@@ -252,7 +252,8 @@
         "novedades_texto": "¿Deseas recibir novedades y promociones?",
         "novedades_link_texto": "Click aquí",
         "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
-        "redes_titulo": "Síguenos"
+        "redes_titulo": "Síguenos",
+        "cartas_distribucion": "centrada"
       },
       "assets": {
         "logo": "logo-hotel-paracas.png",
@@ -262,13 +263,10 @@
         { "label": "Experiencias | Experiences", "pdf": "AQU-SPA_brochure-2026-1-1.pdf" },
         { "label": "Promociones | Offers",       "pdf": "Noviembre-AQU-SPA-Promos.pdf" }
       ],
-      "socials": [
-        { "network": "facebook",  "url": "https://www.facebook.com/HotelParacas/" },
-        { "network": "instagram", "url": "https://www.instagram.com/hotelparacas/" }
-      ]
+      "socials": []
     },
     {
-      "slug": "spa-palacio-del-inka",
+      "slug": "spa-palaciodelinka",
       "name": "Palacio del Inka – Andes Spirit Spa",
       "hotel": "Palacio del Inka",
       "template": "cartas",
@@ -287,7 +285,8 @@
         "novedades_texto": "¿Deseas recibir novedades y promociones?",
         "novedades_link_texto": "Click aquí",
         "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
-        "redes_titulo": "Síguenos"
+        "redes_titulo": "Síguenos",
+        "cartas_distribucion": "centrada"
       },
       "assets": {
         "logo": "logo-andes-spirit-spa.png",
@@ -297,13 +296,10 @@
         { "label": "Experiencias | Experiences", "pdf": "Brochure-Andes-Spirit-Spa-2027.pdf" },
         { "label": "Promociones | Offers",       "pdf": "Noviembre-ANDES-SPIRIT-SPA-Promos.pdf" }
       ],
-      "socials": [
-        { "network": "facebook",  "url": "https://www.facebook.com/palaciodelinka/" },
-        { "network": "instagram", "url": "https://www.instagram.com/hotelpalaciodelinka/" }
-      ]
+      "socials": []
     },
     {
-      "slug": "spa-tambo-del-inka",
+      "slug": "spa-tambodelinka",
       "name": "Tambo del Inka – Kallpa Spa",
       "hotel": "Tambo del Inka",
       "template": "cartas",
@@ -322,7 +318,8 @@
         "novedades_texto": "¿Deseas recibir novedades y promociones?",
         "novedades_link_texto": "Click aquí",
         "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
-        "redes_titulo": "Síguenos"
+        "redes_titulo": "Síguenos",
+        "cartas_distribucion": "centrada"
       },
       "assets": {
         "logo": "logo-kallpa-spa.png",
@@ -332,10 +329,7 @@
         { "label": "Experiencias | Experiences", "pdf": "2026_BROCHURE-KALLPA-SPA-1-1.pdf" },
         { "label": "Promociones | Offers",       "pdf": "Noviembre-KALLPA-SPA-Promos.pdf" }
       ],
-      "socials": [
-        { "network": "facebook",  "url": "https://www.facebook.com/TamboDelInka/" },
-        { "network": "instagram", "url": "https://www.instagram.com/hoteltambodelinka/" }
-      ]
+      "socials": []
     }
   ]
 }

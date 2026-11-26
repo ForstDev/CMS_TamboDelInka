@@ -32,18 +32,29 @@ const { getStorage, objectPathFor, UPLOAD_RULES } = await import('../src/storage
 const { runWithLanding } = await import('../src/context.js');
 const { buttonPatch } = await import('../src/validation.js');
 const repo = await import('../src/repo.js');
+const { LEGACY_REDIRECTS } = await import('../src/app.js');
+
+/** Busca la landing por su dirección; si cambió (ver LEGACY_REDIRECTS en src/app.ts), también por la anterior o la nueva. */
+async function findLanding(slug: string) {
+  const direct = await repo.getLandingBySlug(slug);
+  if (direct) return direct;
+  const nueva = LEGACY_REDIRECTS['/' + slug]?.slice(1);
+  if (nueva) return repo.getLandingBySlug(nueva);
+  const vieja = Object.entries(LEGACY_REDIRECTS).find(([, n]) => n === '/' + slug)?.[0]?.slice(1);
+  return vieja ? repo.getLandingBySlug(vieja) : null;
+}
 
 /** Lista de trabajo: landing (slug), etiqueta del botón y PDF nuevo (ruta relativa a clients/<cliente>/seed/). */
 const PDFS: { slug: string; boton: string; archivo: string }[] = [
   {
-    slug: 'experiencias-palacio-del-inka',
+    slug: 'experiencias_palaciodelinka',
     boton: 'Andes Spirit Spa',
-    archivo: 'experiencias-palacio-del-inka/pdf/Brochure-Andes-Spirit-Spa-2027.pdf',
+    archivo: 'experiencias_palaciodelinka/pdf/Brochure-Andes-Spirit-Spa-2027.pdf',
   },
   {
-    slug: 'experiencias-hotel-paracas',
+    slug: 'experiencias_hotelparacas',
     boton: 'Be Epicurean',
-    archivo: 'experiencias-hotel-paracas/pdf/Be-Epicurean_PARACAS_2026_BI-digital-1.pdf',
+    archivo: 'experiencias_hotelparacas/pdf/Be-Epicurean_PARACAS_2026_BI-digital-1.pdf',
   },
 ];
 
@@ -124,7 +135,7 @@ async function findButtons(landing: LandingRow, label: string): Promise<Button[]
 
 /** Un único botón por elemento de la lista, o el motivo por el que no se puede. */
 async function resolveItem(item: (typeof PDFS)[number]): Promise<{ landing: LandingRow; button: Button } | { error: string }> {
-  const landing = await repo.getLandingBySlug(item.slug);
+  const landing = await findLanding(item.slug);
   if (!landing) return { error: `la landing ${item.slug} no existe en la base` };
   const found = await findButtons(landing, item.boton);
   if (found.length === 0) return { error: `no hay ningún botón «${item.boton}» en ${item.slug}` };
@@ -179,7 +190,7 @@ async function estado() {
   console.log(backup ? `Respaldo: sí (${backup.fecha})\n` : 'Respaldo: no hay\n');
   for (const item of PDFS) {
     console.log(`- ${item.slug} · «${item.boton}»`);
-    const landing = await repo.getLandingBySlug(item.slug);
+    const landing = await findLanding(item.slug);
     if (!landing) {
       console.log('    landing: NO existe en la base');
     } else {
@@ -313,7 +324,7 @@ async function revertir() {
   console.log(`Respaldo del ${backup.fecha}:`);
   const plan: { entry: BackupEntry; landing: LandingRow; button: Button }[] = [];
   for (const entry of backup.botones) {
-    const landing = await repo.getLandingBySlug(entry.slug);
+    const landing = await findLanding(entry.slug);
     const button = landing ? await runWithLanding(landing, () => repo.getButton(entry.id)) : null;
     if (!landing || !button) {
       console.warn(`! ${entry.slug} · «${entry.label}»: ya no existe ${landing ? 'el botón' : 'la landing'}; se omite.`);

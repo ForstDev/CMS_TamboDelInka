@@ -35,6 +35,17 @@ const { getStorage, objectPathFor, UPLOAD_RULES } = await import('../src/storage
 const { runWithLanding } = await import('../src/context.js');
 const { settingsPatch } = await import('../src/validation.js');
 const repo = await import('../src/repo.js');
+const { LEGACY_REDIRECTS } = await import('../src/app.js');
+
+/** Busca la landing por su dirección; si cambió (ver LEGACY_REDIRECTS en src/app.ts), también por la anterior o la nueva. */
+async function findLanding(slug: string) {
+  const direct = await repo.getLandingBySlug(slug);
+  if (direct) return direct;
+  const nueva = LEGACY_REDIRECTS['/' + slug]?.slice(1);
+  if (nueva) return repo.getLandingBySlug(nueva);
+  const vieja = Object.entries(LEGACY_REDIRECTS).find(([, n]) => n === '/' + slug)?.[0]?.slice(1);
+  return vieja ? repo.getLandingBySlug(vieja) : null;
+}
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dir = path.join(root, 'clients', env.clientId, 'seed', 'pruebas');
@@ -42,9 +53,9 @@ const backupFile = path.join(dir, 'respaldo-fondos.json');
 
 // foco_x / foco_y: encuadre de la foto (0-100) que se guarda junto con ella.
 const TARGETS = [
-  { slug: 'experiencias-hotel-paracas', file: 'paracas.jpg', foco_x: '50', foco_y: '85' },
-  { slug: 'experiencias-palacio-del-inka', file: 'palacio.jpg', foco_x: '50', foco_y: '85' },
-  { slug: 'experiencias-tambo-del-inka', file: 'tambo.jpg', foco_x: '62', foco_y: '78' },
+  { slug: 'experiencias_hotelparacas', file: 'paracas.jpg', foco_x: '50', foco_y: '85' },
+  { slug: 'experiencias_palaciodelinka', file: 'palacio.jpg', foco_x: '50', foco_y: '85' },
+  { slug: 'experiencias_tambodelinka', file: 'tambo.jpg', foco_x: '62', foco_y: '78' },
 ];
 
 interface Fondo {
@@ -157,7 +168,7 @@ async function estado() {
   const backup = (await exists(backupFile)) ? await readBackup().catch(() => null) : null;
   console.log(backup ? `Respaldo: sí (${backup.fecha})\n` : 'Respaldo: no hay\n');
   for (const t of TARGETS) {
-    const landing = await repo.getLandingBySlug(t.slug);
+    const landing = await findLanding(t.slug);
     if (!landing) {
       console.log(`- ${t.slug}: NO existe en la base`);
       continue;
@@ -228,7 +239,7 @@ async function aplicar() {
   // Landings que existen.
   const plan: { slug: string; file: string; foco_x: string; foco_y: string; landing: LandingRow; before: Fondo }[] = [];
   for (const t of TARGETS) {
-    const landing = await repo.getLandingBySlug(t.slug);
+    const landing = await findLanding(t.slug);
     if (!landing) {
       console.warn(`! La landing ${t.slug} no existe en la base; se omite.`);
       continue;
@@ -326,7 +337,7 @@ async function revertir() {
   console.log(`Respaldo del ${backup.fecha}:`);
   const plan: { entry: BackupEntry; landing: LandingRow; now: Fondo }[] = [];
   for (const entry of backup.landings) {
-    const landing = await repo.getLandingBySlug(entry.slug);
+    const landing = await findLanding(entry.slug);
     if (!landing) {
       console.warn(`! La landing ${entry.slug} ya no existe; se omite.`);
       continue;

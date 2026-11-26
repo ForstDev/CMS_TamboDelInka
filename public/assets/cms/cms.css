@@ -307,9 +307,10 @@ img { max-width: 100%; }
 .txt-sizes .range-field input[type="range"]:focus-visible,
 .grad-field .range-field input[type="range"]:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
 /* Botones por fila en PC (Botones, solo "experiencias"): 5 opciones que caben en 320 px. */
-.cols-card .segmented { display: flex; width: 100%; }
-.cols-card .segmented button { min-width: 0; padding: 0 6px; }
-.cols-card .hint { margin-top: 8px; }
+/* Distribución (Diseño, solo "cartas"): mismo control a todo el ancho. */
+.cols-card .segmented, .dist-card .segmented { display: flex; width: 100%; }
+.cols-card .segmented button, .dist-card .segmented button { min-width: 0; padding: 0 6px; }
+.cols-card .hint, .dist-card .hint { margin-top: 8px; }
 .grad-field { min-width: 0; }
 .grad-field .hint { margin-top: 2px; }
 

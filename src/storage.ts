@@ -142,5 +142,6 @@ export function objectPathFor(clientId: string, purpose: UploadPurpose, fileName
 export function isValidObjectPath(clientId: string, objectPath: string): boolean {
   const client = clientId.replace(/[^a-zA-Z0-9_-]/g, '');
   if (!client || client !== clientId) return false;
-  return new RegExp(`^${client}/([a-z0-9]+(?:-[a-z0-9]+)*/)?(pdf|logo|fondo)/[a-z0-9]+-[A-Za-z0-9._-]+$`).test(objectPath) && !objectPath.includes('..');
+  // La carpeta de la landing es su slug (mismo formato que SLUG_RE: admite guion y guion bajo).
+  return new RegExp(`^${client}/([a-z0-9]+(?:[-_][a-z0-9]+)*/)?(pdf|logo|fondo)/[a-z0-9]+-[A-Za-z0-9._-]+$`).test(objectPath) && !objectPath.includes('..');
 }

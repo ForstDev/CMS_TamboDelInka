@@ -723,6 +723,12 @@ function renderDesign() {
     if (previewDevice !== 'pc') toast('Cambia a la vista PC para ver el efecto', 'info');
   });
 
+  // Distribución (solo "cartas"): 'compacta' (por defecto, también si la clave falta o es otra cosa) o 'centrada'. Se guarda al instante.
+  const distValue = (v) => (v === 'centrada' ? 'centrada' : 'compacta');
+  state._syncDist = wireSegmented($('#cartas-dist'), distValue(state.settings.cartas_distribucion ?? state.defaults?.cartas_distribucion), (v) => {
+    saveSetting('cartas_distribucion', distValue(v), { immediate: true });
+  });
+
   renderDesignPreview();
 }
 

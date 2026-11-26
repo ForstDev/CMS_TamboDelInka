@@ -41,6 +41,14 @@ function intText(min: number, max: number, message: string) {
 export const BOTON_PESOS = ['300', '400', '500', '600', '700', '900'] as const;
 export type BotonPeso = (typeof BOTON_PESOS)[number];
 
+/**
+ * Solo "cartas": distribución vertical de la página.
+ * - compacta: el diseño de siempre (todo seguido debajo del logo).
+ * - centrada: logo arriba; botones, novedades, línea y redes al medio del espacio que queda debajo.
+ */
+export const CARTAS_DISTRIBUCIONES = ['compacta', 'centrada'] as const;
+export type CartasDistribucion = (typeof CARTAS_DISTRIBUCIONES)[number];
+
 export const TEMPLATES = ['cartas', 'experiencias'] as const;
 export type Template = (typeof TEMPLATES)[number];
 
@@ -50,13 +58,15 @@ export const RESERVED_SLUGS = new Set([
   'login', 'logout', 'admin', 'static', 'public', 'preview', 'pdf', 'logo', 'fondo',
 ]);
 
-export const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+// Minúsculas y números separados por un guion o un guion bajo (como las direcciones de intursa.com.pe:
+// experiencias_palaciodelinka); sin separador al inicio ni al final ni dos seguidos.
+export const SLUG_RE = /^[a-z0-9]+([-_][a-z0-9]+)*$/;
 export const isValidSlug = (slug: string) => slug.length <= 80 && SLUG_RE.test(slug) && !RESERVED_SLUGS.has(slug);
 
 export const landingSlug = z
   .string()
   .max(80)
-  .regex(SLUG_RE, 'Dirección inválida (solo minúsculas, números y guiones)')
+  .regex(SLUG_RE, 'Dirección inválida (solo minúsculas, números, guiones y guion bajo)')
   .refine((v) => !RESERVED_SLUGS.has(v), { message: 'Esa dirección está reservada' });
 
 // Cada ajuste editable de la página, con su validación y su valor por defecto.
@@ -99,6 +109,8 @@ export const settingsSchema = z.object({
   // fondo_oscurecer / fondo_oscurecer_arriba de landing_settings se ignoran al leer (repo.getSettings).
   // Solo "experiencias": cuántos botones caben por fila en la vista de PC (≥ 768 px; en celular van apilados).
   botones_por_fila: intText(1, 5, 'Los botones por fila deben ser un número entre 1 y 5'),
+  // Solo "cartas": distribución vertical (lista cerrada; ver CARTAS_DISTRIBUCIONES).
+  cartas_distribucion: z.enum(CARTAS_DISTRIBUCIONES, { error: 'La distribución debe ser «compacta» o «centrada»' }),
   // Títulos de la plantilla "experiencias".
   titulo_linea1: text(60),
   titulo_linea2: text(60),
@@ -139,6 +151,7 @@ export const DEFAULT_SETTINGS: Settings = {
   boton_peso_reposo: '400',
   boton_peso_hover: '700',
   botones_por_fila: '3',
+  cartas_distribucion: 'compacta',
   titulo_linea1: 'Experiences',
   titulo_linea2: 'Experiencias',
 };

@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Button, Social } from './repo.js';
-import { BOTON_PESOS, defaultSettingsFor, type BotonPeso, type Settings, type Template } from './validation.js';
+import { BOTON_PESOS, CARTAS_DISTRIBUCIONES, defaultSettingsFor, type BotonPeso, type CartasDistribucion, type Settings, type Template } from './validation.js';
 import { NETWORKS } from './networks.js';
 import { env } from './env.js';
 
@@ -100,6 +100,11 @@ export function botonLsReposo(reposo: BotonPeso, hover: BotonPeso): string {
   return diff === 0 ? '0em' : `${diff.toFixed(4)}em`;
 }
 
+/** Distribución de "cartas" (lista cerrada) a partir del ajuste; cualquier otro valor → 'compacta' (el diseño de siempre). */
+function distribucionCartas(value: unknown): CartasDistribucion {
+  return (CARTAS_DISTRIBUCIONES as readonly unknown[]).includes(value) ? (value as CartasDistribucion) : 'compacta';
+}
+
 const LOGO_POSITIONS = {
   left: { align: 'flex-start', text: 'left', margin: '0 auto 0 0' },
   center: { align: 'center', text: 'center', margin: '0 auto' },
@@ -115,7 +120,12 @@ export function layoutValues(s: Settings, template: Template) {
   // Solo "experiencias": peso del texto de los botones en reposo / al pasar el mouse y compensación de ancho.
   const pesoReposo = pesoBoton(s.boton_peso_reposo, '400');
   const pesoHover = pesoBoton(s.boton_peso_hover, '700');
+  // Solo "cartas": distribución vertical. Basura o ausente → 'compacta'. La plantilla solo agrega la clase
+  // y el CSS del centrado con 'centrada' (dist_centrada), así 'compacta' produce exactamente el HTML de siempre.
+  const distribucion = distribucionCartas(s.cartas_distribucion);
   return {
+    cartas_distribucion_css: distribucion,
+    dist_centrada: template === 'cartas' && distribucion === 'centrada' ? '1' : '',
     logo_ancho: String(intSetting(s.logo_ancho, 60, 400, Number(d.logo_ancho))),
     // Desplazamiento horizontal fino del logo (% de .marca), solo lo usa "experiencias". Basura → 0.
     logo_x_css: String(intSetting(s.logo_x, -50, 50, 0)),

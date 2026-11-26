@@ -8,7 +8,7 @@
 //     "admin": { "username": "...", "password": "..." },   // un usuario para todas las landings
 //     "landings": [
 //       {
-//         "slug": "tambo-outlets",          // dirección: /<slug> (la por defecto además responde en /)
+//         "slug": "outlets-tambodelinka",   // dirección: /<slug> (la por defecto además responde en /)
 //         "name": "Tambo del Inka – Outlets",
 //         "hotel": "Tambo del Inka",        // agrupa las landings en el panel
 //         "template": "cartas",             // "cartas" | "experiencias"

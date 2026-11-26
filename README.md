@@ -8,20 +8,22 @@ redes, ajustes y estadísticas; un solo usuario del panel las edita todas.
 | Dirección | Qué es |
 |---|---|
 | `/` | Landing por defecto: **Tambo del Inka – Outlets** (plantilla `cartas`, réplica exacta del diseño, sin cambios visuales) |
-| `/tambo-outlets` | La misma landing por defecto (su slug también responde) |
-| `/experiencias-palacio-del-inka` | Palacio del Inka – Experiencias (plantilla `experiencias`) |
-| `/experiencias-hotel-paracas` | Hotel Paracas – Experiencias (plantilla `experiencias`) |
-| `/experiencias-tambo-del-inka` | Tambo del Inka – Experiencias (plantilla `experiencias`) |
-| `/outlets-hotel-paracas` | Hotel Paracas – Outlets (plantilla `cartas`) |
-| `/outlets-palacio-del-inka` | Palacio del Inka – Outlets (plantilla `cartas`) |
-| `/spa-hotel-paracas` | Hotel Paracas – Aqu Spa (plantilla `cartas`) |
-| `/spa-palacio-del-inka` | Palacio del Inka – Andes Spirit Spa (plantilla `cartas`) |
-| `/spa-tambo-del-inka` | Tambo del Inka – Kallpa Spa (plantilla `cartas`) |
+| `/outlets-tambodelinka` | La misma landing por defecto (su slug también responde) |
+| `/experiencias_palaciodelinka` | Palacio del Inka – Experiencias (plantilla `experiencias`) |
+| `/experiencias_hotelparacas` | Hotel Paracas – Experiencias (plantilla `experiencias`) |
+| `/experiencias_tambodelinka` | Tambo del Inka – Experiencias (plantilla `experiencias`) |
+| `/outlets-hotelparacas` | Hotel Paracas – Outlets (plantilla `cartas`) |
+| `/palacio-outlets` | Palacio del Inka – Outlets (plantilla `cartas`) |
+| `/aquspa` | Hotel Paracas – Aqu Spa (plantilla `cartas`, distribución centrada) |
+| `/spa-palaciodelinka` | Palacio del Inka – Andes Spirit Spa (plantilla `cartas`, distribución centrada) |
+| `/spa-tambodelinka` | Tambo del Inka – Kallpa Spa (plantilla `cartas`, distribución centrada) |
+| Direcciones anteriores | Redirigen (301, conservando la consulta `?…`) a la final: `/tambo-outlets`, `/experiencias-palacio-del-inka`, `/experiencias-hotel-paracas`, `/experiencias-tambo-del-inka`, `/outlets-hotel-paracas`, `/outlets-palacio-del-inka`, `/spa-hotel-paracas`, `/spa-palacio-del-inka`, `/spa-tambo-del-inka` y las intermedias `/aqu-spa`, `/andes-spirit-spa`, `/kallpa-spa` (`LEGACY_REDIRECTS` en `src/app.ts`). Mientras una landing activa conserve esa dirección en la base, se sirve ella en vez de redirigir |
 | `/go/<id>` | Cada botón (de cualquier landing) pasa por aquí: se registra el clic en su landing y se abre el PDF o enlace |
 | `/go/social/<id>` | Cada ícono de red social pasa por aquí: se registra el clic en su landing y se abre la red |
 | `/cms_login` | Ingreso al panel |
 | `/cms` | Panel: selector "Estás editando" + Botones · Diseño · Textos · Redes · Estadísticas |
 
+Las direcciones son las mismas que en la web de Intursa (`https://www.intursa.com.pe/<slug>/`); por eso algunas llevan guion bajo.
 Un slug inexistente, reservado (`cms`, `api`, `go`, `assets`, `uploads`…) o de una landing inactiva da 404.
 
 **Credenciales de prueba:** el usuario y la contraseña de demo están en `clients/intursa/client.json` (campo `admin`)
@@ -172,17 +174,34 @@ se guardan en Supabase y se ven al instante.
 >    porque el código viejo no distingue landings.
 > 2. **`git add .`, `git commit` y `git push`**, y esperar a que el despliegue de Vercel quede **Ready**.
 > 3. **`npm run setup`** (sin opciones): crea las 3 landings de Experiencias, sube sus logos, fotos y PDF, y completa
->    el nombre y el slug (`tambo-outlets`) de la landing por defecto.
+>    el nombre y el slug (`outlets-tambodelinka`) de la landing por defecto.
 > 4. **`npm run verificar`**.
-> 5. **Probar las 4 direcciones** (`/`, `/experiencias-palacio-del-inka`, `/experiencias-hotel-paracas`,
->    `/experiencias-tambo-del-inka`; `/tambo-outlets` también debe abrir la por defecto) **y el panel** (selector de landing).
+> 5. **Probar las direcciones** (`/`, `/experiencias_palaciodelinka`, `/experiencias_hotelparacas`,
+>    `/experiencias_tambodelinka`…; `/outlets-tambodelinka` también debe abrir la por defecto) **y el panel** (selector de landing).
 >
 > **Entre el paso 1 y el 2 no editar ajustes en el panel**: lo que se edite con el código viejo va a la tabla
 > `settings` antigua y no se copia después a la landing (la copia se hace en la migración y no pisa valores ya copiados).
 > Botones, redes y clics que se creen en ese intervalo sí quedan en la landing por defecto.
 >
 > Tras el paso 1 la landing por defecto existe con un slug provisional (`principal`): `/` funciona igual que antes;
-> `/tambo-outlets` recién responde después del paso 3.
+> `/outlets-tambodelinka` recién responde después del paso 3.
+
+#### Direcciones iguales a intursa.com.pe (`scripts/ajustar-landings.ts`)
+
+Las 9 landings ya creadas en producción pasan a la misma dirección que en la web de Intursa (tabla del inicio) y,
+solo en los 3 spas, se ocultan las redes (no se borran) y se guarda la distribución «centrada». Ningún logo cambia;
+botones, sus ids y los clics no cambian. Lo hace `scripts/ajustar-landings.ts`, que **sustituye a `ajustar-spas.ts`**
+(ya no existe). Guarda `clients/<cliente>/seed/landings-respaldo.json` antes de tocar la base y no continúa si ya
+existe (salvo `--forzar`); si una dirección final ya es de otra landing, no cambia nada. Orden:
+
+1. `git push` y esperar a que el despliegue de Vercel quede **Ready** (trae las redirecciones; mientras la base
+   conserve las direcciones anteriores, esas páginas se siguen sirviendo normalmente).
+2. Ensayo (no cambia nada): `npx tsx scripts/ajustar-landings.ts estado` y `npx tsx scripts/ajustar-landings.ts aplicar`.
+3. `npx tsx scripts/ajustar-landings.ts aplicar --confirmar`.
+4. Probar las 9 direcciones finales, un botón de cada una y una dirección anterior (debe redirigir).
+
+Para volver a como estaban: `npx tsx scripts/ajustar-landings.ts revertir --confirmar` (las direcciones anteriores
+vuelven a servir su landing).
 
 ### Dominio propio (opcional)
 En Vercel › Settings › Domains agrega, por ejemplo, `cartas.intursa.com.pe` y pide al cliente crear el registro
@@ -230,7 +249,7 @@ Es mecánico: no hace falta tocar código ni la base a mano.
 
 1. **Archivos**: crea `clients/<id>/seed/<slug>/` con el logo (PNG transparente) y la foto de fondo, y
    `clients/<id>/seed/<slug>/pdf/` con los PDF de sus botones. El `slug` es la dirección (`/<slug>`): minúsculas,
-   números y guiones; no puede ser una dirección reservada (`cms`, `api`, `go`, `assets`, `uploads`, `pdf`, `logo`, `fondo`…).
+   números, guiones y guion bajo (sin empezar ni terminar con ellos ni dos seguidos); no puede ser una dirección reservada (`cms`, `api`, `go`, `assets`, `uploads`, `pdf`, `logo`, `fondo`…).
 2. **`client.json`**: agrega una entrada al final de `landings[]` de `clients/<id>/client.json` con `slug`, `name`
    (`"Hotel – Tipo"`: lo que va tras « – » es el tipo que muestra el selector del panel, p. ej. «Outlets» o «Aqu Spa»),
    `hotel` (agrupa las landings en el selector), `template` (`cartas` o `experiencias`), `position` (orden dentro del
