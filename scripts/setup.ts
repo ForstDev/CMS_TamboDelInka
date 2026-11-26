@@ -13,6 +13,11 @@ try {
   process.loadEnvFile();
 } catch {}
 
+// FORCE_LOCAL=1 ignora las claves del .env y usa solo .data/ (para probar sin tocar producción).
+if (process.env.FORCE_LOCAL === '1') {
+  for (const k of ['DATABASE_URL', 'SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY']) delete process.env[k];
+}
+
 const { env } = await import('../src/env.js');
 const { getDb } = await import('../src/db.js');
 const { getStorage } = await import('../src/storage.js');

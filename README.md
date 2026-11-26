@@ -12,6 +12,11 @@ redes, ajustes y estadísticas; un solo usuario del panel las edita todas.
 | `/experiencias-palacio-del-inka` | Palacio del Inka – Experiencias (plantilla `experiencias`) |
 | `/experiencias-hotel-paracas` | Hotel Paracas – Experiencias (plantilla `experiencias`) |
 | `/experiencias-tambo-del-inka` | Tambo del Inka – Experiencias (plantilla `experiencias`) |
+| `/outlets-hotel-paracas` | Hotel Paracas – Outlets (plantilla `cartas`) |
+| `/outlets-palacio-del-inka` | Palacio del Inka – Outlets (plantilla `cartas`) |
+| `/spa-hotel-paracas` | Hotel Paracas – Aqu Spa (plantilla `cartas`) |
+| `/spa-palacio-del-inka` | Palacio del Inka – Andes Spirit Spa (plantilla `cartas`) |
+| `/spa-tambo-del-inka` | Tambo del Inka – Kallpa Spa (plantilla `cartas`) |
 | `/go/<id>` | Cada botón (de cualquier landing) pasa por aquí: se registra el clic en su landing y se abre el PDF o enlace |
 | `/go/social/<id>` | Cada ícono de red social pasa por aquí: se registra el clic en su landing y se abre la red |
 | `/cms_login` | Ingreso al panel |
@@ -35,8 +40,9 @@ npm run dev
 
 Abre http://localhost:3000 (página) y http://localhost:3000/cms_login (panel).
 
-La primera vez se crea sola una base local en `.data/` con las 4 landings de `clients/intursa/client.json`
-(Tambo Outlets con sus 9 botones y las 3 de Experiencias con 3 botones cada una, con sus PDF, logos y fotos).
+La primera vez se crea sola una base local en `.data/` con las 9 landings de `clients/intursa/client.json`
+(Tambo Outlets con sus 9 botones, las 3 de Experiencias con 3 botones cada una, Hotel Paracas – Outlets con 8,
+Palacio del Inka – Outlets con 7 y los 3 Spa (Aqu, Andes Spirit y Kallpa) con 2 cada uno, con sus PDF, logos y fotos).
 No hace falta Supabase para probar. Las otras landings se abren en http://localhost:3000/<slug>.
 
 > **Ojo: si tu `.env` tiene `DATABASE_URL`, `npm run dev` y `npm start` se conectan a la base de PRODUCCIÓN (Supabase).**
@@ -58,14 +64,15 @@ No hace falta Supabase para probar. Las otras landings se abren en http://localh
 > sirve para desactivarla: usa `FORCE_LOCAL=1`. Antes de probar, revisa que no quede otro servidor ocupando el puerto 3000.
 
 ```bash
-npm test          # 99 pruebas en 7 archivos (API, landings, plantilla experiencias, login por equipo, tracking, migraciones, conector de Supabase)
+npm test          # 173 pruebas en 8 archivos (API, landings, plantillas, login por equipo, tracking, migraciones, conector de Supabase)
 npm run typecheck # revisión de tipos
 ```
 
-Para volver los datos locales al estado original (detén antes `npm run dev`):
+Para volver los datos locales al estado original (detén antes `npm run dev`). **Siempre con `FORCE_LOCAL=1`**:
+sin él, si existe el `.env` con las claves de producción, este comando reemplazaría los datos y borraría los clics de producción.
 
 ```bash
-npm run setup -- --force --borrar-clics
+FORCE_LOCAL=1 npm run setup -- --force --borrar-clics
 ```
 
 > La base local solo admite **un** proceso a la vez. Si alguna vez la página local sale sin botones,
@@ -92,7 +99,7 @@ npm run setup -- --force --borrar-clics
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
 
-4. Crea tablas, bucket de archivos y carga los datos (crea las 4 landings y sube sus PDF, logos y fondos):
+4. Crea tablas, bucket de archivos y carga los datos (crea las 9 landings y sube sus PDF, logos y fondos):
 
    ```bash
    npm run setup
@@ -217,14 +224,30 @@ tiene otro diseño, hay que agregar una plantilla nueva (con los mismos marcador
 
 ---
 
-## 7. Agregar una landing
+## 7. Agregar una landing nueva
 
-1. Agrega una entrada en `landings[]` de `clients/<id>/client.json`: `slug` (minúsculas, números y guiones; no puede ser
-   una dirección reservada), `name`, `hotel` (agrupa las landings en el selector del panel), `template`
-   (`cartas` o `experiencias`), `position` (opcional), `settings`, `assets` (`logo`, `fondo`), `buttons` y `socials`.
-2. Crea la carpeta `clients/<id>/seed/<slug>/` con el logo y el fondo, y `seed/<slug>/pdf/` con los PDF de sus botones.
-3. Ejecuta `npm run setup` (sin `--force`): crea solo las landings que faltan y no toca las que ya tienen datos.
-4. Ábrela en `/<slug>` y edítala en el panel eligiéndola en "Estás editando".
+Es mecánico: no hace falta tocar código ni la base a mano.
+
+1. **Archivos**: crea `clients/<id>/seed/<slug>/` con el logo (PNG transparente) y la foto de fondo, y
+   `clients/<id>/seed/<slug>/pdf/` con los PDF de sus botones. El `slug` es la dirección (`/<slug>`): minúsculas,
+   números y guiones; no puede ser una dirección reservada (`cms`, `api`, `go`, `assets`, `uploads`, `pdf`, `logo`, `fondo`…).
+2. **`client.json`**: agrega una entrada al final de `landings[]` de `clients/<id>/client.json` con `slug`, `name`
+   (`"Hotel – Tipo"`: lo que va tras « – » es el tipo que muestra el selector del panel, p. ej. «Outlets» o «Aqu Spa»),
+   `hotel` (agrupa las landings en el selector), `template` (`cartas` o `experiencias`), `position` (orden dentro del
+   hotel: en Intursa 0 = Outlets, 1 = Experiencias, 2 = Spa), `settings` (lo más simple: copiar los de una landing
+   parecida y cambiar `titulo_pagina`, `meta_descripcion` y `logo_alt`), `assets` (`logo` y `fondo`: nombres de archivo
+   dentro de `seed/<slug>/`), `buttons` (en orden; `pdf` = nombre del archivo dentro de `seed/<slug>/pdf/`) y `socials`.
+   No pongas `is_default` (solo la landing por defecto lo lleva).
+3. **Probar en local** (con el servidor detenido, porque la base local admite un solo proceso):
+   `FORCE_LOCAL=1 npm run setup` (en PowerShell: `$env:FORCE_LOCAL=1; npm run setup`). La salida debe decir
+   `Creando landing "<name>"…` y `"<name>" (/<slug>): N botones, M redes.`, y para las demás «ya tiene datos; no se
+   vuelve a cargar». Luego `FORCE_LOCAL=1 npm start` y abre `http://localhost:3000/<slug>`: revisa logo, fondo, botones
+   (cada uno debe abrir su PDF) y redes, en PC y celular. Si un logo se ve muy grande o muy chico, ajusta su ancho en el
+   panel (Diseño) o con `"logo_ancho"` en `settings`.
+4. **Producción**: `git push` y espera a que Vercel quede **Ready**; después, desde el PC con el `.env` de producción,
+   `npm run setup` **sin `--force`** (crea solo las landings que faltan y no toca las que ya tienen datos ni sus clics) y
+   `npm run verificar`.
+5. **Verificar**: abre `/<slug>` en producción, prueba un botón y una red, y en el panel elígela en «Estás editando».
 
 Sus archivos se suben a `<cliente>/<slug>/<tipo>/…` en Supabase Storage (los de la landing por defecto siguen en `<cliente>/<tipo>/…`).
 Si la versión del código que la soporta todavía no está desplegada, sigue el [orden de despliegue](#orden-despliegue).

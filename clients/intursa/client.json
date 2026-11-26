@@ -150,6 +150,192 @@
         { "network": "facebook",  "url": "https://www.facebook.com/TamboDelInka/" },
         { "network": "instagram", "url": "https://www.instagram.com/hoteltambodelinka/" }
       ]
+    },
+    {
+      "slug": "outlets-hotel-paracas",
+      "name": "Hotel Paracas – Outlets",
+      "hotel": "Hotel Paracas",
+      "template": "cartas",
+      "position": 0,
+      "settings": {
+        "titulo_pagina": "Hotel Paracas – Outlets",
+        "meta_descripcion": "Cartas de Hotel Paracas, a Luxury Collection Resort – Paracas: restaurante Ballestas, Bar Lounge, Bar Zarcillo, La Trattoria, room service, vinos, menú de niños y piscina.",
+        "logo_alt": "Hotel Paracas, a Luxury Collection Resort – Paracas",
+        "color_fondo": "#ffffff",
+        "color_texto": "#ffffff",
+        "color_boton": "#ffffff",
+        "color_boton_texto": "#333333",
+        "color_boton_hover": "#333333",
+        "color_texto_boton_hover": "#ffffff",
+        "novedades_activo": "1",
+        "novedades_texto": "¿Deseas recibir novedades y promociones?",
+        "novedades_link_texto": "Click aquí",
+        "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
+        "redes_titulo": "Síguenos"
+      },
+      "assets": {
+        "logo": "logo-hotel-paracas.png",
+        "fondo": "fondo-intursa.jpg"
+      },
+      "buttons": [
+        { "label": "Restaurante Ballestas",     "pdf": "PARACAS_Almuerzo-y-Cena-2026-2.pdf" },
+        { "label": "Bar Lounge",                "pdf": "PARACAS_Bar-Lounge-2026.pdf" },
+        { "label": "Bar Zarcillo",              "pdf": "Carta-Zarcillo-Bar-BI-2026-Digital.pdf" },
+        { "label": "La Trattoria",              "pdf": "carta-trattoria-espanol-e-ingles.pdf" },
+        { "label": "Room Service",              "pdf": "PARACAS_Room-Service-2026-4.pdf" },
+        { "label": "Vinos | Wine List",         "pdf": "PARACAS_Vinos-2025-2.pdf" },
+        { "label": "Menú de niños | Kids Menu", "pdf": "Koni-Camp_Individual-para-ninos.pdf" },
+        { "label": "Piscina | Swimming Pool",   "pdf": "Carta-Piscina-PARACAS-2026-1.pdf" }
+      ],
+      "socials": [
+        { "network": "facebook",  "url": "https://www.facebook.com/HotelParacas/" },
+        { "network": "instagram", "url": "https://www.instagram.com/hotelparacas/" }
+      ]
+    },
+    {
+      "slug": "outlets-palacio-del-inka",
+      "name": "Palacio del Inka – Outlets",
+      "hotel": "Palacio del Inka",
+      "template": "cartas",
+      "position": 0,
+      "settings": {
+        "titulo_pagina": "Palacio del Inka – Outlets",
+        "meta_descripcion": "Cartas de Palacio del Inka, a Luxury Collection Hotel – Cusco: desayuno, restaurante Inti Raymi, bebidas, Rumi Bar, room service, vinos y menú de niños.",
+        "logo_alt": "Palacio del Inka, a Luxury Collection Hotel – Cusco",
+        "color_fondo": "#ffffff",
+        "color_texto": "#ffffff",
+        "color_boton": "#ffffff",
+        "color_boton_texto": "#333333",
+        "color_boton_hover": "#333333",
+        "color_texto_boton_hover": "#ffffff",
+        "novedades_activo": "1",
+        "novedades_texto": "¿Deseas recibir novedades y promociones?",
+        "novedades_link_texto": "Click aquí",
+        "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
+        "redes_titulo": "Síguenos"
+      },
+      "assets": {
+        "logo": "logo-palacio-del-inka.png",
+        "fondo": "fondo-intursa.jpg"
+      },
+      "buttons": [
+        { "label": "Desayuno Breakfast",        "pdf": "PALACIO_Desayuno-2023-1-1.pdf" },
+        { "label": "Inti Raymi",                "pdf": "PALACIO_INTI-RAYMI_Restaurante-2026.pdf" },
+        { "label": "Bebidas | Drinks",          "pdf": "PALACIO_Bar-2026.pdf" },
+        { "label": "Rumi Bar",                  "pdf": "Carta-Rumi-Bar-BI-2026-Digital.pdf" },
+        { "label": "Room Service",              "pdf": "PALACIO_IRD-2025-1.pdf" },
+        { "label": "Vinos | Wine List",         "pdf": "PALACIO_Vinos-2024-6-1.pdf" },
+        { "label": "Menú de niños | Kids Menu", "pdf": "PALACIO_Kids-Menu-Placemat-2024-2-1.pdf" }
+      ],
+      "socials": [
+        { "network": "facebook",  "url": "https://www.facebook.com/palaciodelinka/" },
+        { "network": "instagram", "url": "https://www.instagram.com/hotelpalaciodelinka/" }
+      ]
+    },
+    {
+      "slug": "spa-hotel-paracas",
+      "name": "Hotel Paracas – Aqu Spa",
+      "hotel": "Hotel Paracas",
+      "template": "cartas",
+      "position": 2,
+      "settings": {
+        "titulo_pagina": "Hotel Paracas – Aqu Spa",
+        "meta_descripcion": "Aqu Spa de Hotel Paracas, a Luxury Collection Resort – Paracas: experiencias y promociones.",
+        "logo_alt": "Hotel Paracas, a Luxury Collection Resort – Paracas",
+        "color_fondo": "#ffffff",
+        "color_texto": "#ffffff",
+        "color_boton": "#ffffff",
+        "color_boton_texto": "#333333",
+        "color_boton_hover": "#333333",
+        "color_texto_boton_hover": "#ffffff",
+        "novedades_activo": "1",
+        "novedades_texto": "¿Deseas recibir novedades y promociones?",
+        "novedades_link_texto": "Click aquí",
+        "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
+        "redes_titulo": "Síguenos"
+      },
+      "assets": {
+        "logo": "logo-hotel-paracas.png",
+        "fondo": "fondo-intursa.jpg"
+      },
+      "buttons": [
+        { "label": "Experiencias | Experiences", "pdf": "AQU-SPA_brochure-2026-1-1.pdf" },
+        { "label": "Promociones | Offers",       "pdf": "Noviembre-AQU-SPA-Promos.pdf" }
+      ],
+      "socials": [
+        { "network": "facebook",  "url": "https://www.facebook.com/HotelParacas/" },
+        { "network": "instagram", "url": "https://www.instagram.com/hotelparacas/" }
+      ]
+    },
+    {
+      "slug": "spa-palacio-del-inka",
+      "name": "Palacio del Inka – Andes Spirit Spa",
+      "hotel": "Palacio del Inka",
+      "template": "cartas",
+      "position": 2,
+      "settings": {
+        "titulo_pagina": "Palacio del Inka – Andes Spirit Spa",
+        "meta_descripcion": "Andes Spirit Spa de Palacio del Inka, a Luxury Collection Hotel – Cusco: experiencias y promociones.",
+        "logo_alt": "Andes Spirit Spa – Palacio del Inka, a Luxury Collection Hotel",
+        "color_fondo": "#ffffff",
+        "color_texto": "#ffffff",
+        "color_boton": "#ffffff",
+        "color_boton_texto": "#333333",
+        "color_boton_hover": "#333333",
+        "color_texto_boton_hover": "#ffffff",
+        "novedades_activo": "1",
+        "novedades_texto": "¿Deseas recibir novedades y promociones?",
+        "novedades_link_texto": "Click aquí",
+        "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
+        "redes_titulo": "Síguenos"
+      },
+      "assets": {
+        "logo": "logo-andes-spirit-spa.png",
+        "fondo": "fondo-intursa.jpg"
+      },
+      "buttons": [
+        { "label": "Experiencias | Experiences", "pdf": "Brochure-Andes-Spirit-Spa-2027.pdf" },
+        { "label": "Promociones | Offers",       "pdf": "Noviembre-ANDES-SPIRIT-SPA-Promos.pdf" }
+      ],
+      "socials": [
+        { "network": "facebook",  "url": "https://www.facebook.com/palaciodelinka/" },
+        { "network": "instagram", "url": "https://www.instagram.com/hotelpalaciodelinka/" }
+      ]
+    },
+    {
+      "slug": "spa-tambo-del-inka",
+      "name": "Tambo del Inka – Kallpa Spa",
+      "hotel": "Tambo del Inka",
+      "template": "cartas",
+      "position": 2,
+      "settings": {
+        "titulo_pagina": "Tambo del Inka – Kallpa Spa",
+        "meta_descripcion": "Kallpa Spa de Tambo del Inka, a Luxury Collection Resort & Spa – Valle Sagrado: experiencias y promociones.",
+        "logo_alt": "Kallpa Spa – Tambo del Inka, a Luxury Collection Resort & Spa",
+        "color_fondo": "#ffffff",
+        "color_texto": "#ffffff",
+        "color_boton": "#ffffff",
+        "color_boton_texto": "#333333",
+        "color_boton_hover": "#333333",
+        "color_texto_boton_hover": "#ffffff",
+        "novedades_activo": "1",
+        "novedades_texto": "¿Deseas recibir novedades y promociones?",
+        "novedades_link_texto": "Click aquí",
+        "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
+        "redes_titulo": "Síguenos"
+      },
+      "assets": {
+        "logo": "logo-kallpa-spa.png",
+        "fondo": "fondo-intursa.jpg"
+      },
+      "buttons": [
+        { "label": "Experiencias | Experiences", "pdf": "2026_BROCHURE-KALLPA-SPA-1-1.pdf" },
+        { "label": "Promociones | Offers",       "pdf": "Noviembre-KALLPA-SPA-Promos.pdf" }
+      ],
+      "socials": [
+        { "network": "facebook",  "url": "https://www.facebook.com/TamboDelInka/" },
+        { "network": "instagram", "url": "https://www.instagram.com/hoteltambodelinka/" }
+      ]
     }
   ]
 }

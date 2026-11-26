@@ -1927,6 +1927,15 @@ $('#welcome-close').addEventListener('click', () => {
 
 const TEMPLATE_LABELS = { experiencias: 'Experiencias', cartas: 'Outlets' };
 const templateLabel = (t) => TEMPLATE_LABELS[t] || TEMPLATE_LABELS.cartas;
+/** Separador entre hotel y tipo en el nombre de la landing ("Hotel Paracas – Aqu Spa"). */
+const LANDING_KIND_SEP = ' – ';
+/** Tipo de landing para el panel: lo que va tras « – » en el nombre; sin separador, el nombre de la plantilla. */
+function landingKind(l) {
+  const name = String(l?.name || '');
+  const i = name.indexOf(LANDING_KIND_SEP);
+  const kind = i >= 0 ? name.slice(i + LANDING_KIND_SEP.length).trim() : '';
+  return kind || templateLabel(l?.template);
+}
 /** Más de esta cantidad de landings: aparece el buscador. */
 const LANDING_SEARCH_MIN = 9;
 
@@ -1969,7 +1978,7 @@ function filterLandings(landings, query) {
 
 /** Línea secundaria de cada opción: "Experiencias · 3 botones · 12 clics (30 d)". */
 function landingOptionMeta(l) {
-  const parts = [templateLabel(l.template)];
+  const parts = [landingKind(l)];
   const n = (v) => typeof v === 'number' && Number.isFinite(v);
   if (n(l.buttons_count)) parts.push(plural(l.buttons_count, 'botón', 'botones'));
   if (n(l.clicks_30d)) parts.push(`${plural(l.clicks_30d, 'clic', 'clics')} (30 d)`);
@@ -1978,7 +1987,7 @@ function landingOptionMeta(l) {
 
 /** "Hotel · Experiencias" del botón disparador. */
 function landingTriggerMeta(l) {
-  return [String(l.hotel || '').trim(), templateLabel(l.template)].filter(Boolean).join(' · ');
+  return [String(l.hotel || '').trim(), landingKind(l)].filter(Boolean).join(' · ');
 }
 
 /** Dirección legible (sin https://) para mostrar. */
