@@ -1,6 +1,7 @@
 // Login del CMS: usuario y contraseña (bcrypt) + sesión en cookie httpOnly firmada (JWT HS256).
 
 import bcrypt from 'bcryptjs';
+import { createHmac } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import type { NextFunction, Request, Response } from 'express';
 import { env } from './env.js';
@@ -16,8 +17,14 @@ const key = () => new TextEncoder().encode(env.sessionSecret);
 
 export const hashPassword = (plain: string) => bcrypt.hash(plain, 10);
 
+/**
+ * Huella (no reversible) de la contraseña guardada. Va dentro de la sesión: al cambiar la contraseña la huella cambia
+ * y todas las sesiones abiertas (por ejemplo, una cookie robada) dejan de valer.
+ */
+const passwordFingerprint = (passwordHash: string) => createHmac('sha256', env.sessionSecret).update(passwordHash).digest('hex').slice(0, 24);
+
 export type LoginResult =
-  | { ok: true; adminId: string; username: string }
+  | { ok: true; adminId: string; username: string; passwordHash: string }
   | { ok: false; reason: 'invalid' }
   | { ok: false; reason: 'locked'; seconds: number };
 
@@ -39,11 +46,11 @@ export async function login(username: string, password: string, ip: string): Pro
     return { ok: false, reason: 'invalid' };
   }
   await throttle.clearFailures(hash);
-  return { ok: true, adminId: admin.id, username: admin.username };
+  return { ok: true, adminId: admin.id, username: admin.username, passwordHash: admin.password_hash };
 }
 
-export async function createSessionCookie(res: Response, adminId: string, username: string) {
-  const token = await new SignJWT({ username, cid: env.clientId })
+export async function createSessionCookie(req: Request, res: Response, adminId: string, username: string, passwordHash: string) {
+  const token = await new SignJWT({ username, cid: env.clientId, pv: passwordFingerprint(passwordHash) })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(adminId)
     .setIssuedAt()
@@ -52,7 +59,8 @@ export async function createSessionCookie(res: Response, adminId: string, userna
   res.cookie(COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: env.production,
+    // Solo por HTTPS: en producción siempre, y en cualquier servidor cuando la petición llegó por HTTPS (req.secure, con el proxy).
+    secure: env.production || req.secure,
     path: '/',
     maxAge: SESSION_HOURS * 3600 * 1000,
   });
@@ -83,7 +91,10 @@ export async function getSession(req: Request): Promise<Session | null> {
   try {
     const { payload } = await jwtVerify(token, key(), { algorithms: ['HS256'] });
     if (payload.cid !== env.clientId || !payload.sub) return null;
-    return { adminId: payload.sub, username: String(payload.username ?? '') };
+    // La sesión solo vale mientras la cuenta exista y la contraseña no haya cambiado desde que se inició.
+    const admin = await repo.getAdminById(payload.sub);
+    if (!admin || payload.pv !== passwordFingerprint(admin.password_hash)) return null;
+    return { adminId: payload.sub, username: admin.username };
   } catch {
     return null;
   }

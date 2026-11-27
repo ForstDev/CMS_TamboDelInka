@@ -712,16 +712,10 @@ function renderDesign() {
     toast('Tamaños de texto restablecidos', 'ok', { action: 'Deshacer', onAction: () => applyTextScales(before), duration: 6000 });
   });
 
-  // Botones por fila en PC (solo "experiencias"): 1…5, por defecto 3 si la clave falta. Se guarda al instante.
+  // Botones por fila en PC (todas las plantillas): 1…5; por defecto 3 en "experiencias" y 2 en "cartas". Se guarda al instante.
   state._syncCols = wireSegmented($('#btn-cols'), clampInt(state.settings.botones_por_fila ?? state.defaults?.botones_por_fila, 1, 5, 3), (v) => {
     saveSetting('botones_por_fila', String(clampInt(v, 1, 5, 3)), { immediate: true });
     if (previewDevice !== 'pc') toast('Cambia a la vista PC para ver el efecto', 'info');
-  });
-
-  // Distribución (solo "cartas"): 'compacta' (por defecto, también si la clave falta o es otra cosa) o 'centrada'. Se guarda al instante.
-  const distValue = (v) => (v === 'centrada' ? 'centrada' : 'compacta');
-  state._syncDist = wireSegmented($('#cartas-dist'), distValue(state.settings.cartas_distribucion ?? state.defaults?.cartas_distribucion), (v) => {
-    saveSetting('cartas_distribucion', distValue(v), { immediate: true });
   });
 
   renderDesignPreview();
@@ -867,12 +861,71 @@ function wireImageUpload(input, purpose, progressEl, onDone) {
   });
 }
 
+// ---------- Optimización automática de fotos (cargan rápido en la página y en el panel) ----------
+
+/** Lado más largo máximo: de sobra para una pantalla de PC y para celulares con pantalla densa. */
+const IMG_MAX_SIDE = { fondo: 2000, logo: 800 };
+
+/**
+ * Toda foto de fondo y todo logo se optimizan solos antes de subirse, sin que nadie tenga que decidir nada:
+ *  - fondo: lado largo ≤ 2000 px y WebP (JPEG si el navegador no sabe crear WebP);
+ *  - logo: lado largo ≤ 800 px, conservando la transparencia (PNG; un JPG sigue siendo JPG).
+ * Si el resultado no mejora la imagen (ni pesa menos ni tiene menos píxeles), se sube el original. Devuelve { file, changed, before, after }.
+ */
+async function optimizeImage(file, purpose) {
+  const same = { file, changed: false };
+  const maxSide = IMG_MAX_SIDE[purpose];
+  if (!maxSide || !/^image\/(png|jpeg|webp)$/.test(file.type) || typeof createImageBitmap !== 'function') return same;
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }); // respeta la rotación de las fotos de celular
+  } catch {
+    return same;
+  }
+  try {
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    // Un WebP que ya tiene el tamaño correcto no se vuelve a comprimir (cada pasada con pérdida lo degrada).
+    if (file.type === 'image/webp' && scale === 1) return same;
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    const toBlob = (type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+    let blob;
+    if (purpose === 'fondo') {
+      blob = await toBlob('image/webp', 0.8);
+      if (!blob || blob.type !== 'image/webp') {
+        if (file.type === 'image/png') return same; // sin WebP, un PNG (puede tener transparencia) se deja como está
+        blob = await toBlob('image/jpeg', 0.82);
+      }
+    } else {
+      blob = file.type === 'image/jpeg' ? await toBlob('image/jpeg', 0.9) : await toBlob('image/png');
+    }
+    // Vale la pena si pesa menos; y si se redujeron los píxeles, también con un pequeño aumento de bytes (un PNG de canvas
+    // es menos compacto, pero la imagen es mucho más pequeña de decodificar y de dibujar).
+    const worthIt = blob && (blob.size < file.size || (scale < 1 && blob.size <= file.size * 1.25));
+    if (!worthIt) return same;
+    const ext = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png' }[blob.type];
+    if (!ext) return same;
+    const base = file.name.replace(/\.[^.]+$/, '') || 'imagen';
+    return { file: new File([blob], `${base}.${ext}`, { type: blob.type }), changed: true, before: file.size, after: blob.size };
+  } finally {
+    bitmap.close?.();
+  }
+}
+
 async function handleImage(file, purpose, progressEl, onDone) {
   const bar = progressEl.firstElementChild;
   progressEl.hidden = false;
   bar.style.width = '0';
   try {
-    const target = await uploadFile(file, purpose, (p) => (bar.style.width = `${Math.round(p * 100)}%`));
+    const opt = await optimizeImage(file, purpose);
+    if (opt.changed) toast(`Foto optimizada: ${fmtSize(opt.before)} → ${fmtSize(opt.after)}`);
+    const target = await uploadFile(opt.file, purpose, (p) => (bar.style.width = `${Math.round(p * 100)}%`));
     onDone(target.publicUrl);
   } catch (err) {
     toast(err.message, 'error');

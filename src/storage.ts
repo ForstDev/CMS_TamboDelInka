@@ -67,7 +67,8 @@ function supabaseStorage(): Storage {
       return { uploadUrl: data.signedUrl, path: objectPath, publicUrl: this.publicUrl(objectPath) };
     },
     async put(objectPath, data, contentType) {
-      const { error } = await bucket().upload(objectPath, data, { contentType, upsert: true });
+      // Cada archivo lleva un sello único en su nombre (nunca cambia de contenido): el navegador puede guardarlo un año.
+      const { error } = await bucket().upload(objectPath, data, { contentType, upsert: true, cacheControl: '31536000' });
       if (error) throw new Error(`No se pudo subir ${objectPath}: ${error.message}`);
       return this.publicUrl(objectPath);
     },

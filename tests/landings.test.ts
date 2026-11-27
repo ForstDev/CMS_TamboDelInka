@@ -756,8 +756,13 @@ describe('plantillas', () => {
       // Solo la vista previa del panel añade el ajuste fino del logo y el script de arrastre; se quitan para comparar.
       const SIN_ARRASTRE_CSS = /\n {2}\/\* -{10} Ajuste fino horizontal del logo[\s\S]*?\.logo \{ position: relative; left: calc\(var\(--logo-x\) \* 1%\); \}\n/;
       const SCRIPT = '<script src="/assets/cms/preview-drag.js" defer></script>';
+      // La foto de fondo se precarga (<link rel="preload"> tras el <title>): se quita para comparar con la página de siempre.
+      const PRELOAD = /\n<link rel="preload" as="image" href="[^"]+" fetchpriority="high">/;
       const page = (settings: any, landing?: any) => {
-        const html = norm(renderPage({ settings, buttons: CARTAS_BUTTONS as any, socials: socials as any, landing }, v.opts as any));
+        let html = norm(renderPage({ settings, buttons: CARTAS_BUTTONS as any, socials: socials as any, landing }, v.opts as any));
+        if (name !== 'color') expect(html, name).toMatch(PRELOAD); // con foto de fondo
+        else expect(html, name).not.toContain('rel="preload"'); // color sólido: nada que precargar
+        html = html.replace(PRELOAD, '');
         if (name !== 'preview') return html;
         expect(html).toMatch(SIN_ARRASTRE_CSS);
         expect(html).toContain(`</main>${SCRIPT}`);

@@ -248,9 +248,19 @@ export async function seed({
 
   if (adminNeeded) {
     const username = process.env.ADMIN_USERNAME || config.admin.username;
-    const password = process.env.ADMIN_PASSWORD || config.admin.password;
-    await repo.upsertAdmin(username, await hashPassword(password));
-    log(`Usuario "${username}" listo.`);
+    const fromEnv = process.env.ADMIN_PASSWORD;
+    const exists = Boolean(await repo.findAdmin(username));
+    if (exists && !fromEnv) {
+      // Ya hay un administrador: su contraseña (que se cambió desde el panel) no se vuelve a pisar con la de client.json.
+      log(`Usuario "${username}" ya existe; no se cambia su contraseña (define ADMIN_PASSWORD para restablecerla).`);
+    } else {
+      // Con base de datos o almacenamiento reales, la contraseña inicial NO sale de client.json (está en el repositorio).
+      if (!fromEnv && env.supabaseUrl) {
+        throw new Error('Define ADMIN_PASSWORD (la contraseña inicial del administrador) en el .env: no se usa la de client.json en un despliegue real.');
+      }
+      await repo.upsertAdmin(username, await hashPassword(fromEnv || config.admin.password));
+      log(`Usuario "${username}" listo.`);
+    }
   }
   if (loaded) log(`Listo: ${loaded} landing(s) cargada(s).`);
   return loaded > 0;

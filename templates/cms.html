@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer">
 <link rel="stylesheet" href="/assets/cms/cms.css?v={{asset_v}}">
 </head>
 <body class="cms-body">
@@ -192,15 +192,6 @@
         </label>
       </article>
 
-      <article class="card dist-card" data-only="cartas">
-        <header class="card-head"><h3><i class="fa-solid fa-arrows-up-down" aria-hidden="true"></i> <span id="cartas-dist-label">Distribución</span></h3></header>
-        <div class="segmented" role="radiogroup" aria-labelledby="cartas-dist-label" aria-describedby="cartas-dist-hint" id="cartas-dist">
-          <button type="button" role="radio" data-value="compacta">Compacta</button>
-          <button type="button" role="radio" data-value="centrada">Centrada</button>
-        </div>
-        <p class="hint" id="cartas-dist-hint">Centrada: el logo y los botones quedan juntos, al medio de la pantalla. Útil cuando hay pocos botones.</p>
-      </article>
-
       <article class="card">
         <header class="card-head"><h3><i class="fa-solid fa-fill-drip"></i> Fondo</h3></header>
         <div class="segmented" role="radiogroup" aria-label="Tipo de fondo" id="bg-type">
@@ -227,7 +218,7 @@
               <input type="file" accept="image/png,image/jpeg,image/webp" id="bg-file" hidden>
             </label>
             <div class="progress" id="bg-progress" hidden><span></span></div>
-            <p class="hint">Ideal: foto horizontal 16:9 de 2560×1440 px o más, JPG. Máx. 8 MB.</p>
+            <p class="hint">Ideal: foto de 1920 px de ancho o más. Al subirla se optimiza sola para que cargue rápido. Máx. 8 MB.</p>
           </div>
         </div>
         <div class="color-row" data-color="color_fondo">
@@ -250,16 +241,6 @@
         <div class="color-row" data-color="color_texto"><div><strong>Textos de la página</strong><small>Novedades, "Síguenos" e íconos.</small></div></div>
         <div class="color-row" data-color="color_boton"><div><strong>Fondo del botón</strong></div></div>
         <div class="color-row" data-color="color_boton_texto"><div><strong>Texto del botón</strong></div></div>
-        <div class="field fuente-field" data-only="cartas">
-          <label class="field-label" for="btn-fuente">Fuente de los botones</label>
-          <select id="btn-fuente" data-setting="cartas_fuente" aria-describedby="btn-fuente-hint">
-            <option value="poppins">Poppins (la de siempre)</option>
-            <option value="montserrat">Montserrat (AC Hotels)</option>
-            <option value="code-next">Code Next (Aloft)</option>
-            <option value="graphik">Graphik (Westin)</option>
-          </select>
-          <p class="hint" id="btn-fuente-hint">Solo cambia la letra de los botones; el resto de la página sigue igual.</p>
-        </div>
         <div class="peso-field" data-only="experiencias">
           <div class="field">
             <label class="field-label" for="btn-peso-reposo">Texto del botón en reposo</label>
@@ -577,8 +558,8 @@
   </form>
 </dialog>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js" integrity="sha512-TelkP3PCMJv+viMWynjKcvLsQzx6dJHvIGhfqzFtZKgAjKM1YPqcwzzDEoTc/BHjf43PcPzTQOjuTr4YdE8lNQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script type="module" src="/assets/cms/cms.js?v={{asset_v}}"></script>
 </body>
 </html>

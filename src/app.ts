@@ -2,6 +2,7 @@
 
 import express, { type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { env } from './env.js';
 import * as repo from './repo.js';
@@ -96,19 +97,66 @@ const landingInfo = (l: Landing) => ({
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', true);
+  // Cuántos proxies de confianza hay delante (TRUST_PROXY, 1 por defecto). Con `true` se creía la primera IP de
+  // X-Forwarded-For, que un atacante puede escribir a mano para saltarse el bloqueo del login.
+  app.set('trust proxy', env.trustProxy);
 
+  // Cabeceras de seguridad. La política de contenido (CSP) solo deja cargar lo que la página usa: sus propios archivos,
+  // Google Fonts y Font Awesome (cdnjs), imágenes por https y, en el panel, las subidas directas al almacenamiento.
+  // Nada de scripts en línea (el login usa un nonce por petición): así un texto malicioso no podría ejecutarse.
+  const storageOrigin = (() => {
+    try {
+      return env.supabaseUrl ? new URL(env.supabaseUrl).origin : '';
+    } catch {
+      return '';
+    }
+  })();
+  const CSP_BASE = [
+    "default-src 'self'",
+    "img-src 'self' data: https:",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
+    "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ];
   app.use((req, res, next) => {
+    const nonce = randomBytes(16).toString('base64');
+    res.locals.nonce = nonce;
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+    if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000'); // sin includeSubDomains: otros subdominios no son de esta app
     const isPrivate = req.path.startsWith('/cms') || req.path.startsWith('/api');
     if (env.noindex || isPrivate) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
     if (isPrivate) res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    const csp = [...CSP_BASE];
+    if (isPrivate) {
+      // Panel y vista previa: scripts propios + Sortable/Chart.js de cdnjs (con SRI); subidas directas al almacenamiento.
+      csp.push(`script-src 'self' 'nonce-${nonce}' https://cdnjs.cloudflare.com`);
+      csp.push(`connect-src 'self'${storageOrigin ? ` ${storageOrigin}` : ''}`);
+      csp.push("frame-src 'self'");
+      csp.push("frame-ancestors 'self'");
+    } else {
+      // Páginas públicas: sin scripts. Pueden mostrarse dentro de otra web (Intursa), por eso sin frame-ancestors.
+      csp.push("script-src 'none'");
+      csp.push("connect-src 'none'");
+    }
+    res.setHeader('Content-Security-Policy', csp.join('; '));
     next();
   });
 
   // Archivos estáticos del CMS (en Vercel los sirve la CDN desde /public; esto es para local).
-  app.use('/assets', express.static(path.join(root, 'public', 'assets'), { maxAge: env.production ? '1h' : 0 }));
+  app.use(
+    '/assets',
+    express.static(path.join(root, 'public', 'assets'), {
+      maxAge: env.production ? '1h' : 0,
+      // Las fuentes casi nunca cambian: 30 días.
+      setHeaders(res, file) {
+        if (env.production && file.split(path.sep).includes('fonts')) res.setHeader('Cache-Control', 'public, max-age=2592000');
+      },
+    }),
+  );
   if (getStorage().mode === 'local') app.use('/uploads', express.static(path.resolve(localUploadsDir), { maxAge: 0 }));
 
   // ---------- Página pública ----------
@@ -175,13 +223,13 @@ export function createApp() {
     if (await getSession(req)) return res.redirect(302, '/cms');
     res.setHeader('Cache-Control', 'no-store');
     // Login único del panel: no depende de la landing ni del cliente (marca fija; fotos de fondo en loginConfig.ts).
-    res.type('html').send(renderTemplate(loadTemplate('login.html'), { fondos_html: fondosHtml(loginFondos()), asset_v: ASSET_V }));
+    res.type('html').send(renderTemplate(loadTemplate('login.html'), { fondos_html: fondosHtml(loginFondos()), asset_v: ASSET_V, nonce: res.locals.nonce }));
   });
 
   app.post('/api/login', express.json({ limit: '10kb' }), async (req, res) => {
     if (!sameOrigin(req)) throw new HttpError(403, 'Origen no permitido.');
     const { username, password } = parse(loginBody, req.body);
-    // req.ip sale de X-Forwarded-For (trust proxy activo; Vercel la entrega ahí).
+    // req.ip sale de X-Forwarded-For según TRUST_PROXY (los proxies de confianza; Vercel y un nginx son 1).
     const result = await login(username, password, req.ip || 'desconocida');
     if (!result.ok) {
       if (result.reason === 'locked') {
@@ -189,7 +237,7 @@ export function createApp() {
       }
       throw new HttpError(401, 'Usuario o contraseña incorrectos.');
     }
-    await createSessionCookie(res, result.adminId, result.username);
+    await createSessionCookie(req, res, result.adminId, result.username, result.passwordHash);
     res.json({ ok: true });
   });
 
@@ -266,6 +314,7 @@ export function createApp() {
     const id = String(req.params.id);
     if (!UUID.test(id)) throw new HttpError(404, 'Botón no encontrado.');
     const patch = parse(buttonPatch, req.body);
+    if (patch.file_path && !isValidObjectPath(env.clientId, patch.file_path)) throw new HttpError(400, 'Ruta de archivo inválida.');
     const before = await repo.getButton(id);
     if (!before) throw new HttpError(404, 'Botón no encontrado.');
 
@@ -359,7 +408,8 @@ export function createApp() {
     const days = daysParam(req);
     const rows = await repo.clicksForCsv(days);
     const deviceLabel: Record<string, string> = { mobile: 'Celular', tablet: 'Tablet', desktop: 'Computadora' };
-    const q = (v: unknown) => `"${String(v).replace(/"/g, '""')}"`;
+    // Un nombre que empiece con = + - @ se ejecutaría como fórmula al abrir el CSV en Excel: se le antepone una comilla.
+    const q = (v: unknown) => `"${String(v).replace(/^[=+\-@\t\r]/, "'$&").replace(/"/g, '""')}"`;
     const csv = [
       'Fecha,Botón,Dispositivo,Clics,Tipo',
       ...rows.map((r) => [r.day, q(r.label), deviceLabel[r.device] ?? r.device, r.clicks, r.source === 'social' ? 'Red' : 'Carta'].join(',')),

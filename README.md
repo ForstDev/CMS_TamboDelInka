@@ -155,6 +155,8 @@ FORCE_LOCAL=1 npm run setup -- --force --borrar-clics
    | `SUPABASE_SECRET_KEY` | la secret key |
    | `NOINDEX` | `1` mientras sea demo (Google no la indexa) |
    | `STATS_TZ` | `America/Lima` |
+   | `ADMIN_PASSWORD` | la contraseña inicial del administrador (solo para `npm run setup`; ver [SEGURIDAD.md](SEGURIDAD.md)) |
+   | `TRUST_PROXY` | `1` (Vercel). Ver [SEGURIDAD.md](SEGURIDAD.md) si la app va detrás de otro proxy |
 
 4. **Deploy**. Al terminar prueba:
    - `https://<tu-proyecto>.vercel.app/` → página pública
@@ -217,8 +219,8 @@ CNAME que Vercel indique.
 - [ ] Cambiar la contraseña de demo (menú de cuenta › Cambiar contraseña).
 - [ ] Confirmar con el cliente la **licencia web** de las fuentes de marca: Sofia Pro (Experiencias), Code Next (Aloft) y
   Graphik Starwood (Westin). Sus archivos dicen «solo vista previa e impresión» (fsType 4): para servirlas en una web
-  hace falta la licencia web del proveedor. Montserrat (AC) es libre (OFL). Si no hay licencia, en el panel
-  (Diseño › Colores › Fuente de los botones) se vuelve a Poppins en un clic.
+  hace falta la licencia web del proveedor. Montserrat (AC) es libre (OFL). Si no hay licencia, se cambia
+  `"cartas_fuente"` a `"poppins"` en `client.json` (landings nuevas) o se me pide el cambio para las ya publicadas.
 - [ ] Confirmar con el cliente que los enlaces de Facebook e Instagram de cada landing (pestaña Redes) son los oficiales y agregar las demás redes que usen. Una red sin enlace no se muestra. (Los de `client.json` se tomaron de las páginas oficiales de Marriott de cada hotel.)
 - [ ] Borrar las estadísticas de prueba: en el panel se borran **por landing** (elegirla en "Estás editando" › Estadísticas › Borrar estadísticas); `npm run setup -- --borrar-clics` borra las de **todas**.
 - [ ] Poner `NOINDEX=0` en Vercel y volver a desplegar.
@@ -283,9 +285,18 @@ Si alguna landing de `client.json` todavía existe en la base con su **direcció
 plantillas. Por defecto 3 en `experiencias` y 2 en `cartas` (el diseño de siempre: con 2 la página no cambia). En celular
 siempre van uno debajo de otro.
 
-**Fuente de los botones (solo `cartas`):** `"cartas_fuente"` en `settings` (o en el panel, Diseño › Colores): `poppins`
-(la de siempre), `montserrat` (AC), `code-next` (Aloft) o `graphik` (Westin). Los WOFF2 están en `public/assets/fonts/`
-(los originales OTF, en `clients/intursa/seed/fuentes/`, que no se sube a git). Con `poppins` la página queda igual que antes.
+**Estructura fija por landing (no editable desde el panel):** la distribución de `cartas` (`"cartas_distribucion"`:
+`compacta` o `centrada`, como los spas) y la fuente de los botones (`"cartas_fuente"`: `poppins` —la de siempre—,
+`montserrat` (AC), `code-next` (Aloft) o `graphik` (Westin)) se definen en `settings` de `client.json`, porque son parte
+de la estructura que pide el cliente para cada landing. Los WOFF2 están en `public/assets/fonts/` (los originales OTF, en
+`clients/intursa/seed/fuentes/`, que no se sube a git). Con los valores por defecto la página queda igual que antes.
+
+**Fotos optimizadas:** toda foto de fondo y todo logo que se sube desde el panel se optimiza sola en el navegador (fondo:
+WebP de hasta 2000 px; logo: hasta 800 px conservando la transparencia); no hay nada que decidir. Los fondos de
+`clients/intursa/seed/` ya están en WebP (`.webp` junto al original `.jpg`, que se conserva). Para aligerar los fondos que
+ya están en producción: `npx tsx scripts/optimizar-fondos.ts estado`, luego `aplicar` (ensayo) y `aplicar --confirmar`; solo
+toca fotos idénticas a un original de `seed/` (nunca una foto propia), guarda respaldo y se revierte con
+`revertir --confirmar`.
 
 Sus archivos se suben a `<cliente>/<slug>/<tipo>/…` en Supabase Storage (los de la landing por defecto siguen en `<cliente>/<tipo>/…`).
 Si la versión del código que la soporta todavía no está desplegada, sigue el [orden de despliegue](#orden-despliegue).

@@ -364,30 +364,20 @@ describe('direcciones anteriores mientras la base aún las tiene (antes de ejecu
   });
 });
 
-describe('panel: control de distribución', () => {
+describe('panel: la distribución es estructura fija, no un ajuste editable', () => {
   const cms = norm(fs.readFileSync(path.join(here, '..', 'templates', 'cms.html'), 'utf8'));
   const js = fs.readFileSync(path.join(here, '..', 'public', 'assets', 'cms', 'cms.js'), 'utf8');
-  const css = fs.readFileSync(path.join(here, '..', 'public', 'assets', 'cms', 'cms.css'), 'utf8');
 
-  it('tarjeta solo para cartas en Diseño, con dos opciones y la pista', () => {
-    const card = cms.match(/<article class="card dist-card" data-only="cartas">[\s\S]*?<\/article>/)![0];
-    expect(card).toContain('<span id="cartas-dist-label">Distribución</span>');
-    expect(card).toContain('role="radiogroup" aria-labelledby="cartas-dist-label" aria-describedby="cartas-dist-hint" id="cartas-dist"');
-    expect([...card.matchAll(/<button type="button" role="radio" data-value="(\w+)">(\w+)<\/button>/g)].map((m) => [m[1], m[2]])).toEqual([
-      ['compacta', 'Compacta'],
-      ['centrada', 'Centrada'],
-    ]);
-    expect(card).toContain('id="cartas-dist-hint">Centrada: el logo y los botones quedan juntos, al medio de la pantalla. Útil cuando hay pocos botones.</p>');
-    for (const id of ['cartas-dist', 'cartas-dist-label', 'cartas-dist-hint']) expect(cms.match(new RegExp(`id="${id}"`, 'g')), id).toHaveLength(1);
-    const i = cms.indexOf('class="card dist-card"');
-    expect(i).toBeGreaterThan(cms.indexOf('data-panel="diseno"'));
-    expect(i).toBeLessThan(cms.indexOf('data-panel="textos"'));
+  it('el panel no ofrece cambiarla (se define por landing en client.json y se aplica al cargarla)', () => {
+    for (const marca of ['cartas-dist', 'dist-card', 'Distribución', 'cartas_distribucion']) {
+      expect(cms, marca).not.toContain(marca);
+      expect(js, marca).not.toContain(marca);
+    }
   });
 
-  it('cms.js lo cablea como los demás ajustes (guardado inmediato → vista previa) y cms.css lo estira', () => {
-    expect(js).toContain("wireSegmented($('#cartas-dist'), distValue(state.settings.cartas_distribucion ?? state.defaults?.cartas_distribucion)");
-    expect(js).toContain("saveSetting('cartas_distribucion', distValue(v), { immediate: true });");
-    expect(js).toContain("const distValue = (v) => (v === 'centrada' ? 'centrada' : 'compacta');");
-    expect(css).toContain('.dist-card .segmented { display: flex; width: 100%; }');
+  it('los 3 spas siguen con la distribución centrada (la estructura que pidió el cliente)', () => {
+    const cfg = JSON.parse(fs.readFileSync(path.join(here, '..', 'clients', 'intursa', 'client.json'), 'utf8')) as ClientConfig;
+    for (const slug of SPAS) expect(cfg.landings!.find((l) => l.slug === slug)!.settings?.cartas_distribucion, slug).toBe('centrada');
+    for (const l of cfg.landings!.filter((x) => !SPAS.includes(x.slug))) expect(l.settings?.cartas_distribucion ?? 'compacta', l.slug).toBe('compacta');
   });
 });

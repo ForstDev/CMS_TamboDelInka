@@ -17,7 +17,7 @@
         "titulo_pagina": "Tambo del Inka – Outlets",
         "meta_descripcion": "Cartas de Tambo del Inka Resort & Spa – Valle Sagrado: desayuno, restaurante Hawa, Kiri Bar, room service, vinos, spa y más.",
         "logo_alt": "Tambo del Inka Resort & Spa – Valle Sagrado",
-        "color_fondo": "#ffffff",
+        "color_fondo": "#5f5b58",
         "color_texto": "#ffffff",
         "color_boton": "#ffffff",
         "color_boton_texto": "#333333",
@@ -31,7 +31,7 @@
       },
       "assets": {
         "logo": "logo-tdi-blanco.png",
-        "fondo": "fondo_intursa.jpg"
+        "fondo": "fondo_intursa.webp"
       },
       "buttons": [
         { "label": "Desayuno Breakfast",        "pdf": "TAMBO_Desayuno-2026-1.pdf" },
@@ -71,7 +71,7 @@
       },
       "assets": {
         "logo": "logo-palacio-del-inka.png",
-        "fondo": "fondo-palacio-del-inka.jpg"
+        "fondo": "fondo-palacio-del-inka.webp"
       },
       "buttons": [
         { "label": "Be Epicurean",          "pdf": "Be-Epicurean_PALACIO_2026_BI-digital.pdf" },
@@ -105,7 +105,7 @@
       },
       "assets": {
         "logo": "logo-hotel-paracas.png",
-        "fondo": "fondo-hotel-paracas.jpg"
+        "fondo": "fondo-hotel-paracas.webp"
       },
       "buttons": [
         { "label": "Be Epicurean",          "pdf": "Be-Epicurean_PARACAS_2026_BI-digital-1.pdf" },
@@ -139,7 +139,7 @@
       },
       "assets": {
         "logo": "logo-tambo-del-inka.png",
-        "fondo": "fondo-tambo-del-inka.jpg"
+        "fondo": "fondo-tambo-del-inka.webp"
       },
       "buttons": [
         { "label": "Be Epicurean",          "pdf": "Be-Epicurean_TAMBO_2026_BI-digital.pdf" },
@@ -161,7 +161,7 @@
         "titulo_pagina": "Hotel Paracas – Outlets",
         "meta_descripcion": "Cartas de Hotel Paracas, a Luxury Collection Resort – Paracas: restaurante Ballestas, Bar Lounge, Bar Zarcillo, La Trattoria, room service, vinos, menú de niños y piscina.",
         "logo_alt": "Hotel Paracas, a Luxury Collection Resort – Paracas",
-        "color_fondo": "#ffffff",
+        "color_fondo": "#5f5b58",
         "color_texto": "#ffffff",
         "color_boton": "#ffffff",
         "color_boton_texto": "#333333",
@@ -175,7 +175,7 @@
       },
       "assets": {
         "logo": "logo-hotel-paracas.png",
-        "fondo": "fondo-intursa.jpg"
+        "fondo": "fondo-intursa.webp"
       },
       "buttons": [
         { "label": "Restaurante Ballestas",     "pdf": "PARACAS_Almuerzo-y-Cena-2026-2.pdf" },
@@ -202,7 +202,7 @@
         "titulo_pagina": "Palacio del Inka – Outlets",
         "meta_descripcion": "Cartas de Palacio del Inka, a Luxury Collection Hotel – Cusco: desayuno, restaurante Inti Raymi, bebidas, Rumi Bar, room service, vinos y menú de niños.",
         "logo_alt": "Palacio del Inka, a Luxury Collection Hotel – Cusco",
-        "color_fondo": "#ffffff",
+        "color_fondo": "#5f5b58",
         "color_texto": "#ffffff",
         "color_boton": "#ffffff",
         "color_boton_texto": "#333333",
@@ -216,7 +216,7 @@
       },
       "assets": {
         "logo": "logo-palacio-del-inka.png",
-        "fondo": "fondo-intursa.jpg"
+        "fondo": "fondo-intursa.webp"
       },
       "buttons": [
         { "label": "Desayuno Breakfast",        "pdf": "PALACIO_Desayuno-2023-1-1.pdf" },
@@ -242,7 +242,7 @@
         "titulo_pagina": "Hotel Paracas – Aqu Spa",
         "meta_descripcion": "Aqu Spa de Hotel Paracas, a Luxury Collection Resort – Paracas: experiencias y promociones.",
         "logo_alt": "Hotel Paracas, a Luxury Collection Resort – Paracas",
-        "color_fondo": "#ffffff",
+        "color_fondo": "#5f5b58",
         "color_texto": "#ffffff",
         "color_boton": "#ffffff",
         "color_boton_texto": "#333333",
@@ -257,7 +257,7 @@
       },
       "assets": {
         "logo": "logo-hotel-paracas.png",
-        "fondo": "fondo-intursa.jpg"
+        "fondo": "fondo-intursa.webp"
       },
       "buttons": [
         { "label": "Experiencias | Experiences", "pdf": "AQU-SPA_brochure-2026-1-1.pdf" },
@@ -275,7 +275,7 @@
         "titulo_pagina": "Palacio del Inka – Andes Spirit Spa",
         "meta_descripcion": "Andes Spirit Spa de Palacio del Inka, a Luxury Collection Hotel – Cusco: experiencias y promociones.",
         "logo_alt": "Andes Spirit Spa – Palacio del Inka, a Luxury Collection Hotel",
-        "color_fondo": "#ffffff",
+        "color_fondo": "#5f5b58",
         "color_texto": "#ffffff",
         "color_boton": "#ffffff",
         "color_boton_texto": "#333333",
@@ -290,7 +290,7 @@
       },
       "assets": {
         "logo": "logo-andes-spirit-spa.png",
-        "fondo": "fondo-intursa.jpg"
+        "fondo": "fondo-intursa.webp"
       },
       "buttons": [
         { "label": "Experiencias | Experiences", "pdf": "Brochure-Andes-Spirit-Spa-2027.pdf" },
@@ -308,7 +308,7 @@
         "titulo_pagina": "Tambo del Inka – Kallpa Spa",
         "meta_descripcion": "Kallpa Spa de Tambo del Inka, a Luxury Collection Resort & Spa – Valle Sagrado: experiencias y promociones.",
         "logo_alt": "Kallpa Spa – Tambo del Inka, a Luxury Collection Resort & Spa",
-        "color_fondo": "#ffffff",
+        "color_fondo": "#5f5b58",
         "color_texto": "#ffffff",
         "color_boton": "#ffffff",
         "color_boton_texto": "#333333",
@@ -323,7 +323,7 @@
       },
       "assets": {
         "logo": "logo-kallpa-spa.png",
-        "fondo": "fondo-intursa.jpg"
+        "fondo": "fondo-intursa.webp"
       },
       "buttons": [
         { "label": "Experiencias | Experiences", "pdf": "2026_BROCHURE-KALLPA-SPA-1-1.pdf" },
@@ -341,7 +341,7 @@
         "titulo_pagina": "AC Hotel Lima Miraflores – Outlets",
         "meta_descripcion": "Cartas de AC Hotel by Marriott Lima Miraflores: desayuno, Insumo, AC Lounge, room service, vinos, Saladero, experiencias, minibar y AC Store.",
         "logo_alt": "AC Hotels by Marriott – Lima Miraflores",
-        "color_fondo": "#3a3a3b",
+        "color_fondo": "#3a393c",
         "color_texto": "#ffffff",
         "color_boton": "#ffffff",
         "color_boton_texto": "#333333",
@@ -357,7 +357,7 @@
       },
       "assets": {
         "logo": "logo-ac-hotels.png",
-        "fondo": "fondo-lima.jpg"
+        "fondo": "fondo-lima.webp"
       },
       "buttons": [
         {
@@ -418,7 +418,7 @@
         "titulo_pagina": "AC Hotel Lima Miraflores – Minibar",
         "meta_descripcion": "Minibar de AC Hotel by Marriott Lima Miraflores: minibar y AC Store.",
         "logo_alt": "AC Hotels by Marriott – Lima Miraflores",
-        "color_fondo": "#3a3a3b",
+        "color_fondo": "#3a393c",
         "color_texto": "#ffffff",
         "color_boton": "#ffffff",
         "color_boton_texto": "#333333",
@@ -434,7 +434,7 @@
       },
       "assets": {
         "logo": "logo-ac-hotels.png",
-        "fondo": "fondo-lima.jpg"
+        "fondo": "fondo-lima.webp"
       },
       "buttons": [
         {
@@ -467,7 +467,7 @@
         "titulo_pagina": "Aloft Lima Miraflores – Outlets",
         "meta_descripcion": "Cartas de Aloft Lima Miraflores: desayuno, almuerzo y cena, in room delivery, bebidas, re:fuel, experiencias y programa ARF.",
         "logo_alt": "Aloft Lima Miraflores",
-        "color_fondo": "#3a3a3b",
+        "color_fondo": "#3a393c",
         "color_texto": "#ffffff",
         "color_boton": "#ffffff",
         "color_boton_texto": "#333333",
@@ -483,7 +483,7 @@
       },
       "assets": {
         "logo": "logo-aloft-lima-miraflores.png",
-        "fondo": "fondo-lima.jpg"
+        "fondo": "fondo-lima.webp"
       },
       "buttons": [
         {
@@ -536,7 +536,7 @@
         "titulo_pagina": "Aloft Lima Miraflores – Minibar",
         "meta_descripcion": "Minibar de Aloft Lima Miraflores: re:fuel.",
         "logo_alt": "Aloft Lima Miraflores",
-        "color_fondo": "#3a3a3b",
+        "color_fondo": "#3a393c",
         "color_texto": "#ffffff",
         "color_boton": "#ffffff",
         "color_boton_texto": "#333333",
@@ -552,7 +552,7 @@
       },
       "assets": {
         "logo": "logo-aloft-lima-miraflores.png",
-        "fondo": "fondo-lima.jpg"
+        "fondo": "fondo-lima.webp"
       },
       "buttons": [
         {
@@ -581,7 +581,7 @@
         "titulo_pagina": "The Westin Lima – Outlets",
         "meta_descripcion": "Cartas de The Westin Lima Hotel & Convention Center: desayuno, Market 770, Maras, El Salar, room service, vinos, piscina, Lobby Lounge y Alphonse.",
         "logo_alt": "The Westin Lima Hotel & Convention Center",
-        "color_fondo": "#3a3a3b",
+        "color_fondo": "#3a393c",
         "color_texto": "#ffffff",
         "color_boton": "#ffffff",
         "color_boton_texto": "#333333",
@@ -597,7 +597,7 @@
       },
       "assets": {
         "logo": "logo-westin-lima.png",
-        "fondo": "fondo-lima.jpg"
+        "fondo": "fondo-lima.webp"
       },
       "buttons": [
         {
@@ -658,7 +658,7 @@
         "titulo_pagina": "The Westin Lima – Minibar",
         "meta_descripcion": "Minibar de The Westin Lima Hotel & Convention Center.",
         "logo_alt": "The Westin Lima Hotel & Convention Center",
-        "color_fondo": "#3a3a3b",
+        "color_fondo": "#3a393c",
         "color_texto": "#ffffff",
         "color_boton": "#ffffff",
         "color_boton_texto": "#333333",
@@ -674,7 +674,7 @@
       },
       "assets": {
         "logo": "logo-westin-lima.png",
-        "fondo": "fondo-lima.jpg"
+        "fondo": "fondo-lima.webp"
       },
       "buttons": [
         {

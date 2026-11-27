@@ -254,6 +254,9 @@ export function renderPage({ settings, buttons, socials, landing }: PageData, op
     ...s,
     ...layoutValues(s, template),
     fondo_imagen_css: useImage ? cssUrl(s.fondo_imagen_url) : '',
+    // La foto de fondo empieza a descargarse apenas llega el HTML, sin esperar a las hojas de estilo externas (fuentes e
+    // íconos) como pasaba al estar solo en el CSS. fetchpriority=high: es lo más importante de la pantalla.
+    fondo_preload_html: useImage ? `\n<link rel="preload" as="image" href="${escapeHtml(s.fondo_imagen_url)}" fetchpriority="high">` : '',
     novedades_url: s.novedades_activo === '1' ? s.novedades_url : '',
     botones_html,
     redes_html,

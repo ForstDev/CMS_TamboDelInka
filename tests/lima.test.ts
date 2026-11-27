@@ -90,14 +90,10 @@ describe('cartas_fuente: CSS de la página', () => {
   });
 });
 
-describe('panel: selector de fuente de los botones', () => {
-  const cms = fs.readFileSync(path.join(root, 'templates', 'cms.html'), 'utf8');
-  it('solo en "cartas", en la tarjeta Colores, con una opción por fuente de la lista', () => {
-    const block = cms.match(/<div class="field fuente-field" data-only="cartas">[\s\S]*?<\/div>/)![0];
-    expect(block).toContain('<select id="btn-fuente" data-setting="cartas_fuente" aria-describedby="btn-fuente-hint">');
-    expect([...block.matchAll(/<option value="([\w-]+)">/g)].map((m) => m[1])).toEqual([...CARTAS_FUENTES]);
-    expect(cms.indexOf('fuente-field')).toBeGreaterThan(cms.indexOf('data-color="color_boton_texto"'));
-    expect(cms.indexOf('fuente-field')).toBeLessThan(cms.indexOf('data-panel="textos"'));
+describe('panel: la fuente de los botones es parte de la estructura de cada landing', () => {
+  it('el panel no ofrece cambiarla (la define client.json: Montserrat, Code Next o Graphik)', () => {
+    const cms = fs.readFileSync(path.join(root, 'templates', 'cms.html'), 'utf8');
+    for (const marca of ['btn-fuente', 'fuente-field', 'cartas_fuente', 'Fuente de los botones']) expect(cms, marca).not.toContain(marca);
   });
 });
 
@@ -130,7 +126,7 @@ describe('client.json: landings de los hoteles de Lima', () => {
       // Pocos botones: logo cerca de los botones (compacta, como los outlets), no centrada.
       expect(l.settings?.cartas_distribucion ?? 'compacta', slug).toBe('compacta');
       expect(l.settings?.cartas_fuente, slug).toBe(e.fuente);
-      expect(l.assets, slug).toEqual({ logo: e.logo, fondo: 'fondo-lima.jpg' });
+      expect(l.assets, slug).toEqual({ logo: e.logo, fondo: 'fondo-lima.webp' });
       expect(l.buttons, slug).toHaveLength(e.botones);
       for (const b of l.buttons!) expect(b.pdf, `${slug}: ${b.label}`).toMatch(/\.pdf$/);
       // Redes oficiales del hotel (las que enlaza su página en marriott.com).
