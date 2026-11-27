@@ -44,10 +44,17 @@ export type BotonPeso = (typeof BOTON_PESOS)[number];
 /**
  * Solo "cartas": distribución vertical de la página.
  * - compacta: el diseño de siempre (todo seguido debajo del logo).
- * - centrada: logo arriba; botones, novedades, línea y redes al medio del espacio que queda debajo.
+ * - centrada: logo, botones, novedades, línea y redes forman un solo bloque, centrado en vertical en la pantalla.
  */
 export const CARTAS_DISTRIBUCIONES = ['compacta', 'centrada'] as const;
 export type CartasDistribucion = (typeof CARTAS_DISTRIBUCIONES)[number];
+
+/**
+ * Solo "cartas": fuente del texto de los botones (lista cerrada). 'poppins' es la de siempre; las demás son las
+ * fuentes de marca de cada hotel, servidas desde public/assets/fonts/ (ver FUENTES_BOTONES en src/render.ts).
+ */
+export const CARTAS_FUENTES = ['poppins', 'montserrat', 'code-next', 'graphik'] as const;
+export type CartasFuente = (typeof CARTAS_FUENTES)[number];
 
 export const TEMPLATES = ['cartas', 'experiencias'] as const;
 export type Template = (typeof TEMPLATES)[number];
@@ -111,6 +118,8 @@ export const settingsSchema = z.object({
   botones_por_fila: intText(1, 5, 'Los botones por fila deben ser un número entre 1 y 5'),
   // Solo "cartas": distribución vertical (lista cerrada; ver CARTAS_DISTRIBUCIONES).
   cartas_distribucion: z.enum(CARTAS_DISTRIBUCIONES, { error: 'La distribución debe ser «compacta» o «centrada»' }),
+  // Solo "cartas": fuente de los botones (lista cerrada; ver CARTAS_FUENTES).
+  cartas_fuente: z.enum(CARTAS_FUENTES, { error: 'La fuente de los botones debe ser poppins, montserrat, code-next o graphik' }),
   // Títulos de la plantilla "experiencias".
   titulo_linea1: text(60),
   titulo_linea2: text(60),
@@ -152,6 +161,7 @@ export const DEFAULT_SETTINGS: Settings = {
   boton_peso_hover: '700',
   botones_por_fila: '3',
   cartas_distribucion: 'compacta',
+  cartas_fuente: 'poppins',
   titulo_linea1: 'Experiences',
   titulo_linea2: 'Experiencias',
 };

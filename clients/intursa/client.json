@@ -330,6 +330,368 @@
         { "label": "Promociones | Offers",       "pdf": "Noviembre-KALLPA-SPA-Promos.pdf" }
       ],
       "socials": []
+    },
+    {
+      "slug": "outlets-ac",
+      "name": "AC Hotel Lima Miraflores – Outlets",
+      "hotel": "AC Hotel Lima Miraflores",
+      "template": "cartas",
+      "position": 0,
+      "settings": {
+        "titulo_pagina": "AC Hotel Lima Miraflores – Outlets",
+        "meta_descripcion": "Cartas de AC Hotel by Marriott Lima Miraflores: desayuno, Insumo, AC Lounge, room service, vinos, Saladero, experiencias, minibar y AC Store.",
+        "logo_alt": "AC Hotels by Marriott – Lima Miraflores",
+        "color_fondo": "#3a3a3b",
+        "color_texto": "#ffffff",
+        "color_boton": "#ffffff",
+        "color_boton_texto": "#333333",
+        "color_boton_hover": "#333333",
+        "color_texto_boton_hover": "#ffffff",
+        "novedades_activo": "1",
+        "novedades_texto": "¿Deseas recibir novedades y promociones?",
+        "novedades_link_texto": "Click aquí",
+        "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
+        "redes_titulo": "Síguenos",
+        "logo_ancho": "130",
+        "cartas_fuente": "montserrat"
+      },
+      "assets": {
+        "logo": "logo-ac-hotels.png",
+        "fondo": "fondo-lima.jpg"
+      },
+      "buttons": [
+        {
+          "label": "Desayuno | Breakfast",
+          "pdf": "Carta_Desayuno-AC-KITCHEN-ESP-2026.pdf"
+        },
+        {
+          "label": "Insumo",
+          "pdf": "2026-INSUMO-CARTA-digital.pdf"
+        },
+        {
+          "label": "AC Lounge",
+          "pdf": "2026-Carta-AC-Lounge-BI-Digital.pdf"
+        },
+        {
+          "label": "Servicio a la habitación | Room Service",
+          "pdf": "2026-Carta_IRD-AC_BI.pdf"
+        },
+        {
+          "label": "Vinos | Wine List",
+          "pdf": "Carta-Vinos-2023-AC-ESP-ENG-1-2-2.pdf"
+        },
+        {
+          "label": "Saladero",
+          "pdf": "2026-SALADERO-Carta-BI-Digital.pdf"
+        },
+        {
+          "label": "Experiencias | Experiences",
+          "pdf": "2023_AC-EXPERIENCIAS-BI-2.pdf"
+        },
+        {
+          "label": "Minibar",
+          "pdf": "2023_MINIBAR_AC-BI.pdf"
+        },
+        {
+          "label": "AC Store",
+          "pdf": "2023_AC-STORE-BI.pdf"
+        }
+      ],
+      "socials": [
+        {
+          "network": "facebook",
+          "url": "https://www.facebook.com/aclimamiraflores/"
+        },
+        {
+          "network": "instagram",
+          "url": "https://www.instagram.com/aclimamiraflores/"
+        }
+      ]
+    },
+    {
+      "slug": "acminibar",
+      "name": "AC Hotel Lima Miraflores – Minibar",
+      "hotel": "AC Hotel Lima Miraflores",
+      "template": "cartas",
+      "position": 3,
+      "settings": {
+        "titulo_pagina": "AC Hotel Lima Miraflores – Minibar",
+        "meta_descripcion": "Minibar de AC Hotel by Marriott Lima Miraflores: minibar y AC Store.",
+        "logo_alt": "AC Hotels by Marriott – Lima Miraflores",
+        "color_fondo": "#3a3a3b",
+        "color_texto": "#ffffff",
+        "color_boton": "#ffffff",
+        "color_boton_texto": "#333333",
+        "color_boton_hover": "#333333",
+        "color_texto_boton_hover": "#ffffff",
+        "novedades_activo": "1",
+        "novedades_texto": "¿Deseas recibir novedades y promociones?",
+        "novedades_link_texto": "Click aquí",
+        "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
+        "redes_titulo": "Síguenos",
+        "logo_ancho": "130",
+        "cartas_fuente": "montserrat"
+      },
+      "assets": {
+        "logo": "logo-ac-hotels.png",
+        "fondo": "fondo-lima.jpg"
+      },
+      "buttons": [
+        {
+          "label": "Minibar",
+          "pdf": "Minibar_AC_Paquetes.pdf"
+        },
+        {
+          "label": "AC Store",
+          "pdf": "Minibar_AC_AC-Store-2026.pdf"
+        }
+      ],
+      "socials": [
+        {
+          "network": "facebook",
+          "url": "https://www.facebook.com/aclimamiraflores/"
+        },
+        {
+          "network": "instagram",
+          "url": "https://www.instagram.com/aclimamiraflores/"
+        }
+      ]
+    },
+    {
+      "slug": "outletsaloft",
+      "name": "Aloft Lima Miraflores – Outlets",
+      "hotel": "Aloft Lima Miraflores",
+      "template": "cartas",
+      "position": 0,
+      "settings": {
+        "titulo_pagina": "Aloft Lima Miraflores – Outlets",
+        "meta_descripcion": "Cartas de Aloft Lima Miraflores: desayuno, almuerzo y cena, in room delivery, bebidas, re:fuel, experiencias y programa ARF.",
+        "logo_alt": "Aloft Lima Miraflores",
+        "color_fondo": "#3a3a3b",
+        "color_texto": "#ffffff",
+        "color_boton": "#ffffff",
+        "color_boton_texto": "#333333",
+        "color_boton_hover": "#333333",
+        "color_texto_boton_hover": "#ffffff",
+        "novedades_activo": "1",
+        "novedades_texto": "¿Deseas recibir novedades y promociones?",
+        "novedades_link_texto": "Click aquí",
+        "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
+        "redes_titulo": "Síguenos",
+        "logo_ancho": "220",
+        "cartas_fuente": "code-next"
+      },
+      "assets": {
+        "logo": "logo-aloft-lima-miraflores.png",
+        "fondo": "fondo-lima.jpg"
+      },
+      "buttons": [
+        {
+          "label": "Desayuno | Breakfast",
+          "pdf": "2026-Desayuno-WXYZ-BI-A4.pdf"
+        },
+        {
+          "label": "Almuerzo y cena | Lunch & Dinner",
+          "pdf": "2026-Aloft-Carta-Digital.pdf"
+        },
+        {
+          "label": "In Room Delivery 24 hrs",
+          "pdf": "2026-IRD-BI.pdf"
+        },
+        {
+          "label": "Bebidas | Drinks",
+          "pdf": "2025-Aloft-Bebidas-A4-fisica-7.pdf"
+        },
+        {
+          "label": "Re:fuel",
+          "pdf": "2026-Refuel-BI.pdf"
+        },
+        {
+          "label": "Experiencias | Experiences",
+          "pdf": "2024_Momentos-Experiencias-ALOFT.pdf"
+        },
+        {
+          "label": "Programa ARF | ARF Program",
+          "pdf": "2024-Programa-ARF-BI-new.pdf"
+        }
+      ],
+      "socials": [
+        {
+          "network": "facebook",
+          "url": "https://www.facebook.com/aloftlimamiraflores/"
+        },
+        {
+          "network": "instagram",
+          "url": "https://www.instagram.com/aloftlimamiraflores/"
+        }
+      ]
+    },
+    {
+      "slug": "aloftminibar",
+      "name": "Aloft Lima Miraflores – Minibar",
+      "hotel": "Aloft Lima Miraflores",
+      "template": "cartas",
+      "position": 3,
+      "settings": {
+        "titulo_pagina": "Aloft Lima Miraflores – Minibar",
+        "meta_descripcion": "Minibar de Aloft Lima Miraflores: re:fuel.",
+        "logo_alt": "Aloft Lima Miraflores",
+        "color_fondo": "#3a3a3b",
+        "color_texto": "#ffffff",
+        "color_boton": "#ffffff",
+        "color_boton_texto": "#333333",
+        "color_boton_hover": "#333333",
+        "color_texto_boton_hover": "#ffffff",
+        "novedades_activo": "1",
+        "novedades_texto": "¿Deseas recibir novedades y promociones?",
+        "novedades_link_texto": "Click aquí",
+        "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
+        "redes_titulo": "Síguenos",
+        "logo_ancho": "220",
+        "cartas_fuente": "code-next"
+      },
+      "assets": {
+        "logo": "logo-aloft-lima-miraflores.png",
+        "fondo": "fondo-lima.jpg"
+      },
+      "buttons": [
+        {
+          "label": "Re:fuel",
+          "pdf": "2026-Refuel-BI-1.pdf"
+        }
+      ],
+      "socials": [
+        {
+          "network": "facebook",
+          "url": "https://www.facebook.com/aloftlimamiraflores/"
+        },
+        {
+          "network": "instagram",
+          "url": "https://www.instagram.com/aloftlimamiraflores/"
+        }
+      ]
+    },
+    {
+      "slug": "outletswestin",
+      "name": "The Westin Lima – Outlets",
+      "hotel": "The Westin Lima",
+      "template": "cartas",
+      "position": 0,
+      "settings": {
+        "titulo_pagina": "The Westin Lima – Outlets",
+        "meta_descripcion": "Cartas de The Westin Lima Hotel & Convention Center: desayuno, Market 770, Maras, El Salar, room service, vinos, piscina, Lobby Lounge y Alphonse.",
+        "logo_alt": "The Westin Lima Hotel & Convention Center",
+        "color_fondo": "#3a3a3b",
+        "color_texto": "#ffffff",
+        "color_boton": "#ffffff",
+        "color_boton_texto": "#333333",
+        "color_boton_hover": "#333333",
+        "color_texto_boton_hover": "#ffffff",
+        "novedades_activo": "1",
+        "novedades_texto": "¿Deseas recibir novedades y promociones?",
+        "novedades_link_texto": "Click aquí",
+        "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
+        "redes_titulo": "Síguenos",
+        "logo_ancho": "260",
+        "cartas_fuente": "graphik"
+      },
+      "assets": {
+        "logo": "logo-westin-lima.png",
+        "fondo": "fondo-lima.jpg"
+      },
+      "buttons": [
+        {
+          "label": "Desayuno",
+          "pdf": "Market-Desayunos-2026.pdf"
+        },
+        {
+          "label": "Market 770",
+          "pdf": "Carta-Market-otono.pdf"
+        },
+        {
+          "label": "Maras",
+          "pdf": "2026-Carta_Maras-Digital_Otono.pdf"
+        },
+        {
+          "label": "El Salar",
+          "pdf": "2026-Carta_El-Salar-Digital_Otono.pdf"
+        },
+        {
+          "label": "Room Service",
+          "pdf": "IRD-otono-2026-1.pdf"
+        },
+        {
+          "label": "Vinos",
+          "pdf": "Maras-VINOS-Interiores.pdf"
+        },
+        {
+          "label": "Carta Piscina",
+          "pdf": "Carta-Bebidas-Piscina-Westin.pdf"
+        },
+        {
+          "label": "Lobby Lounge",
+          "pdf": "Carta-Lobby-Otono.pdf"
+        },
+        {
+          "label": "Alphonse",
+          "pdf": "AF_Alphonse_Carta-2026_Digital.pdf"
+        }
+      ],
+      "socials": [
+        {
+          "network": "facebook",
+          "url": "https://www.facebook.com/westinlima/"
+        },
+        {
+          "network": "instagram",
+          "url": "https://www.instagram.com/westinlima/"
+        }
+      ]
+    },
+    {
+      "slug": "minibarwestin",
+      "name": "The Westin Lima – Minibar",
+      "hotel": "The Westin Lima",
+      "template": "cartas",
+      "position": 3,
+      "settings": {
+        "titulo_pagina": "The Westin Lima – Minibar",
+        "meta_descripcion": "Minibar de The Westin Lima Hotel & Convention Center.",
+        "logo_alt": "The Westin Lima Hotel & Convention Center",
+        "color_fondo": "#3a3a3b",
+        "color_texto": "#ffffff",
+        "color_boton": "#ffffff",
+        "color_boton_texto": "#333333",
+        "color_boton_hover": "#333333",
+        "color_texto_boton_hover": "#ffffff",
+        "novedades_activo": "1",
+        "novedades_texto": "¿Deseas recibir novedades y promociones?",
+        "novedades_link_texto": "Click aquí",
+        "novedades_url": "https://www.intursa.com.pe/promociones/suscripcion/",
+        "redes_titulo": "Síguenos",
+        "logo_ancho": "260",
+        "cartas_fuente": "graphik"
+      },
+      "assets": {
+        "logo": "logo-westin-lima.png",
+        "fondo": "fondo-lima.jpg"
+      },
+      "buttons": [
+        {
+          "label": "Minibar",
+          "pdf": "Westin_RefreshCenter-Pricelist-9.6x15.6_2026-1-1.pdf"
+        }
+      ],
+      "socials": [
+        {
+          "network": "facebook",
+          "url": "https://www.facebook.com/westinlima/"
+        },
+        {
+          "network": "instagram",
+          "url": "https://www.instagram.com/westinlima/"
+        }
+      ]
     }
   ]
 }

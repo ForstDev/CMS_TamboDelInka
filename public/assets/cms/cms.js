@@ -691,23 +691,18 @@ function renderDesign() {
   });
 
   // Tamaño (deslizador con data-setting="logo_ancho", se guarda solo) y posición del logo
-  // En "experiencias", al elegir un preajuste el ajuste fino vuelve a 0 (misma petición); en las demás plantillas no existe.
+  // Al elegir un preajuste el ajuste fino vuelve a 0 (misma petición). Vale para todas las plantillas.
   state._syncLogoPos = wireSegmented($('#logo-pos'), state.settings.logo_posicion || 'center', (v) => {
-    if (hasLogoX()) applyLogoLayout({ logo_posicion: v, logo_x: '0' });
-    else saveSetting('logo_posicion', v, { immediate: true });
+    applyLogoLayout({ logo_posicion: v, logo_x: '0' });
   });
   $('#logo-reset').addEventListener('click', () => {
-    const before = { logo_ancho: state.settings.logo_ancho, logo_posicion: state.settings.logo_posicion };
-    const defaults = { logo_ancho: state.defaults.logo_ancho || '260', logo_posicion: state.defaults.logo_posicion || 'center' };
-    if (hasLogoX()) {
-      before.logo_x = state.settings.logo_x ?? '0';
-      defaults.logo_x = '0';
-    }
+    const before = { logo_ancho: state.settings.logo_ancho, logo_posicion: state.settings.logo_posicion, logo_x: state.settings.logo_x ?? '0' };
+    const defaults = { logo_ancho: state.defaults.logo_ancho || '260', logo_posicion: state.defaults.logo_posicion || 'center', logo_x: '0' };
     applyLogoLayout(defaults);
     toast('Tamaño y posición restablecidos', 'ok', { action: 'Deshacer', onAction: () => applyLogoLayout(before), duration: 6000 });
   });
 
-  // Ajuste fino horizontal (solo "experiencias"): el deslizador (data-setting="logo_x") se guarda solo.
+  // Ajuste fino horizontal (todas las plantillas): el deslizador (data-setting="logo_x") se guarda solo.
   $('#logo-x-center').addEventListener('click', () => setLogoX(0));
 
   // Tamaño de los textos (solo "experiencias"): los tres deslizadores (data-setting) se guardan solos.
@@ -791,12 +786,10 @@ function renderPctSliders() {
   }
 }
 
-// ---------- Ajuste fino horizontal del logo (plantilla "experiencias") ----------
+// ---------- Ajuste fino horizontal del logo (todas las plantillas) ----------
 
 const LOGO_X_MIN = -50;
 const LOGO_X_MAX = 50;
-/** Solo la plantilla "experiencias" tiene ajuste fino horizontal. */
-const hasLogoX = () => state.landing?.template === 'experiencias';
 
 /** Entero −50…50 (basura → 0). */
 function clampLogoX(n) {
@@ -812,7 +805,6 @@ function fmtLogoX(n) {
 
 /** Guarda al instante un nuevo desplazamiento (botón «Centrar» o arrastre en la vista previa). */
 function setLogoX(value) {
-  if (!hasLogoX()) return;
   cancelDebounced('setting:logo_x'); // un guardado pendiente del deslizador mandaría un valor viejo después
   saveSetting('logo_x', String(clampLogoX(value)), { immediate: true });
 }
@@ -907,7 +899,7 @@ function renderDesignPreview() {
     logo.style.width = `${(ancho / 400) * 100}%`;
     $('#logo-stage').style.justifyItems = { left: 'start', right: 'end' }[s.logo_posicion] || 'center';
     $('#logo-size-value').textContent = `${ancho} px`;
-    // Ajuste fino horizontal (solo se ve en "experiencias"; si la clave falta, 0).
+    // Ajuste fino horizontal (si la clave falta, 0).
     const lx = clampLogoX(s.logo_x ?? 0);
     const lxInput = $('#logo-x');
     if (lxInput.value !== String(lx)) lxInput.value = String(lx);

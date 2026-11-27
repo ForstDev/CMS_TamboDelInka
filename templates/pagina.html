@@ -212,15 +212,24 @@
 
     .linea { max-width: 680px; }
   }
-{{#if dist_centrada}}
+{{#if fuente_botones_css}}
+  /* ---------- Fuente de los botones (fuente de marca del hotel) ---------- */
+{{{fuente_botones_css}}}{{/if}}{{#if logo_x_activo}}
+  /* ---------- Ajuste fino horizontal del logo ----------
+     Solo se escribe si el logo se desplaza (o en la vista previa del panel): la página pública sin ajuste no cambia.
+     % del ancho de .pagina, relativo a la posición del preajuste (izquierda/centro/derecha); nunca crea scroll horizontal. */
+  :root { --logo-x: {{logo_x_css}}; }
+  body { overflow-x: clip; }
+  .logo { position: relative; left: calc(var(--logo-x) * 1%); }
+{{/if}}{{#if dist_centrada}}
   /* ---------- Distribución «centrada» ----------
-     El logo queda arriba; botones + novedades + línea (+ redes) van al medio del espacio que queda debajo.
-     .pagina se estira a todo el alto de body (min-height 100svh, flex con align-items: stretch); el bloque
-     queda entre dos márgenes automáticos, con al menos 48 px libres arriba (bajo el logo) y abajo. Si no cabe,
-     los márgenes automáticos valen 0 y la página crece con scroll vertical normal (nunca se solapan). */
+     Logo + botones + novedades + línea (+ redes) forman un solo bloque, centrado en vertical en la pantalla,
+     con el logo cerca de los botones. .pagina se estira a todo el alto de body (min-height 100svh, flex con
+     align-items: stretch); el bloque queda entre dos márgenes automáticos (primer y último hijo), con al menos
+     48 px libres arriba y abajo. Si no cabe, los márgenes automáticos valen 0 y la página crece con scroll
+     vertical normal (nunca se solapan). */
   .dist-centrada .pagina { align-self: stretch; padding-bottom: 48px; }
-  .dist-centrada .logo { margin-bottom: 48px; }
-  .dist-centrada .menu { margin-top: auto; }
+  .dist-centrada .logo { margin-top: auto; margin-bottom: 28px; }
   .dist-centrada .pagina > :last-child { margin-bottom: auto; }
 {{/if}}</style>
 </head>
@@ -250,7 +259,7 @@
   </footer>
   {{/if}}
 
-</main>
+</main>{{{preview_script_html}}}
 
 </body>
 </html>

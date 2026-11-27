@@ -37,6 +37,7 @@ import * as repo from './repo.js';
 import { runWithLanding, type Landing } from './context.js';
 import { defaultSettingsFor, landingSlug, settingsSchema, TEMPLATES, type Settings, type Template } from './validation.js';
 import type { Network } from './networks.js';
+import { LEGACY_REDIRECTS } from './legacy.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -186,6 +187,22 @@ export async function seed({
   const { config, dir } = source ?? (await loadClientConfig());
   if (config.id !== env.clientId) throw new Error(`client.json tiene id "${config.id}" pero CLIENT_ID es "${env.clientId}"`);
   const landings = configLandings(config);
+
+  // Antes de crear nada: si una landing de client.json no existe con su dirección final pero sí con una dirección
+  // anterior (scripts/ajustar-landings.ts aún no se ejecutó), crearla la duplicaría. Se detiene sin tocar la base.
+  const pendientes: string[] = [];
+  for (const cfg of landings) {
+    if (cfg.is_default || (await repo.getLandingBySlug(cfg.slug))) continue;
+    for (const [from, to] of Object.entries(LEGACY_REDIRECTS)) {
+      if (to === `/${cfg.slug}` && (await repo.getLandingBySlug(from.slice(1)))) pendientes.push(`${from} → /${cfg.slug}`);
+    }
+  }
+  if (pendientes.length) {
+    throw new Error(
+      `Hay landings con su dirección anterior (${pendientes.join(', ')}). Ejecuta primero ` +
+        '`npx tsx scripts/ajustar-landings.ts aplicar --confirmar`; si no, se crearían duplicadas. No se cambió nada.',
+    );
+  }
 
   let loaded = 0;
   let adminNeeded = false;

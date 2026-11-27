@@ -353,23 +353,37 @@ describe('experiencias: logo_x (desplazamiento horizontal del logo)', () => {
     expect(render({ logo_posicion: 'right', logo_x: '-8' })).toContain('align-items: flex-end;');
   });
 
-  it('el script de arrastre solo está en la vista previa de "experiencias"', () => {
+  it('el script de arrastre solo está en la vista previa (nunca en la página pública)', () => {
     const tag = '<script src="/assets/cms/preview-drag.js" defer></script>';
     const preview = render({}, { preview: true });
     expect(preview).toContain(tag);
     expect(preview.match(/<script/g)).toHaveLength(1);
     expect(preview.indexOf(tag)).toBeGreaterThan(preview.indexOf('</main>'));
     expect(preview.indexOf(tag)).toBeLessThan(preview.indexOf('</body>'));
-    // Página pública (con y sin noindex) y vista previa sin plantilla experiencias: nada.
+    // Página pública (con y sin noindex): nada.
     for (const html of [render(), render({ logo_x: '20' }), renderPage({ settings: settings(), buttons: BUTTONS, socials: SOCIALS, landing }, { noindex: true })]) {
       expect(html).not.toContain('preview-drag');
       expect(html).not.toContain('<script');
     }
-    const cartas = (opts: { preview?: boolean }) =>
-      renderPage({ settings: defaultSettingsFor('cartas'), buttons: [], socials: [], landing: { template: 'cartas' } }, opts);
-    expect(cartas({ preview: true })).not.toContain('preview-drag');
-    expect(cartas({})).not.toContain('preview-drag');
-    expect(renderPage({ settings: defaultSettingsFor('cartas'), buttons: [], socials: [] }, { preview: true })).not.toContain('preview-drag');
+    // "cartas" (outlets y spas): también se puede arrastrar el logo en la vista previa, y solo ahí.
+    const cartas = (opts: { preview?: boolean }, logo_x = '0') =>
+      renderPage({ settings: { ...defaultSettingsFor('cartas'), logo_x }, buttons: [], socials: [], landing: { template: 'cartas' } }, opts);
+    const tagC = '<script src="/assets/cms/preview-drag.js" defer></script>';
+    const cp = cartas({ preview: true });
+    expect(cp).toContain(tagC);
+    expect(cp.match(/<script/g)).toHaveLength(1);
+    expect(cp.indexOf(tagC)).toBeGreaterThan(cp.indexOf('</main>'));
+    expect(cp).toContain('left: calc(var(--logo-x) * 1%);'); // en la vista previa siempre, para que el arrastre se vea al instante
+    for (const html of [cartas({}), cartas({}, '20'), cartas({ noindex: true } as any)]) {
+      expect(html).not.toContain('preview-drag');
+      expect(html).not.toContain('<script');
+    }
+    // Página pública de "cartas": el CSS del ajuste fino solo existe si hay desplazamiento.
+    expect(cartas({})).not.toContain('--logo-x');
+    expect(cartas({}, '20')).toContain(':root { --logo-x: 20; }');
+    expect(cartas({}, '-12')).toContain(':root { --logo-x: -12; }');
+    expect(cartas({}, '99')).toContain(':root { --logo-x: 50; }');
+    expect(cartas({}, '20')).toContain('left: calc(var(--logo-x) * 1%);');
     expect(preview).not.toContain('{{');
   });
 });
@@ -462,8 +476,8 @@ describe('panel: ajuste fino del logo y mensajes de la vista previa', () => {
   const cms = readFileSync(join(process.cwd(), 'templates', 'cms.html'), 'utf8');
   const js = readFileSync(join(process.cwd(), 'public', 'assets', 'cms', 'cms.js'), 'utf8');
 
-  it('tarjeta Logo: control solo para experiencias, accesible', () => {
-    const block = cms.match(/<div class="logo-x" data-only="experiencias">[\s\S]*?<\/div>\s*<\/div>/)![0];
+  it('tarjeta Logo: control para todas las plantillas, accesible', () => {
+    const block = cms.match(/<div class="logo-x">[\s\S]*?<\/div>\s*<\/div>/)![0];
     expect(block).toContain('<input type="range" id="logo-x" min="-50" max="50" step="1" data-setting="logo_x" aria-describedby="logo-x-value logo-x-hint">');
     expect(block).toContain('<output class="range-value" id="logo-x-value" for="logo-x">');
     expect(block).toContain('Ajuste fino horizontal');
@@ -490,7 +504,8 @@ describe('panel: ajuste fino del logo y mensajes de la vista previa', () => {
     expect(js).toContain("['#preview-frame', '#preview-frame-mobile', '#preview-frame-full']");
     // Un preajuste y «Restablecer» también devuelven logo_x a 0.
     expect(js).toContain("applyLogoLayout({ logo_posicion: v, logo_x: '0' })");
-    expect(js).toContain("defaults.logo_x = '0'");
+    expect(js).toContain("logo_x: '0' };");
+    expect(js).not.toContain('hasLogoX');
   });
 });
 

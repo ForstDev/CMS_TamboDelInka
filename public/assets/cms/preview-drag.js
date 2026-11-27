@@ -1,4 +1,4 @@
-// Vista previa del panel (solo plantilla "experiencias"): arrastrar el logo en horizontal.
+// Vista previa del panel (todas las plantillas): arrastrar el logo en horizontal.
 // Script clásico, sin dependencias. NUNCA se incluye en la página pública (lo decide renderPage con opts.preview).
 //
 // El desplazamiento (--logo-x) va en % del ancho de .marca y es relativo al preajuste (izquierda/centro/derecha).
@@ -46,7 +46,8 @@
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
   var logo = document.querySelector('.logo');
-  var marca = document.querySelector('.marca');
+  // El desplazamiento es relativo al contenedor del logo: .marca en "experiencias", .pagina en "cartas".
+  var marca = document.querySelector('.marca') || (logo && logo.parentElement);
   if (!logo || !marca) return; // sin logo no hay nada que arrastrar
 
   // Solo en la vista previa: cursor, contorno sutil al pasar y sin gestos del navegador sobre el logo.

@@ -17,6 +17,9 @@ redes, ajustes y estadísticas; un solo usuario del panel las edita todas.
 | `/aquspa` | Hotel Paracas – Aqu Spa (plantilla `cartas`, distribución centrada) |
 | `/spa-palaciodelinka` | Palacio del Inka – Andes Spirit Spa (plantilla `cartas`, distribución centrada) |
 | `/spa-tambodelinka` | Tambo del Inka – Kallpa Spa (plantilla `cartas`, distribución centrada) |
+| `/outlets-ac` · `/acminibar` | AC Hotel Lima Miraflores – Outlets y Minibar (plantilla `cartas`, fuente Montserrat en los botones) |
+| `/outletsaloft` · `/aloftminibar` | Aloft Lima Miraflores – Outlets y Minibar (plantilla `cartas`, fuente Code Next en los botones) |
+| `/outletswestin` · `/minibarwestin` | The Westin Lima – Outlets y Minibar (plantilla `cartas`, fuente Graphik en los botones) |
 | Direcciones anteriores | Redirigen (301, conservando la consulta `?…`) a la final: `/tambo-outlets`, `/experiencias-palacio-del-inka`, `/experiencias-hotel-paracas`, `/experiencias-tambo-del-inka`, `/outlets-hotel-paracas`, `/outlets-palacio-del-inka`, `/spa-hotel-paracas`, `/spa-palacio-del-inka`, `/spa-tambo-del-inka` y las intermedias `/aqu-spa`, `/andes-spirit-spa`, `/kallpa-spa` (`LEGACY_REDIRECTS` en `src/app.ts`). Mientras una landing activa conserve esa dirección en la base, se sirve ella en vez de redirigir |
 | `/go/<id>` | Cada botón (de cualquier landing) pasa por aquí: se registra el clic en su landing y se abre el PDF o enlace |
 | `/go/social/<id>` | Cada ícono de red social pasa por aquí: se registra el clic en su landing y se abre la red |
@@ -42,7 +45,7 @@ npm run dev
 
 Abre http://localhost:3000 (página) y http://localhost:3000/cms_login (panel).
 
-La primera vez se crea sola una base local en `.data/` con las 9 landings de `clients/intursa/client.json`
+La primera vez se crea sola una base local en `.data/` con las 15 landings de `clients/intursa/client.json`
 (Tambo Outlets con sus 9 botones, las 3 de Experiencias con 3 botones cada una, Hotel Paracas – Outlets con 8,
 Palacio del Inka – Outlets con 7 y los 3 Spa (Aqu, Andes Spirit y Kallpa) con 2 cada uno, con sus PDF, logos y fotos).
 No hace falta Supabase para probar. Las otras landings se abren en http://localhost:3000/<slug>.
@@ -101,7 +104,7 @@ FORCE_LOCAL=1 npm run setup -- --force --borrar-clics
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
 
-4. Crea tablas, bucket de archivos y carga los datos (crea las 9 landings y sube sus PDF, logos y fondos):
+4. Crea tablas, bucket de archivos y carga los datos (crea las 15 landings y sube sus PDF, logos y fondos):
 
    ```bash
    npm run setup
@@ -212,6 +215,10 @@ CNAME que Vercel indique.
 ## 5. Antes de salir en vivo con el cliente
 
 - [ ] Cambiar la contraseña de demo (menú de cuenta › Cambiar contraseña).
+- [ ] Confirmar con el cliente la **licencia web** de las fuentes de marca: Sofia Pro (Experiencias), Code Next (Aloft) y
+  Graphik Starwood (Westin). Sus archivos dicen «solo vista previa e impresión» (fsType 4): para servirlas en una web
+  hace falta la licencia web del proveedor. Montserrat (AC) es libre (OFL). Si no hay licencia, en el panel
+  (Diseño › Colores › Fuente de los botones) se vuelve a Poppins en un clic.
 - [ ] Confirmar con el cliente que los enlaces de Facebook e Instagram de cada landing (pestaña Redes) son los oficiales y agregar las demás redes que usen. Una red sin enlace no se muestra. (Los de `client.json` se tomaron de las páginas oficiales de Marriott de cada hotel.)
 - [ ] Borrar las estadísticas de prueba: en el panel se borran **por landing** (elegirla en "Estás editando" › Estadísticas › Borrar estadísticas); `npm run setup -- --borrar-clics` borra las de **todas**.
 - [ ] Poner `NOINDEX=0` en Vercel y volver a desplegar.
@@ -220,7 +227,7 @@ CNAME que Vercel indique.
 - [ ] **Fuentes definitivas** de la plantilla `experiencias`: hoy usa Sofia Sans + Cormorant Garamond (Google Fonts) de forma
       **provisional**, hasta que el diseñador confirme las fuentes de marca (posiblemente Sofia Pro, que es de pago).
 - [ ] **Foto de Palacio del Inka más alta** (vertical) para que se vea bien en celular.
-- [ ] Las otras **6 landings de Outlets/Minibar** quedan **en pausa** hasta recibir sus mockups.
+- [ ] Los **minibares** de Hotel Paracas, Tambo del Inka y Palacio del Inka siguen pendientes (los de Lima ya están).
 - [ ] Revisión de seguridad del login por equipo: confirmar que Vercel sobrescribe `X-Forwarded-For` (si no, alguien
       podría falsear su IP para saltarse el límite) y decidir si se agrega además un tope por cuenta.
 
@@ -267,6 +274,14 @@ Es mecánico: no hace falta tocar código ni la base a mano.
    `npm run setup` **sin `--force`** (crea solo las landings que faltan y no toca las que ya tienen datos ni sus clics) y
    `npm run verificar`.
 5. **Verificar**: abre `/<slug>` en producción, prueba un botón y una red, y en el panel elígela en «Estás editando».
+
+Si alguna landing de `client.json` todavía existe en la base con su **dirección anterior** (`LEGACY_REDIRECTS`,
+`src/legacy.ts`), `npm run setup` se detiene sin cambiar nada: primero hay que ejecutar `scripts/ajustar-landings.ts`
+(si no, la crearía duplicada).
+
+**Fuente de los botones (solo `cartas`):** `"cartas_fuente"` en `settings` (o en el panel, Diseño › Colores): `poppins`
+(la de siempre), `montserrat` (AC), `code-next` (Aloft) o `graphik` (Westin). Los WOFF2 están en `public/assets/fonts/`
+(los originales OTF, en `clients/intursa/seed/fuentes/`, que no se sube a git). Con `poppins` la página queda igual que antes.
 
 Sus archivos se suben a `<cliente>/<slug>/<tipo>/…` en Supabase Storage (los de la landing por defecto siguen en `<cliente>/<tipo>/…`).
 Si la versión del código que la soporta todavía no está desplegada, sigue el [orden de despliegue](#orden-despliegue).

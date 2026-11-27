@@ -333,7 +333,7 @@ describe('varias landings: API, rutas y aislamiento', () => {
     expect((await asB(agent.patch('/api/cms/settings')).send({ logo_x: 5 })).status).toBe(400); // debe ser texto
     expect((await asB(agent.get('/api/cms/state'))).body.settings.logo_x).toBe('0'); // los rechazos no cambian nada
 
-    // Sale en el CSS de Experiencias; el script de arrastre solo en la vista previa de Experiencias.
+    // Sale en el CSS de Experiencias; el script de arrastre solo en la vista previa.
     await asB(agent.patch('/api/cms/settings')).send({ logo_x: '33' });
     const preview = await asB(agent.get('/api/cms/preview'));
     expect(preview.text).toContain('--logo-x: 33;');
@@ -342,7 +342,7 @@ describe('varias landings: API, rutas y aislamiento', () => {
     expect(pub.text).toContain('--logo-x: 33;');
     expect(pub.text).not.toContain('preview-drag');
     expect(pub.text).not.toContain('<script');
-    expect((await agent.get('/api/cms/preview')).text).not.toContain('preview-drag'); // "cartas"
+    expect((await agent.get('/api/cms/preview')).text).toContain('<script src="/assets/cms/preview-drag.js" defer></script>'); // "cartas": también se arrastra
     await asB(agent.patch('/api/cms/settings')).send({ logo_posicion: 'left', logo_x: '0' }); // como lo dejó la prueba anterior
   });
 
@@ -752,8 +752,16 @@ describe('plantillas', () => {
       expect(before, name).toMatch(OLD_BODY);
       const expected = before.replace(OLD_LOGO, NEW_LOGO).replace(OLD_BODY, newBody);
       const socials = 'noSocials' in v ? [] : CARTAS_SOCIALS;
-      const page = (settings: any, landing?: any) =>
-        norm(renderPage({ settings, buttons: CARTAS_BUTTONS as any, socials: socials as any, landing }, v.opts as any));
+      // Solo la vista previa del panel añade el ajuste fino del logo y el script de arrastre; se quitan para comparar.
+      const SIN_ARRASTRE_CSS = /\n {2}\/\* -{10} Ajuste fino horizontal del logo[\s\S]*?\.logo \{ position: relative; left: calc\(var\(--logo-x\) \* 1%\); \}\n/;
+      const SCRIPT = '<script src="/assets/cms/preview-drag.js" defer></script>';
+      const page = (settings: any, landing?: any) => {
+        const html = norm(renderPage({ settings, buttons: CARTAS_BUTTONS as any, socials: socials as any, landing }, v.opts as any));
+        if (name !== 'preview') return html;
+        expect(html).toMatch(SIN_ARRASTRE_CSS);
+        expect(html).toContain(`</main>${SCRIPT}`);
+        return html.replace(SIN_ARRASTRE_CSS, '').replace(`</main>${SCRIPT}`, '</main>');
+      };
       // Con todos los valores por defecto nuevos explícitos…
       expect(page({ ...defaultSettingsFor('cartas'), ...CARTAS_SETTINGS, ...v.patch }, { template: 'cartas' }), name).toBe(expected);
       // …y con los ajustes de antes (sin claves nuevas) y sin landing.
@@ -985,6 +993,25 @@ describe('seed por landing', () => {
     expect(await db.query('select button_id, landing_id, button_label from clicks')).toEqual([{ button_id: null, landing_id: exp.id, button_label: 'Tour' }]);
     const stats = await runWithLanding(exp, () => repo.getStats(30));
     expect(stats.ranking.find((r) => r.deleted)).toMatchObject({ label: 'Tour', clicks: 1 });
+  });
+
+  it('no duplica: si una landing aún tiene su dirección anterior, se detiene sin crear nada', async () => {
+    const db = await getDb();
+    // Como en producción antes de scripts/ajustar-landings.ts: el spa existe con su dirección anterior.
+    const vieja = await repo.createLanding({ slug: 'spa-hotel-paracas', name: 'Spa viejo', hotel: 'H1', template: 'cartas', position: 2 });
+    const snap = await snapshot(db);
+    const landingsAntes = await repo.listLandings();
+    const conSpa = { ...config, landings: [...config.landings!, { slug: 'aquspa', name: 'Spa', hotel: 'H1', template: 'cartas' as const }] };
+    await expect(seed({ ...quiet, source: { config: conSpa, dir } })).rejects.toThrow(
+      'Hay landings con su dirección anterior (/spa-hotel-paracas → /aquspa). Ejecuta primero `npx tsx scripts/ajustar-landings.ts aplicar --confirmar`',
+    );
+    expect(await repo.listLandings()).toEqual(landingsAntes);
+    expect(await snapshot(db)).toEqual(snap);
+    // Con la dirección ya cambiada (lo que hace el script), sí se carga normalmente y no se crea otra.
+    await repo.updateLanding(vieja.id, { slug: 'aquspa' });
+    await expect(seed({ ...quiet, source: { config: conSpa, dir } })).resolves.toBe(true); // existe vacía: se carga en ella
+    expect((await repo.listLandings()).filter((l) => l.slug === 'aquspa')).toHaveLength(1);
+    await db.query('delete from landings where id = $1', [vieja.id]);
   });
 
   it('rechaza configuraciones inválidas', async () => {

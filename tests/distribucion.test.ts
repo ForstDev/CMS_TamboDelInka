@@ -32,8 +32,7 @@ const cartas = (patch: Partial<Settings> | Record<string, unknown> = {}, { socia
 
 const CSS_CENTRADA = [
   '.dist-centrada .pagina { align-self: stretch; padding-bottom: 48px; }',
-  '.dist-centrada .logo { margin-bottom: 48px; }',
-  '.dist-centrada .menu { margin-top: auto; }',
+  '.dist-centrada .logo { margin-top: auto; margin-bottom: 28px; }',
   '.dist-centrada .pagina > :last-child { margin-bottom: auto; }',
 ];
 
@@ -80,7 +79,7 @@ describe('plantilla "cartas": distribución', () => {
     expect(fixture.slice(fixture.indexOf('<body>'))).toBe(before.slice(before.indexOf('<body>')));
   });
 
-  it('"centrada": clase en <body> y CSS del centrado (logo arriba, bloque al medio con márgenes automáticos)', () => {
+  it('"centrada": clase en <body> y CSS del centrado (logo y botones juntos, bloque al medio con márgenes automáticos)', () => {
     const html = cartas({ cartas_distribucion: 'centrada' });
     expect(html).toContain('\n<body class="dist-centrada">\n');
     for (const rule of CSS_CENTRADA) expect(html, rule).toContain(rule);
@@ -137,6 +136,13 @@ const FINALES: Record<string, string> = {
   aquspa: 'Hotel Paracas – Aqu Spa',
   'spa-palaciodelinka': 'Palacio del Inka – Andes Spirit Spa',
   'spa-tambodelinka': 'Tambo del Inka – Kallpa Spa',
+  // Hoteles de Lima (misma dirección que en intursa.com.pe).
+  'outlets-ac': 'AC Hotel Lima Miraflores – Outlets',
+  acminibar: 'AC Hotel Lima Miraflores – Minibar',
+  outletsaloft: 'Aloft Lima Miraflores – Outlets',
+  aloftminibar: 'Aloft Lima Miraflores – Minibar',
+  outletswestin: 'The Westin Lima – Outlets',
+  minibarwestin: 'The Westin Lima – Minibar',
 };
 const SPAS = ['aquspa', 'spa-palaciodelinka', 'spa-tambodelinka'];
 
@@ -196,7 +202,7 @@ describe('landings en client.json: direcciones iguales a intursa.com.pe', () => 
   const config = JSON.parse(fs.readFileSync(path.join(here, '..', 'clients', 'intursa', 'client.json'), 'utf8')) as ClientConfig;
   const bySlug = (slug: string) => config.landings!.find((l) => l.slug === slug);
 
-  it('las 9 landings tienen su dirección final; la por defecto es outlets-tambodelinka', () => {
+  it('las 15 landings tienen su dirección final; la por defecto es outlets-tambodelinka', () => {
     expect(() => configLandings(config)).not.toThrow();
     expect(config.landings!.map((l) => l.slug).sort()).toEqual(Object.keys(FINALES).sort());
     for (const [slug, name] of Object.entries(FINALES)) {
@@ -371,7 +377,7 @@ describe('panel: control de distribución', () => {
       ['compacta', 'Compacta'],
       ['centrada', 'Centrada'],
     ]);
-    expect(card).toContain('id="cartas-dist-hint">Centrada: deja el logo arriba y los botones al medio de la pantalla. Útil cuando hay pocos botones.</p>');
+    expect(card).toContain('id="cartas-dist-hint">Centrada: el logo y los botones quedan juntos, al medio de la pantalla. Útil cuando hay pocos botones.</p>');
     for (const id of ['cartas-dist', 'cartas-dist-label', 'cartas-dist-hint']) expect(cms.match(new RegExp(`id="${id}"`, 'g')), id).toHaveLength(1);
     const i = cms.indexOf('class="card dist-card"');
     expect(i).toBeGreaterThan(cms.indexOf('data-panel="diseno"'));

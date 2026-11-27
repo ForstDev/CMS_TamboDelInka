@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Button, Social } from './repo.js';
-import { BOTON_PESOS, CARTAS_DISTRIBUCIONES, defaultSettingsFor, type BotonPeso, type CartasDistribucion, type Settings, type Template } from './validation.js';
+import { BOTON_PESOS, CARTAS_DISTRIBUCIONES, CARTAS_FUENTES, defaultSettingsFor, type BotonPeso, type CartasDistribucion, type CartasFuente, type Settings, type Template } from './validation.js';
 import { NETWORKS } from './networks.js';
 import { env } from './env.js';
 
@@ -103,6 +103,39 @@ export function botonLsReposo(reposo: BotonPeso, hover: BotonPeso): string {
 /** Distribución de "cartas" (lista cerrada) a partir del ajuste; cualquier otro valor → 'compacta' (el diseño de siempre). */
 function distribucionCartas(value: unknown): CartasDistribucion {
   return (CARTAS_DISTRIBUCIONES as readonly unknown[]).includes(value) ? (value as CartasDistribucion) : 'compacta';
+}
+
+/**
+ * Fuentes de marca para los botones de "cartas" (archivos WOFF2 en public/assets/fonts/). 'poppins' no está:
+ * es la fuente de siempre y no añade CSS. Un solo peso por fuente, el que se usa en el botón (reposo y hover).
+ */
+export const FUENTES_BOTONES: Record<Exclude<CartasFuente, 'poppins'>, { familia: string; archivo: string; peso: number }> = {
+  montserrat: { familia: 'Montserrat', archivo: '/assets/fonts/montserrat/montserrat-500.woff2', peso: 500 }, // AC Hotels
+  'code-next': { familia: 'Code Next', archivo: '/assets/fonts/code-next/code-next-600.woff2', peso: 600 }, // Aloft
+  graphik: { familia: 'Graphik Starwood', archivo: '/assets/fonts/graphik-starwood/graphik-starwood-400.woff2', peso: 400 }, // Westin
+};
+
+/** Fuente de los botones de "cartas" (lista cerrada); cualquier otro valor → 'poppins' (la de siempre). */
+export function fuenteCartas(value: unknown): CartasFuente {
+  return (CARTAS_FUENTES as readonly unknown[]).includes(value) ? (value as CartasFuente) : 'poppins';
+}
+
+/** CSS (@font-face + regla de .boton) de la fuente de los botones; '' con 'poppins' (la página no cambia). */
+export function fuenteBotonesCss(value: unknown): string {
+  const key = fuenteCartas(value);
+  if (key === 'poppins') return '';
+  const f = FUENTES_BOTONES[key];
+  return [
+    '  @font-face {',
+    `    font-family: "${f.familia}";`,
+    `    src: url("${f.archivo}") format("woff2");`,
+    `    font-weight: ${f.peso};`,
+    '    font-style: normal;',
+    '    font-display: swap;',
+    '  }',
+    `  .boton { font-family: "${f.familia}", "Poppins", Arial, sans-serif; font-weight: ${f.peso}; }`,
+    '',
+  ].join('\n');
 }
 
 const LOGO_POSITIONS = {
@@ -205,8 +238,12 @@ export function renderPage({ settings, buttons, socials, landing }: PageData, op
     botones_html,
     redes_html,
     redes_titulo_html: redesTituloHtml(s.redes_titulo),
-    // Arrastre del logo: solo en la vista previa del panel y solo en "experiencias" (nunca en la página pública).
-    preview_script_html: opts.preview && template === 'experiencias' ? PREVIEW_DRAG_SCRIPT : '',
+    // CSS del ajuste fino del logo en "cartas": solo si hay desplazamiento o en la vista previa (para poder arrastrar).
+    // Fuente de marca de los botones en "cartas": solo si no es la de siempre (Poppins).
+    fuente_botones_css: template === 'cartas' ? fuenteBotonesCss(s.cartas_fuente) : '',
+    logo_x_activo: template === 'cartas' && (opts.preview || intSetting(s.logo_x, -50, 50, 0) !== 0) ? '1' : '',
+    // Arrastre del logo: solo en la vista previa del panel, en todas las plantillas (nunca en la página pública).
+    preview_script_html: opts.preview ? PREVIEW_DRAG_SCRIPT : '',
   });
 
   const head: string[] = [];
