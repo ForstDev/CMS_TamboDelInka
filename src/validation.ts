@@ -114,7 +114,8 @@ export const settingsSchema = z.object({
   boton_peso_hover: z.enum(BOTON_PESOS, { error: 'El grosor del texto del botón al pasar el mouse debe ser 300, 400, 500, 600, 700 o 900' }),
   // El oscurecido de "experiencias" es de diseño fijo (no editable). Las filas antiguas
   // fondo_oscurecer / fondo_oscurecer_arriba de landing_settings se ignoran al leer (repo.getSettings).
-  // Solo "experiencias": cuántos botones caben por fila en la vista de PC (≥ 768 px; en celular van apilados).
+  // Cuántos botones caben por fila en la vista de PC (≥ 768 px; en celular van apilados). Por defecto: 3 en
+  // "experiencias" y 2 en "cartas" (el diseño de siempre).
   botones_por_fila: intText(1, 5, 'Los botones por fila deben ser un número entre 1 y 5'),
   // Solo "cartas": distribución vertical (lista cerrada; ver CARTAS_DISTRIBUCIONES).
   cartas_distribucion: z.enum(CARTAS_DISTRIBUCIONES, { error: 'La distribución debe ser «compacta» o «centrada»' }),
@@ -168,7 +169,7 @@ export const DEFAULT_SETTINGS: Settings = {
 
 // "cartas" = la página original (logo de 260 px = el max-width de siempre).
 export const TEMPLATE_DEFAULTS: Record<Template, Partial<Settings>> = {
-  cartas: { logo_ancho: '260' },
+  cartas: { logo_ancho: '260', botones_por_fila: '2' },
   experiencias: {
     logo_ancho: '150',
     color_fondo: '#2b2b2b',

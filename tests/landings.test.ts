@@ -471,7 +471,7 @@ describe('varias landings: API, rutas y aislamiento', () => {
     const before = (await asB(agent.get('/api/cms/state'))).body;
     expect(before.settings).toMatchObject({ botones_por_fila: '3' });
     expect(before.defaults).toMatchObject({ botones_por_fila: '3' });
-    expect((await agent.get('/api/cms/state')).body.settings).toMatchObject({ botones_por_fila: '3' });
+    expect((await agent.get('/api/cms/state')).body.settings).toMatchObject({ botones_por_fila: '2' });
     const prev0 = (await asB(agent.get('/api/cms/preview'))).text;
     expect(prev0).toContain('--cols: 3;');
 
@@ -483,11 +483,12 @@ describe('varias landings: API, rutas y aislamiento', () => {
     const ok = await asB(agent.patch('/api/cms/settings')).send({ botones_por_fila: '4' });
     expect(ok.status).toBe(200);
     expect((await asB(agent.get('/api/cms/state'))).body.settings).toMatchObject({ botones_por_fila: '4' });
-    expect((await agent.get('/api/cms/state')).body.settings).toMatchObject({ botones_por_fila: '3' }); // otra landing intacta
+    expect((await agent.get('/api/cms/state')).body.settings).toMatchObject({ botones_por_fila: '2' }); // otra landing (cartas) intacta
 
-    // Se ve en la vista previa y en la página pública de Experiencias; cartas no lo usa.
+    // Se ve en la vista previa y en la página pública de Experiencias; cartas (otra landing) no cambia.
     for (const html of [(await asB(agent.get('/api/cms/preview'))).text, (await request(app).get('/exp-demo')).text]) expect(html).toContain('--cols: 4;');
     expect((await agent.get('/api/cms/preview')).text).not.toContain('--cols');
+    expect((await agent.get('/api/cms/preview')).text).not.toContain('repeat(');
 
     for (const bad of ['0', '6', '-1', '1.5', 'x', '', '3 botones']) {
       const r = await asB(agent.patch('/api/cms/settings')).send({ botones_por_fila: bad });
@@ -871,14 +872,15 @@ describe('validación de los ajustes nuevos', () => {
   });
 
   it('valores por defecto por plantilla', () => {
-    expect(defaultSettingsFor('cartas')).toEqual({ ...DEFAULT_SETTINGS, logo_ancho: '260' });
+    expect(defaultSettingsFor('cartas')).toEqual({ ...DEFAULT_SETTINGS, logo_ancho: '260', botones_por_fila: '2' });
     expect(defaultSettingsFor('cartas')).toMatchObject({ logo_posicion: 'center', logo_x: '0', fondo_foco_x: '50', fondo_foco_y: '50' });
     expect(defaultSettingsFor('experiencias').logo_x).toBe('0');
     expect(DEFAULT_SETTINGS.logo_x).toBe('0');
+    expect(defaultSettingsFor('cartas')).toMatchObject({ botones_por_fila: '2' });
+    expect(defaultSettingsFor('experiencias')).toMatchObject({ botones_por_fila: '3' });
     for (const t of ['cartas', 'experiencias'] as const) {
       expect(defaultSettingsFor(t), t).toMatchObject({ texto_titulo_escala: '100', texto_botones_escala: '100', texto_redes_escala: '100', degradado_celular: '70' });
       expect(defaultSettingsFor(t), t).toMatchObject({ boton_peso_reposo: '400', boton_peso_hover: '700' });
-      expect(defaultSettingsFor(t), t).toMatchObject({ botones_por_fila: '3' });
     }
     for (const t of ['cartas', 'experiencias'] as const) {
       expect(defaultSettingsFor(t), t).not.toHaveProperty('fondo_oscurecer');

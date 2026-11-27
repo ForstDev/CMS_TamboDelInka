@@ -279,6 +279,10 @@ Si alguna landing de `client.json` todavía existe en la base con su **direcció
 `src/legacy.ts`), `npm run setup` se detiene sin cambiar nada: primero hay que ejecutar `scripts/ajustar-landings.ts`
 (si no, la crearía duplicada).
 
+**Botones por fila en PC:** `"botones_por_fila"` (1…5) en `settings` o en el panel (pestaña Botones), en todas las
+plantillas. Por defecto 3 en `experiencias` y 2 en `cartas` (el diseño de siempre: con 2 la página no cambia). En celular
+siempre van uno debajo de otro.
+
 **Fuente de los botones (solo `cartas`):** `"cartas_fuente"` en `settings` (o en el panel, Diseño › Colores): `poppins`
 (la de siempre), `montserrat` (AC), `code-next` (Aloft) o `graphik` (Westin). Los WOFF2 están en `public/assets/fonts/`
 (los originales OTF, en `clients/intursa/seed/fuentes/`, que no se sube a git). Con `poppins` la página queda igual que antes.

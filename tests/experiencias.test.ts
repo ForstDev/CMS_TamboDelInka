@@ -827,7 +827,7 @@ describe('experiencias: botones por fila en PC', () => {
     for (const v of ['1', '2', '3', '4', '5']) expect(settingsPatch.safeParse({ botones_por_fila: v }).success, v).toBe(true);
     for (const v of ['0', '6', '-1', '1.5', 'x', '', '3 botones']) expect(settingsPatch.safeParse({ botones_por_fila: v }).success, JSON.stringify(v)).toBe(false);
     expect(defaultSettingsFor('experiencias').botones_por_fila).toBe('3');
-    expect(defaultSettingsFor('cartas').botones_por_fila).toBe('3');
+    expect(defaultSettingsFor('cartas').botones_por_fila).toBe('2'); // outlets y spas: el diseño de siempre (2 por fila)
   });
 
   it('layoutValues.botones_por_fila_css: entero 1…5; basura o ausente → 3', () => {
@@ -883,18 +883,41 @@ describe('experiencias: botones por fila en PC', () => {
     }
   });
 
-  it('cartas ignora el ajuste', () => {
-    const cartas = (over: Partial<Settings>) =>
-      renderPage({ settings: { ...defaultSettingsFor('cartas'), ...over }, buttons: BUTTONS, socials: SOCIALS, landing: { template: 'cartas' } }, {});
+  it('cartas: con 2 (o sin la clave, o basura) la página es la de siempre; con otro valor, solo cambia el CSS de PC', () => {
+    const cartas = (over: Record<string, unknown>) =>
+      renderPage({ settings: { ...defaultSettingsFor('cartas'), ...over } as Settings, buttons: BUTTONS, socials: SOCIALS, landing: { template: 'cartas' } }, {});
     const base = cartas({});
-    expect(cartas({ botones_por_fila: '5' })).toBe(base);
-    for (const marca of ['--cols', 'botones_por_fila']) expect(base).not.toContain(marca);
+    expect(cartas({ botones_por_fila: '2' })).toBe(base);
+    expect(cartas({ botones_por_fila: 'x' })).toBe(base);
+    expect(cartas({ botones_por_fila: undefined })).toBe(base);
+    for (const marca of ['--cols', 'repeat(', 'Botones por fila']) expect(base).not.toContain(marca);
+    const bloque = (n: number, menu: number, pagina: number) =>
+      `
+  /* ---------- Botones por fila en PC ---------- */
+  @media (min-width: 768px) {
+    .pagina { max-width: ${pagina}px; }
+    .menu { max-width: ${menu}px; grid-template-columns: repeat(${n}, 1fr); }
+    .linea { max-width: ${menu}px; }
+    .boton { display: flex; align-items: center; justify-content: center; }
+  }
+`;
+    for (const [n, menu, pagina] of [[1, 400, 420], [3, 1020, 1060], [4, 1360, 1400], [5, 1700, 1740]] as const) {
+      const html = cartas({ botones_por_fila: String(n) });
+      expect(html, String(n)).toContain(bloque(n, menu, pagina));
+      // Va después de la regla de PC de siempre (para ganarle) y antes de </style>; quitándolo queda la página de siempre.
+      expect(html.indexOf('repeat(')).toBeGreaterThan(html.indexOf('grid-template-columns: 1fr 1fr;'));
+      expect(html.indexOf('repeat(')).toBeLessThan(html.indexOf('</style>'));
+      expect(html.replace(bloque(n, menu, pagina), '')).toBe(base);
+    }
+    // Solo en PC: el CSS nuevo va dentro de @media (min-width: 768px); fuera de ella no hay reglas nuevas.
+    const html4 = cartas({ botones_por_fila: '4' });
+    expect(html4.replace(/@media \(min-width: 768px\) \{[\s\S]*?\n  \}\n/g, '')).not.toContain('1360px');
   });
 
-  it('panel: tarjeta solo para experiencias en la pestaña Botones, con grupo de 5 opciones y pista', () => {
+  it('panel: tarjeta para todas las plantillas en la pestaña Botones, con grupo de 5 opciones y pista', () => {
     const cms = readFileSync(join(process.cwd(), 'templates', 'cms.html'), 'utf8').replace(/\r\n/g, '\n');
     const js = readFileSync(join(process.cwd(), 'public', 'assets', 'cms', 'cms.js'), 'utf8');
-    const card = cms.match(/<article class="card cols-card" data-only="experiencias">[\s\S]*?<\/article>/)![0];
+    const card = cms.match(/<article class="card cols-card">[\s\S]*?<\/article>/)![0];
     expect(card).toContain('Botones por fila en PC');
     expect(card).toContain('id="btn-cols-label"');
     expect(card).toContain('role="radiogroup" aria-labelledby="btn-cols-label" aria-describedby="btn-cols-hint" id="btn-cols"');
